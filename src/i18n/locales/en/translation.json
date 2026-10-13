@@ -36,7 +36,7 @@
     "output": "Output",
     "advanced": "Advanced",
     "postProcessing": "Post Process",
-"addonsGroup": "Add-ons",
+    "addonsGroup": "Add-ons",
     "enableInAdvancedHint": "Enable in Advanced",
     "history": "History",
     "debug": "Debug",
@@ -265,7 +265,8 @@
           "reset": "Failed to reset shortcut to original value"
         },
         "unbound": "Not bound",
-        "recordHint": "Click to record a new shortcut"
+        "recordHint": "Click to record a new shortcut",
+        "gatedHint": "Turn on {{action}} to bind a key"
       },
       "language": {
         "title": "Language",
@@ -315,7 +316,7 @@
       "searchPlaceholder": "Search commands",
       "resetAll": "Reset all commands",
       "resetRow": "Reset to default",
-      "defaultPhrasesNote": "Default phrases are the English words the recognizer listens for. Add your own phrase in any language on any row.",
+      "defaultPhrasesNote": "Default phrases are the English words the recognizer listens for, plus built-in Hindi and Chinese aliases. Add your own phrase in any language on any row.",
       "addPhrase": "Add",
       "removePhrase": "Remove {{phrase}}",
       "placeholder": "Add a phrase",
@@ -405,7 +406,7 @@
       "addFromHf": {
         "title": "Add model from Hugging Face",
         "description": "Paste a public repo URL or owner/repo, for example https://huggingface.co/owner/repo.",
-        "placeholder": "https://huggingface.co/owner/repo or owner/repo",
+        "placeholder": "owner/repo",
         "add": "Add",
         "cancel": "Cancel",
         "pickFile": "Choose a file from {{repo}}:",
@@ -982,7 +983,8 @@
         "copied": "Copied",
         "clearConfirm": "Clear the captured lines from this view? The log file on disk is kept.",
         "lineCount": "{{count}} lines",
-        "empty": "Waiting for logs… Entries appear here as the app emits them."
+        "empty": "Waiting for logs… Entries appear here as the app emits them.",
+        "clearConfirmTitle": "Clear captured lines?"
       },
       "updateChecks": {
         "label": "Check for Updates",
@@ -1171,7 +1173,7 @@
       },
       "log": {
         "title": "Notification log",
-        "description": "The last 50 error and outcome notices. New entries are recorded only while system notifications are on.",
+        "description": "The last 50 error and outcome notices.",
         "empty": "No notifications yet.",
         "clear": "Clear all"
       }
@@ -1271,6 +1273,7 @@
     "loading": "Loading...",
     "delete": "Delete",
     "close": "Close",
+    "cancel": "Cancel",
     "open": "Open",
     "copy": "Copy",
     "clear": "Clear",

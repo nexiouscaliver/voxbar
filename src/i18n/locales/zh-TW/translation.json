@@ -36,7 +36,7 @@
     "output": "輸出",
     "advanced": "進階",
     "postProcessing": "後處理",
-"addonsGroup": "附加元件",
+    "addonsGroup": "附加元件",
     "enableInAdvancedHint": "在進階設定中啟用",
     "history": "歷史紀錄",
     "debug": "偵錯",
@@ -265,7 +265,8 @@
           "reset": "無法將快捷鍵重設為原始值"
         },
         "unbound": "未綁定",
-        "recordHint": "點按來錄製新的快速鍵"
+        "recordHint": "點按來錄製新的快速鍵",
+        "gatedHint": "開啟{{action}}後才能綁定按鍵"
       },
       "language": {
         "title": "語言",
@@ -315,7 +316,7 @@
       "searchPlaceholder": "搜尋命令",
       "resetAll": "重設所有命令",
       "resetRow": "還原預設",
-      "defaultPhrasesNote": "預設短語是辨識器監聽的英文單字。您可以在任意行新增任意語言的自訂短語。",
+      "defaultPhrasesNote": "預設短語是辨識器監聽的英文單字，外加內建的印地語和中文別名。你可以在任意行用任意語言新增自己的短語。",
       "addPhrase": "新增",
       "removePhrase": "移除 {{phrase}}",
       "placeholder": "新增片語",
@@ -404,7 +405,7 @@
       "addFromHf": {
         "title": "從 Hugging Face 新增模型",
         "description": "貼上公開儲存庫連結或 owner/repo，例如 https://huggingface.co/owner/model。",
-        "placeholder": "https://huggingface.co/owner/repo 或 owner/repo",
+        "placeholder": "owner/repo",
         "add": "新增",
         "cancel": "取消",
         "pickFile": "從 {{repo}} 中選擇一個檔案:",
@@ -982,7 +983,8 @@
         "copied": "已複製",
         "clearConfirm": "清除此檢視中擷取的行？磁碟上的日誌檔會保留。",
         "lineCount": "{{count}} 行",
-        "empty": "正在等待日誌…… 應用程式產生日誌時會顯示於此。"
+        "empty": "正在等待日誌…… 應用程式產生日誌時會顯示於此。",
+        "clearConfirmTitle": "清除已擷取的行？"
       },
       "updateChecks": {
         "label": "檢查更新",
@@ -1171,7 +1173,7 @@
       },
       "log": {
         "title": "通知記錄",
-        "description": "最近 50 筆錯誤與結果通知。僅在系統通知開啟時記錄新項目。",
+        "description": "最近 50 筆錯誤與結果通知。",
         "empty": "目前沒有通知。",
         "clear": "全部清除"
       }
@@ -1267,6 +1269,7 @@
     "loading": "載入中...",
     "delete": "刪除",
     "close": "關閉",
+    "cancel": "取消",
     "open": "開啟",
     "copy": "複製",
     "clear": "清除",

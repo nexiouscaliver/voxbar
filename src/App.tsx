@@ -145,10 +145,38 @@ function App() {
   // exists once onboarding is out of the way), so the scroll-tracking effect
   // below attaches to the real node instead of running once against null.
   const [settingsShellMounted, setSettingsShellMounted] = useState(false);
+  // Bottom offset for the toast stack: viewport edge plus the footer's
+  // rendered height plus a 36px clearance, so the stack floats as an inset
+  // layer that clears the status line with margin and its bottom-left
+  // rounded corner never slices the section-header line at the pane's
+  // resting scroll (at a bare 16px gap the corner overlapped the header
+  // glyphs by ~11px in the captured states).
+  // While no footer is mounted (onboarding, debug previews) the stack keeps
+  // the bare 16px viewport clearance.
+  const [toastOffset, setToastOffset] = useState(16);
   const isShowingOnboarding =
     onboardingPreview !== null ||
     onboardingStep === "accessibility" ||
     onboardingStep === "model";
+
+  useEffect(() => {
+    // onboardingStep rides the deps: it flips null -> done after the async
+    // boot check, which is the moment the footer (and the main app) first
+    // mount. Keying on isShowingOnboarding alone would miss that transition
+    // (both states read false) and the stack would keep the bare viewport
+    // clearance forever.
+    if (isShowingOnboarding || onboardingStep === null) {
+      setToastOffset(16);
+      return;
+    }
+    const footer = document.getElementById("app-footer");
+    if (!footer) return;
+    const measure = () => setToastOffset(footer.offsetHeight + 36);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(footer);
+    return () => observer.disconnect();
+  }, [isShowingOnboarding, onboardingStep]);
 
   // Classic scrollbars consume layout space. Reserve a matching gutter on the
   // opposite edge while onboarding is visible so its content stays centered in
@@ -769,9 +797,11 @@ function App() {
       // Every toast carries its own dismiss control; without it a toast
       // that covers content is un-dismissable until its timer runs out.
       closeButton
-      // 16px clearance above the status bar so the stack floats as an
-      // inset layer instead of sitting on the status text.
-      offset={16}
+      // Anchored above the status bar: the offset is the footer's measured
+      // height plus a 36px clearance (toastOffset), so the stack floats as
+      // an inset layer and never covers the version label or the pane
+      // content behind the footer line.
+      offset={toastOffset}
       toastOptions={{
         unstyled: true,
         classNames: {

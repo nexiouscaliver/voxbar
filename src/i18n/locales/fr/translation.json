@@ -36,7 +36,7 @@
     "output": "Sortie",
     "advanced": "Avancé",
     "postProcessing": "Post-traitement",
-"addonsGroup": "Extensions",
+    "addonsGroup": "Extensions",
     "enableInAdvancedHint": "Activez-le dans Avancé",
     "history": "Historique",
     "debug": "Débogage",
@@ -243,7 +243,7 @@
       "addFromHf": {
         "title": "Ajouter un modèle depuis Hugging Face",
         "description": "Collez une URL de dépôt public ou propriétaire/dépôt, par exemple https://huggingface.co/proprietaire/modele.",
-        "placeholder": "https://huggingface.co/proprietaire/modele ou proprietaire/modele",
+        "placeholder": "owner/repo",
         "add": "Ajouter",
         "cancel": "Annuler",
         "pickFile": "Choisissez un fichier dans {{repo}} :",
@@ -318,7 +318,8 @@
           "reset": "Échec de la réinitialisation du raccourci à sa valeur d'origine"
         },
         "unbound": "Non assigné",
-        "recordHint": "Cliquez pour enregistrer un nouveau raccourci"
+        "recordHint": "Cliquez pour enregistrer un nouveau raccourci",
+        "gatedHint": "Activez {{action}} pour associer une touche"
       },
       "language": {
         "title": "Langue",
@@ -368,7 +369,7 @@
       "searchPlaceholder": "Rechercher des commandes",
       "resetAll": "Réinitialiser toutes les commandes",
       "resetRow": "Réinitialiser",
-      "defaultPhrasesNote": "Les phrases par défaut sont les mots anglais que le module de reconnaissance écoute. Ajoutez votre propre phrase dans n'importe quelle langue sur n'importe quelle ligne.",
+      "defaultPhrasesNote": "Les phrases par défaut sont les mots anglais écoutés par lereconnaissance, plus les alias intégrés en hindi et chinois. Ajoutez votrepropre phrase dans n'importe quelle langue sur n'importe quelle ligne.",
       "addPhrase": "Ajouter",
       "removePhrase": "Retirer {{phrase}}",
       "placeholder": "Ajouter une phrase",
@@ -982,7 +983,8 @@
         "copied": "Copié",
         "clearConfirm": "Effacer les lignes capturées de cette vue ? Le fichier journal sur le disque est conservé.",
         "lineCount": "{{count}} lignes",
-        "empty": "En attente de journaux… Les entrées apparaîtront ici au fur et à mesure que l'application les émet."
+        "empty": "En attente de journaux… Les entrées apparaîtront ici au fur et à mesure que l'application les émet.",
+        "clearConfirmTitle": "Effacer les lignes capturées ?"
       },
       "updateChecks": {
         "label": "Vérifier les mises à jour",
@@ -1171,7 +1173,7 @@
       },
       "log": {
         "title": "Journal des notifications",
-        "description": "Les 50 derniers avis d'erreurs et de résultats. De nouvelles entrées ne sont enregistrées que lorsque les notifications système sont activées.",
+        "description": "Les 50 derniers avis d'erreurs et de résultats.",
         "empty": "Aucune notification pour l'instant.",
         "clear": "Tout effacer"
       }
@@ -1267,6 +1269,7 @@
     "loading": "Chargement...",
     "delete": "Supprimer",
     "close": "Fermer",
+    "cancel": "Annuler",
     "open": "Ouvrir",
     "copy": "Copier",
     "clear": "Effacer",

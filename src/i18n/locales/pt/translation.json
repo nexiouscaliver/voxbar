@@ -36,7 +36,7 @@
     "output": "Saída",
     "advanced": "Avançado",
     "postProcessing": "Pós-Processamento",
-"addonsGroup": "Extensões",
+    "addonsGroup": "Extensões",
     "enableInAdvancedHint": "Ative em Avançado",
     "history": "Histórico",
     "debug": "Depuração",
@@ -265,7 +265,8 @@
           "reset": "Falha ao redefinir atalho para o valor original"
         },
         "unbound": "Não atribuído",
-        "recordHint": "Clique para gravar um novo atalho"
+        "recordHint": "Clique para gravar um novo atalho",
+        "gatedHint": "Ative {{action}} para atribuir uma tecla"
       },
       "language": {
         "title": "Idioma",
@@ -315,7 +316,7 @@
       "searchPlaceholder": "Pesquisar comandos",
       "resetAll": "Redefinir todos os comandos",
       "resetRow": "Redefinir",
-      "defaultPhrasesNote": "As frases padrão são as palavras em inglês que o reconhecedor escuta. Adicione sua própria frase em qualquer idioma em qualquer linha.",
+      "defaultPhrasesNote": "As frases padrão são as palavras inglesas que o reconhecedor escuta,mais os apelidos integrados em híndi e chinês. Adicione a sua própria fraseem qualquer idioma em qualquer linha.",
       "addPhrase": "Adicionar",
       "removePhrase": "Remover {{phrase}}",
       "placeholder": "Adicionar uma frase",
@@ -404,7 +405,7 @@
       "addFromHf": {
         "title": "Adicionar modelo do Hugging Face",
         "description": "Cole uma URL de repositório público ou proprietário/repositório, por exemplo https://huggingface.co/proprietario/modelo.",
-        "placeholder": "https://huggingface.co/proprietario/modelo ou proprietario/modelo",
+        "placeholder": "owner/repo",
         "add": "Adicionar",
         "cancel": "Cancelar",
         "pickFile": "Escolha um arquivo de {{repo}}:",
@@ -982,7 +983,8 @@
         "copied": "Copiado",
         "clearConfirm": "Limpar as linhas capturadas desta vista? O ficheiro de registro no disco é mantido.",
         "lineCount": "{{count}} linhas",
-        "empty": "Aguardando logs… As entradas aparecem aqui à medida que o app as emite."
+        "empty": "Aguardando logs… As entradas aparecem aqui à medida que o app as emite.",
+        "clearConfirmTitle": "Limpar as linhas capturadas?"
       },
       "updateChecks": {
         "label": "Verificar Atualizações",
@@ -1171,7 +1173,7 @@
       },
       "log": {
         "title": "Registo de notificações",
-        "description": "As últimas 50 notificações de erros e resultados. Novas entradas só são registadas enquanto as notificações do sistema estiverem ativadas.",
+        "description": "As últimas 50 notificações de erros e resultados.",
         "empty": "Ainda não há notificações.",
         "clear": "Limpar tudo"
       }
@@ -1267,6 +1269,7 @@
     "loading": "Carregando...",
     "delete": "Excluir",
     "close": "Fechar",
+    "cancel": "Cancelar",
     "open": "Abrir",
     "copy": "Copiar",
     "clear": "Limpar",

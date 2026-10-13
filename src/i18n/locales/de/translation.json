@@ -36,7 +36,7 @@
     "output": "Ausgabe",
     "advanced": "Erweitert",
     "postProcessing": "Nachbearbeitung",
-"addonsGroup": "Add-ons",
+    "addonsGroup": "Add-ons",
     "enableInAdvancedHint": "Unter Erweitert aktivieren",
     "history": "Verlauf",
     "debug": "Debug",
@@ -243,7 +243,7 @@
       "addFromHf": {
         "title": "Modell von Hugging Face hinzufügen",
         "description": "Füge eine öffentliche Repo-URL oder owner/repo ein, zum Beispiel https://huggingface.co/owner/repo.",
-        "placeholder": "https://huggingface.co/owner/repo oder owner/repo",
+        "placeholder": "owner/repo",
         "add": "Hinzufügen",
         "cancel": "Abbrechen",
         "pickFile": "Wähle eine Datei aus {{repo}}:",
@@ -318,7 +318,8 @@
           "reset": "Tastenkürzel konnte nicht auf Originalwert zurückgesetzt werden"
         },
         "unbound": "Nicht zugewiesen",
-        "recordHint": "Klicken, um eine neue Tastenkombination aufzunehmen"
+        "recordHint": "Klicken, um eine neue Tastenkombination aufzunehmen",
+        "gatedHint": "Aktivieren Sie {{action}}, um eine Taste zuzuordnen"
       },
       "language": {
         "title": "Sprache",
@@ -368,7 +369,7 @@
       "searchPlaceholder": "Befehle suchen",
       "resetAll": "Alle Befehle zurücksetzen",
       "resetRow": "Auf Standard zurücksetzen",
-      "defaultPhrasesNote": "Die Standardphrasen sind die englischen Wörter, die die Erkennung abhört. Füge auf jeder Zeile eine eigene Phrase in beliebiger Sprache hinzu.",
+      "defaultPhrasesNote": "Die Standardphrasen sind die englischen Wörter, auf die die Erkennunghört, plus eingebaute Hindi- und chinesische Aliase. Eigene Phrasen können inbeliebiger Sprache in jeder Zeile hinzugefügt werden.",
       "addPhrase": "Hinzufügen",
       "removePhrase": "{{phrase}} entfernen",
       "placeholder": "Phrase hinzufügen",
@@ -982,7 +983,8 @@
         "copied": "Kopiert",
         "clearConfirm": "Die erfassten Zeilen aus dieser Ansicht löschen? Die Protokolldatei auf der Festplatte bleibt erhalten.",
         "lineCount": "{{count}} Zeilen",
-        "empty": "Warte auf Logs … Einträge erscheinen hier, sobald die App sie ausgibt."
+        "empty": "Warte auf Logs … Einträge erscheinen hier, sobald die App sie ausgibt.",
+        "clearConfirmTitle": "Erfasste Zeilen löschen?"
       },
       "updateChecks": {
         "label": "Nach Updates suchen",
@@ -1171,7 +1173,7 @@
       },
       "log": {
         "title": "Benachrichtigungsprotokoll",
-        "description": "Die letzten 50 Fehler- und Ergebnismeldungen. Neue Einträge werden nur erfasst, solange Systembenachrichtigungen aktiviert sind.",
+        "description": "Die letzten 50 Fehler- und Ergebnismeldungen.",
         "empty": "Noch keine Benachrichtigungen.",
         "clear": "Alle leeren"
       }
@@ -1267,6 +1269,7 @@
     "loading": "Wird geladen...",
     "delete": "Löschen",
     "close": "Schließen",
+    "cancel": "Abbrechen",
     "open": "Öffnen",
     "copy": "Kopieren",
     "clear": "Leeren",

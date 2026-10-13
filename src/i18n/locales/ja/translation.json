@@ -36,7 +36,7 @@
     "output": "出力",
     "advanced": "詳細設定",
     "postProcessing": "後処理",
-"addonsGroup": "アドオン",
+    "addonsGroup": "アドオン",
     "enableInAdvancedHint": "詳細設定で有効にできます",
     "history": "履歴",
     "debug": "デバッグ",
@@ -243,7 +243,7 @@
       "addFromHf": {
         "title": "Hugging Face からモデルを追加",
         "description": "公開リポジトリの URL、または owner/repo を貼り付けてください。例: https://huggingface.co/owner/model.",
-        "placeholder": "https://huggingface.co/owner/model または owner/repo",
+        "placeholder": "owner/repo",
         "add": "追加",
         "cancel": "キャンセル",
         "pickFile": "{{repo}} からファイルを選択してください:",
@@ -318,7 +318,8 @@
           "reset": "ショートカットを元の値にリセットできませんでした"
         },
         "unbound": "未割り当て",
-        "recordHint": "クリックして新しいショートカットを記録"
+        "recordHint": "クリックして新しいショートカットを記録",
+        "gatedHint": "{{action}}をオンにするとキーを割り当てられます"
       },
       "language": {
         "title": "言語",
@@ -368,7 +369,7 @@
       "searchPlaceholder": "コマンドを検索",
       "resetAll": "すべてのコマンドをリセット",
       "resetRow": "デフォルトに戻す",
-      "defaultPhrasesNote": "デフォルトのフレーズは認識エンジンが聞き取る英語の単語です。任意の行で任意の言語のフレーズを追加できます。",
+      "defaultPhrasesNote": "デフォルトのフレーズは、認識器が聴き取る英語の単語で、組み込みのヒンディー語・中国語のエイリアスを含みます。どの行にも任意の言語で自分のフレーズを追加できます。",
       "addPhrase": "追加",
       "removePhrase": "{{phrase}} を削除",
       "placeholder": "フレーズを追加",
@@ -982,7 +983,8 @@
         "copied": "コピーしました",
         "clearConfirm": "このビューのキャプチャー行を消去しますか？ディスク上のログファイルは残ります。",
         "lineCount": "{{count}}行",
-        "empty": "ログを待機中… アプリが出力すると、ここにエントリが表示されます。"
+        "empty": "ログを待機中… アプリが出力すると、ここにエントリが表示されます。",
+        "clearConfirmTitle": "キャプチャした行を消去しますか？"
       },
       "updateChecks": {
         "label": "アップデートを確認",
@@ -1171,7 +1173,7 @@
       },
       "log": {
         "title": "通知ログ",
-        "description": "直近50件のエラーと結果の通知。新しい記録はシステム通知が有効な間だけ行われます。",
+        "description": "直近50件のエラーと結果の通知。",
         "empty": "通知はまだありません。",
         "clear": "すべてクリア"
       }
@@ -1267,6 +1269,7 @@
     "loading": "読み込み中…",
     "delete": "削除",
     "close": "閉じる",
+    "cancel": "キャンセル",
     "open": "開く",
     "copy": "コピー",
     "clear": "クリア",

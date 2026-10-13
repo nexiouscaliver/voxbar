@@ -36,7 +36,7 @@
     "output": "Output",
     "advanced": "Avanceret",
     "postProcessing": "Efterbehandling",
-"addonsGroup": "Udvidelser",
+    "addonsGroup": "Udvidelser",
     "enableInAdvancedHint": "Aktivér under Avanceret",
     "history": "Historik",
     "debug": "Fejlfinding",
@@ -265,7 +265,8 @@
           "reset": "Kunne ikke nulstille genvej til oprindelig indstilling"
         },
         "unbound": "Ikke tildelt",
-        "recordHint": "Klik for at optage en ny genvej"
+        "recordHint": "Klik for at optage en ny genvej",
+        "gatedHint": "Slå {{action}} til for at binde en tast"
       },
       "language": {
         "title": "Sprog",
@@ -315,7 +316,7 @@
       "searchPlaceholder": "Søg i kommandoer",
       "resetAll": "Nulstil alle kommandoer",
       "resetRow": "Nulstil",
-      "defaultPhrasesNote": "Standardfraserne er de engelske ord, genkenderen lytter efter. Tilføj din egen frase på ethvert sprog på enhver række.",
+      "defaultPhrasesNote": "Standardfraserne er de engelske ord, genkenderen lytter efter, plust_indsatte hindi- og kinesiske aliaser. Tilføj din egen frase på ethvert sprog på enhver række.",
       "addPhrase": "Tilføj",
       "removePhrase": "Fjern {{phrase}}",
       "placeholder": "Tilføj en frase",
@@ -404,7 +405,7 @@
       "addFromHf": {
         "title": "Tilføj model fra Hugging Face",
         "description": "Indsæt en offentlig repo-URL eller ejer/repo, for eksempel https://huggingface.co/ejer/model.",
-        "placeholder": "https://huggingface.co/ejer/model eller ejer/model",
+        "placeholder": "owner/repo",
         "add": "Tilføj",
         "cancel": "Annuller",
         "pickFile": "Vælg en fil fra {{repo}}:",
@@ -982,7 +983,8 @@
         "copied": "Kopieret",
         "clearConfirm": "Ryd de opsamlede linjer i denne visning? Logfilen på disken bevares.",
         "lineCount": "{{count}} linjer",
-        "empty": "Venter på logs… Poster vises her, når appen udsender dem."
+        "empty": "Venter på logs… Poster vises her, når appen udsender dem.",
+        "clearConfirmTitle": "Ryd opsamlede linjer?"
       },
       "updateChecks": {
         "label": "Tjek for opdateringer",
@@ -1171,7 +1173,7 @@
       },
       "log": {
         "title": "Underretningslog",
-        "description": "De seneste 50 fejl- og resultatmeddelelser. Nye poster registreres kun, mens systemunderretninger er slået til.",
+        "description": "De seneste 50 fejl- og resultatmeddelelser.",
         "empty": "Ingen underretninger endnu.",
         "clear": "Ryd alle"
       }
@@ -1271,6 +1273,7 @@
     "loading": "Indlæser...",
     "delete": "Slet",
     "close": "Luk",
+    "cancel": "Annuller",
     "open": "Åbn",
     "copy": "Kopiér",
     "clear": "Ryd",

@@ -36,7 +36,7 @@
     "output": "Đầu ra",
     "advanced": "Nâng cao",
     "postProcessing": "Xử lý sau",
-"addonsGroup": "Tiện ích",
+    "addonsGroup": "Tiện ích",
     "enableInAdvancedHint": "Bật trong Nâng cao",
     "history": "Lịch sử",
     "debug": "Gỡ lỗi",
@@ -243,7 +243,7 @@
       "addFromHf": {
         "title": "Thêm mô hình từ Hugging Face",
         "description": "Dán URL kho công khai hoặc chủ/kho, ví dụ https://huggingface.co/chu/mo-hinh.",
-        "placeholder": "https://huggingface.co/chu/mo-hinh hoặc chu/kho",
+        "placeholder": "owner/repo",
         "add": "Thêm",
         "cancel": "Hủy",
         "pickFile": "Chọn một tệp từ {{repo}}:",
@@ -318,7 +318,8 @@
           "reset": "Không thể đặt lại phím tắt về giá trị gốc"
         },
         "unbound": "Chưa gán",
-        "recordHint": "Bấm để ghi lối tắt mới"
+        "recordHint": "Bấm để ghi lối tắt mới",
+        "gatedHint": "Bật {{action}} để gán phím"
       },
       "language": {
         "title": "Ngôn ngữ",
@@ -368,7 +369,7 @@
       "searchPlaceholder": "Tìm lệnh",
       "resetAll": "Đặt lại tất cả lệnh",
       "resetRow": "Đặt lại",
-      "defaultPhrasesNote": "Cụm từ mặc định là các từ tiếng Anh mà trình nhận dạng lắng nghe. Thêm cụm từ của bạn bằng bất kỳ ngôn ngữ nào trên bất kỳ dòng nào.",
+      "defaultPhrasesNote": "Cụm từ mặc định là các từ tiếng Anh mà bộ nhận diện lắng nghe, cùngcác biệt danh Hindi và Trung tích hợp. Bạn có thể thêm cụm từ của riêngmình bằng bất kỳ ngôn ngữ nào ở bất kỳ hàng nào.",
       "addPhrase": "Thêm",
       "removePhrase": "Xóa {{phrase}}",
       "placeholder": "Thêm cụm từ",
@@ -982,7 +983,8 @@
         "copied": "Đã sao chép",
         "clearConfirm": "Xóa các dòng đã ghi trong chế độ xem này? Tệp nhật ký trên đĩa vẫn được giữ.",
         "lineCount": "{{count}} dòng",
-        "empty": "Đang chờ nhật ký… Các mục sẽ xuất hiện ở đây khi ứng dụng phát ra."
+        "empty": "Đang chờ nhật ký… Các mục sẽ xuất hiện ở đây khi ứng dụng phát ra.",
+        "clearConfirmTitle": "Xóa các dòng đã ghi nhận?"
       },
       "updateChecks": {
         "label": "Kiểm tra cập nhật",
@@ -1171,7 +1173,7 @@
       },
       "log": {
         "title": "Nhật ký thông báo",
-        "description": "50 thông báo lỗi và kết quả gần nhất. Chỉ ghi mục mới khi thông báo hệ thống đang bật.",
+        "description": "50 thông báo lỗi và kết quả gần nhất.",
         "empty": "Chưa có thông báo nào.",
         "clear": "Xóa tất cả"
       }
@@ -1267,6 +1269,7 @@
     "loading": "Đang tải...",
     "delete": "Xóa",
     "close": "Đóng",
+    "cancel": "Hủy",
     "open": "Mở",
     "copy": "Sao chép",
     "clear": "Xóa",

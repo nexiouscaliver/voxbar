@@ -36,7 +36,7 @@
     "output": "Sortida",
     "advanced": "Avançat",
     "postProcessing": "Postprocessament",
-"addonsGroup": "Complements",
+    "addonsGroup": "Complements",
     "enableInAdvancedHint": "Activa-ho a Avançat",
     "history": "Historial",
     "debug": "Depuració",
@@ -265,7 +265,8 @@
           "reset": "No s'ha pogut restablir la drecera al valor original"
         },
         "unbound": "Sense assignar",
-        "recordHint": "Feu clic per enregistrar una drecera nova"
+        "recordHint": "Feu clic per enregistrar una drecera nova",
+        "gatedHint": "Activa {{action}} per assignar una tecla"
       },
       "language": {
         "title": "Llengua",
@@ -315,7 +316,7 @@
       "searchPlaceholder": "Cerca ordres",
       "resetAll": "Restableix totes les ordres",
       "resetRow": "Restableix",
-      "defaultPhrasesNote": "Les frases predeterminades són les paraules angleses que escolta el reconeixedor. Afegeix la teva pròpia frase en qualsevol idioma a qualsevol fila.",
+      "defaultPhrasesNote": "Les frases per defecte són les paraules angleses que escolta elreconeixedor, a més dels àlies integrats en hindi i xinès. Afegeix la tevafrase en qualsevol idioma a qualsevol fila.",
       "addPhrase": "Afegeix",
       "removePhrase": "Elimina {{phrase}}",
       "placeholder": "Afegeix una frase",
@@ -404,7 +405,7 @@
       "addFromHf": {
         "title": "Afegeix un model de Hugging Face",
         "description": "Enganxa un URL de repositori públic o propietari/repositori, per exemple https://huggingface.co/propietari/model.",
-        "placeholder": "https://huggingface.co/propietari/model o propietari/repositori",
+        "placeholder": "owner/repo",
         "add": "Afegeix",
         "cancel": "Cancel·la",
         "pickFile": "Tria un fitxer de {{repo}}:",
@@ -982,7 +983,8 @@
         "copied": "Copiat",
         "clearConfirm": "Vols esborrar les línies capturades d'aquesta vista? El fitxer de registre del disc es conserva.",
         "lineCount": "{{count}} línies",
-        "empty": "S'estan esperant registres… Les entrades apareixeran aquí a mesura que l'aplicació les emeti."
+        "empty": "S'estan esperant registres… Les entrades apareixeran aquí a mesura que l'aplicació les emeti.",
+        "clearConfirmTitle": "Voleu esborrar les línies capturades?"
       },
       "updateChecks": {
         "label": "Comproveu si hi ha actualitzacions",
@@ -1171,7 +1173,7 @@
       },
       "log": {
         "title": "Registre de notificacions",
-        "description": "Els últims 50 avisos d'errors i resultats. Només es registren entrades noves mentre les notificacions del sistema estiguin actives.",
+        "description": "Els últims 50 avisos d'errors i resultats.",
         "empty": "Encara no hi ha notificacions.",
         "clear": "Esborra-ho tot"
       }
@@ -1271,6 +1273,7 @@
     "loading": "S'està carregant...",
     "delete": "Suprimeix",
     "close": "Tanca",
+    "cancel": "Cancel·la",
     "open": "Obre",
     "copy": "Copia",
     "clear": "Neteja",

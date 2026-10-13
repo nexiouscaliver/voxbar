@@ -36,7 +36,7 @@
     "output": "输出",
     "advanced": "高级",
     "postProcessing": "后处理",
-"addonsGroup": "扩展",
+    "addonsGroup": "扩展",
     "enableInAdvancedHint": "在高级设置中启用",
     "history": "历史记录",
     "debug": "调试",
@@ -243,7 +243,7 @@
       "addFromHf": {
         "title": "从 Hugging Face 添加模型",
         "description": "粘贴公开仓库链接或 owner/repo，例如 https://huggingface.co/owner/model。",
-        "placeholder": "https://huggingface.co/owner/repo 或 owner/repo",
+        "placeholder": "owner/repo",
         "add": "添加",
         "cancel": "取消",
         "pickFile": "从 {{repo}} 中选择一个文件:",
@@ -318,7 +318,8 @@
           "reset": "无法将快捷键重置为原始值"
         },
         "unbound": "未绑定",
-        "recordHint": "点击以录制新快捷键"
+        "recordHint": "点击以录制新快捷键",
+        "gatedHint": "开启{{action}}后才能绑定按键"
       },
       "language": {
         "title": "语言",
@@ -368,7 +369,7 @@
       "searchPlaceholder": "搜索命令",
       "resetAll": "重置所有命令",
       "resetRow": "恢复默认",
-      "defaultPhrasesNote": "默认短语是识别器监听的英文单词。您可以在任意一行添加任意语言的自定义短语。",
+      "defaultPhrasesNote": "默认短语是识别器监听的英文单词，外加内置的印地语和中文别名。你可以在任意行用任意语言添加自己的短语。",
       "addPhrase": "添加",
       "removePhrase": "移除 {{phrase}}",
       "placeholder": "添加短语",
@@ -982,7 +983,8 @@
         "copied": "已复制",
         "clearConfirm": "清除此视图中捕获的行？磁盘上的日志文件会保留。",
         "lineCount": "{{count}} 行",
-        "empty": "正在等待日志…… 应用产生日志时将显示在此处。"
+        "empty": "正在等待日志…… 应用产生日志时将显示在此处。",
+        "clearConfirmTitle": "清除已捕获的行？"
       },
       "updateChecks": {
         "label": "检查更新",
@@ -1171,7 +1173,7 @@
       },
       "log": {
         "title": "通知记录",
-        "description": "最近 50 条错误与结果通知。仅当系统通知开启时记录新条目。",
+        "description": "最近 50 条错误与结果通知。",
         "empty": "暂无通知。",
         "clear": "全部清除"
       }
@@ -1267,6 +1269,7 @@
     "loading": "加载中...",
     "delete": "删除",
     "close": "关闭",
+    "cancel": "取消",
     "open": "打开",
     "copy": "复制",
     "clear": "清除",

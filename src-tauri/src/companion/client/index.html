@@ -535,7 +535,11 @@
         left: 0;
         right: 0;
         bottom: 0;
-        height: 72px;
+        /* 48px, not 72px: a tall gradient swallowed the static footnote's
+           last line whenever the page overflowed the fold by a few pixels
+           (the mic-error state). A shallower band only shades content that
+           is genuinely cut. */
+        height: 48px;
         background: linear-gradient(
           to bottom,
           rgba(16, 16, 20, 0),
@@ -788,12 +792,17 @@
         tgtPhoneBtn.disabled = !enabled;
         ppToggle.disabled = !enabled;
       }
-      // Bottom-edge fade while more content sits below the fold.
+      // Bottom-edge fade while more content sits below the fold. A sliver
+      // of overflow must not light the fade: when the page overflows by
+      // less than the band height itself, the band can only ever shade
+      // content that is fully on screen (the mic-error state's static
+      // footnote read as permanently dimmed). The band only shows when a
+      // real chunk of content - more than the 48px band - is hidden, and
+      // scrolling to the bottom clears it.
       function refreshScrollFade() {
         const doc = document.documentElement;
-        const more =
-          window.scrollY + window.innerHeight < doc.scrollHeight - 2;
-        scrollFade.style.opacity = more ? "1" : "0";
+        const hidden = doc.scrollHeight - (window.scrollY + window.innerHeight);
+        scrollFade.style.opacity = hidden > 48 ? "1" : "0";
       }
       window.addEventListener("scroll", refreshScrollFade, {
         passive: true,

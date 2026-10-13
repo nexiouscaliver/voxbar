@@ -36,7 +36,7 @@
     "output": "Uitvoer",
     "advanced": "Geavanceerd",
     "postProcessing": "Naverwerking",
-"addonsGroup": "Extensies",
+    "addonsGroup": "Extensies",
     "enableInAdvancedHint": "Inschakelen bij Geavanceerd",
     "history": "Geschiedenis",
     "debug": "Probleemoplossing",
@@ -265,7 +265,8 @@
           "reset": "Sneltoets terugzetten naar standaardwaarde mislukt"
         },
         "unbound": "Niet toegewezen",
-        "recordHint": "Klik om een nieuwe sneltoets op te nemen"
+        "recordHint": "Klik om een nieuwe sneltoets op te nemen",
+        "gatedHint": "Zet {{action}} aan om een toets toe te wijzen"
       },
       "language": {
         "title": "Taal",
@@ -315,7 +316,7 @@
       "searchPlaceholder": "Opdrachten zoeken",
       "resetAll": "Alle opdrachten terugzetten",
       "resetRow": "Terug naar standaard",
-      "defaultPhrasesNote": "De standaardfrases zijn de Engelse woorden waar de herkenner naar luistert. Voeg op elke rij je eigen frase in elke taal toe.",
+      "defaultPhrasesNote": "Standaardzinnen zijn de Engelse woorden waar de herkenner naar luistert,plus ingebouwde Hindi- en Chinese aliassen. Voeg je eigen zin toe in eentaal naar keuze op elke rij.",
       "addPhrase": "Toevoegen",
       "removePhrase": "{{phrase}} verwijderen",
       "placeholder": "Zinsnede toevoegen",
@@ -404,7 +405,7 @@
       "addFromHf": {
         "title": "Model van Hugging Face toevoegen",
         "description": "Plak een openbare repo-URL of eigenaar/repo, bijvoorbeeld https://huggingface.co/eigenaar/model.",
-        "placeholder": "https://huggingface.co/eigenaar/model of eigenaar/model",
+        "placeholder": "owner/repo",
         "add": "Toevoegen",
         "cancel": "Annuleren",
         "pickFile": "Kies een bestand uit {{repo}}:",
@@ -982,7 +983,8 @@
         "copied": "Gekopieerd",
         "clearConfirm": "De vastgelegde regels uit deze weergave wissen? Het logbestand op schijf blijft bewaard.",
         "lineCount": "{{count}} regels",
-        "empty": "Wachten op logboeken... Meldingen verschijnen hier zodra de app ze genereert."
+        "empty": "Wachten op logboeken... Meldingen verschijnen hier zodra de app ze genereert.",
+        "clearConfirmTitle": "Vastgelegde regels wissen?"
       },
       "updateChecks": {
         "label": "Controleren op updates",
@@ -1171,7 +1173,7 @@
       },
       "log": {
         "title": "Meldingenlog",
-        "description": "De laatste 50 fout- en resultaatmeldingen. Nieuwe items worden alleen bijgehouden zolang systeemmeldingen aan staan.",
+        "description": "De laatste 50 fout- en resultaatmeldingen.",
         "empty": "Nog geen meldingen.",
         "clear": "Alles wissen"
       }
@@ -1271,6 +1273,7 @@
     "loading": "Laden...",
     "delete": "Verwijderen",
     "close": "Sluiten",
+    "cancel": "Annuleren",
     "open": "Openen",
     "copy": "Kopiëren",
     "clear": "Wissen",

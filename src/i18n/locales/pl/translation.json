@@ -36,7 +36,7 @@
     "output": "Wyjście",
     "advanced": "Zaawansowane",
     "postProcessing": "Postproces",
-"addonsGroup": "Dodatki",
+    "addonsGroup": "Dodatki",
     "enableInAdvancedHint": "Włącz w Zaawansowanych",
     "history": "Historia",
     "debug": "Debugowanie",
@@ -243,7 +243,7 @@
       "addFromHf": {
         "title": "Dodaj model z Hugging Face",
         "description": "Wklej publiczny adres URL repozytorium lub właściciel/repozytorium, na przykład https://huggingface.co/właściciel/model.",
-        "placeholder": "https://huggingface.co/właściciel/model lub właściciel/model",
+        "placeholder": "owner/repo",
         "add": "Dodaj",
         "cancel": "Anuluj",
         "pickFile": "Wybierz plik z {{repo}}:",
@@ -318,7 +318,8 @@
           "reset": "Nie udało się zresetować skrótu do wartości domyślnej"
         },
         "unbound": "Nie przypisano",
-        "recordHint": "Kliknij, aby nagrać nowy skrót"
+        "recordHint": "Kliknij, aby nagrać nowy skrót",
+        "gatedHint": "Włącz „{{action}}”, aby przypisać klawisz"
       },
       "language": {
         "title": "Język",
@@ -368,7 +369,7 @@
       "searchPlaceholder": "Szukaj poleceń",
       "resetAll": "Przywróć wszystkie polecenia",
       "resetRow": "Przywróć domyślne",
-      "defaultPhrasesNote": "Domyślne frazy to angielskie słowa, których słucha rozpoznawanie. Dodaj własną frazę w dowolnym języku w dowolnym wierszu.",
+      "defaultPhrasesNote": "Domyślne frazy to angielskie słowa, których nasłuchuje rozpoznawanie,oraz wbudowane odpowiedniki w hindi i chińskim. Własną frazę dodasz w dowolnymjęzyku w dowolnym wierszu.",
       "addPhrase": "Dodaj",
       "removePhrase": "Usuń {{phrase}}",
       "placeholder": "Dodaj wyrażenie",
@@ -986,7 +987,8 @@
         "copied": "Skopiowano",
         "clearConfirm": "Wyczyścić przechwycone wiersze z tego widoku? Plik dziennika na dysku zostanie zachowany.",
         "lineCount": "Wierszy: {{count}}",
-        "empty": "Oczekiwanie na logi… Wpisy pojawią się tutaj, gdy aplikacja je wygeneruje."
+        "empty": "Oczekiwanie na logi… Wpisy pojawią się tutaj, gdy aplikacja je wygeneruje.",
+        "clearConfirmTitle": "Wyczyścić przechwycone wiersze?"
       },
       "updateChecks": {
         "label": "Sprawdzaj aktualizacje",
@@ -1175,7 +1177,7 @@
       },
       "log": {
         "title": "Dziennik powiadomień",
-        "description": "Ostatnie 50 powiadomień o błędach i wynikach. Nowe wpisy są zapisywane tylko wtedy, gdy powiadomienia systemowe są włączone.",
+        "description": "Ostatnie 50 powiadomień o błędach i wynikach.",
         "empty": "Brak powiadomień.",
         "clear": "Wyczyść wszystko"
       }
@@ -1283,6 +1285,7 @@
     "loading": "Wczytywanie...",
     "delete": "Usuń",
     "close": "Zamknij",
+    "cancel": "Anuluj",
     "open": "Otwórz",
     "copy": "Kopiuj",
     "clear": "Wyczyść",

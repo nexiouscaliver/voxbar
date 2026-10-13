@@ -36,7 +36,7 @@
     "output": "Keluaran",
     "advanced": "Lanjutan",
     "postProcessing": "Pascaproses",
-"addonsGroup": "Add-on",
+    "addonsGroup": "Add-on",
     "enableInAdvancedHint": "Aktifkan di Lanjutan",
     "history": "Riwayat",
     "debug": "Debug",
@@ -265,7 +265,8 @@
           "reset": "Gagal mengembalikan pintasan ke nilai awal"
         },
         "unbound": "Belum ditetapkan",
-        "recordHint": "Klik untuk merekam pintasan baru"
+        "recordHint": "Klik untuk merekam pintasan baru",
+        "gatedHint": "Aktifkan {{action}} untuk mengikat tombol"
       },
       "language": {
         "title": "Bahasa",
@@ -315,7 +316,7 @@
       "searchPlaceholder": "Cari perintah",
       "resetAll": "Reset semua perintah",
       "resetRow": "Reset",
-      "defaultPhrasesNote": "Frasa bawaan adalah kata-kata bahasa Inggris yang didengarkan pengenal. Tambahkan frasa Anda sendiri dalam bahasa apa pun pada baris mana pun.",
+      "defaultPhrasesNote": "Frasa bawaan adalah kata-kata bahasa Inggris yang didengarkan olehpengenal, ditambah alias bawaan Hindi dan Mandarin. Tambahkan frasa Andasendi dalam bahasa apa pun di baris mana pun.",
       "addPhrase": "Tambah",
       "removePhrase": "Hapus {{phrase}}",
       "placeholder": "Tambah frasa",
@@ -404,7 +405,7 @@
       "addFromHf": {
         "title": "Tambahkan model dari Hugging Face",
         "description": "Tempel URL repo publik atau pemilik/repo, misalnya https://huggingface.co/pemilik/model.",
-        "placeholder": "https://huggingface.co/pemilik/model atau pemilik/model",
+        "placeholder": "owner/repo",
         "add": "Tambahkan",
         "cancel": "Batal",
         "pickFile": "Pilih file dari {{repo}}:",
@@ -982,7 +983,8 @@
         "copied": "Disalin",
         "clearConfirm": "Hapus baris yang ditangkap dari tampilan ini? File log di disk tetap disimpan.",
         "lineCount": "{{count}} baris",
-        "empty": "Menunggu log… Entri akan muncul di sini saat aplikasi menghasilkannya."
+        "empty": "Menunggu log… Entri akan muncul di sini saat aplikasi menghasilkannya.",
+        "clearConfirmTitle": "Hapus baris yang ditangkap?"
       },
       "updateChecks": {
         "label": "Periksa Pembaruan",
@@ -1171,7 +1173,7 @@
       },
       "log": {
         "title": "Log notifikasi",
-        "description": "50 pemberitahuan kesalahan dan hasil terakhir. Entri baru hanya dicatat selama notifikasi sistem aktif.",
+        "description": "50 pemberitahuan kesalahan dan hasil terakhir.",
         "empty": "Belum ada notifikasi.",
         "clear": "Hapus semua"
       }
@@ -1271,6 +1273,7 @@
     "loading": "Memuat...",
     "delete": "Hapus",
     "close": "Tutup",
+    "cancel": "Batal",
     "open": "Buka",
     "copy": "Salin",
     "clear": "Bersihkan",

@@ -36,7 +36,7 @@
     "output": "Çıktı",
     "advanced": "Gelişmiş",
     "postProcessing": "Son İşlem",
-"addonsGroup": "Eklentiler",
+    "addonsGroup": "Eklentiler",
     "enableInAdvancedHint": "Gelişmiş bölümünden etkinleştirin",
     "history": "Geçmiş",
     "debug": "Hata Ayıklama",
@@ -243,7 +243,7 @@
       "addFromHf": {
         "title": "Hugging Face'ten model ekle",
         "description": "Herkese açık bir depo URL'si veya sahip/depo yapıştırın, örneğin https://huggingface.co/sahip/model.",
-        "placeholder": "https://huggingface.co/sahip/model veya sahip/model",
+        "placeholder": "owner/repo",
         "add": "Ekle",
         "cancel": "İptal",
         "pickFile": "{{repo}} içinden bir dosya seçin:",
@@ -318,7 +318,8 @@
           "reset": "Kısayol orijinal değerine sıfırlanamadı"
         },
         "unbound": "Atanmadı",
-        "recordHint": "Yeni bir kısayol kaydetmek için tıklayın"
+        "recordHint": "Yeni bir kısayol kaydetmek için tıklayın",
+        "gatedHint": "Tuş atamak için {{action}} seçeneğini açın"
       },
       "language": {
         "title": "Dil",
@@ -368,7 +369,7 @@
       "searchPlaceholder": "Komutlarda ara",
       "resetAll": "Tüm komutları sıfırla",
       "resetRow": "Sıfırla",
-      "defaultPhrasesNote": "Varsayılan ifadeler, tanıyıcının dinlediği İngilizce kelimelerdir. Herhangi bir satıra herhangi bir dilde kendi ifadenizi ekleyin.",
+      "defaultPhrasesNote": "Varsayılan ifadeler, tanıyıcının dinlediği İngilizce kelimelerdir; ayrıcabuilt-in Hintçe ve Çince eş anlamlılar dahildir. Kendi ifadenizi herhangi birdilde, herhangi bir satıra ekleyebilirsiniz.",
       "addPhrase": "Ekle",
       "removePhrase": "{{phrase}} ifadesini kaldır",
       "placeholder": "Bir ifade ekle",
@@ -982,7 +983,8 @@
         "copied": "Kopyalandı",
         "clearConfirm": "Bu görünümden yakalanan satırlar temizlensin mi? Diskteki günlük dosyası saklanır.",
         "lineCount": "{{count}} satır",
-        "empty": "Loglar bekleniyor… Uygulama logları ürettikçe girişler burada görünür."
+        "empty": "Loglar bekleniyor… Uygulama logları ürettikçe girişler burada görünür.",
+        "clearConfirmTitle": "Yakalanan satırlar temizlensin mi?"
       },
       "updateChecks": {
         "label": "Güncellemeleri Kontrol Et",
@@ -1171,7 +1173,7 @@
       },
       "log": {
         "title": "Bildirim günlüğü",
-        "description": "Son 50 hata ve sonuç bildirimi. Yeni kayıtlar yalnızca sistem bildirimleri açıkken tutulur.",
+        "description": "Son 50 hata ve sonuç bildirimi.",
         "empty": "Henüz bildirim yok.",
         "clear": "Tümünü temizle"
       }
@@ -1267,6 +1269,7 @@
     "loading": "Yükleniyor...",
     "delete": "Sil",
     "close": "Kapat",
+    "cancel": "İptal",
     "open": "Aç",
     "copy": "Kopyala",
     "clear": "Temizle",

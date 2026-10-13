@@ -36,7 +36,7 @@
     "output": "Výstup",
     "advanced": "Pokročilé",
     "postProcessing": "Následné zpracování",
-"addonsGroup": "Rozšíření",
+    "addonsGroup": "Rozšíření",
     "enableInAdvancedHint": "Zapněte v Pokročilém nastavení",
     "history": "Historie",
     "debug": "Ladění",
@@ -243,7 +243,7 @@
       "addFromHf": {
         "title": "Přidat model z Hugging Face",
         "description": "Vložte veřejnou URL repozitáře nebo vlastník/repozitář, například https://huggingface.co/vlastník/model.",
-        "placeholder": "https://huggingface.co/vlastník/model nebo vlastník/model",
+        "placeholder": "owner/repo",
         "add": "Přidat",
         "cancel": "Zrušit",
         "pickFile": "Vyberte soubor z {{repo}}:",
@@ -318,7 +318,8 @@
           "reset": "Nepodařilo se vrátit zkratku na původní hodnotu"
         },
         "unbound": "Nepřiřazeno",
-        "recordHint": "Kliknutím nahrajete novou klávesovou zkratku"
+        "recordHint": "Kliknutím nahrajete novou klávesovou zkratku",
+        "gatedHint": "Zapněte akci {{action}}, abyste mohli přiřadit klávesu"
       },
       "language": {
         "title": "Jazyk",
@@ -368,7 +369,7 @@
       "searchPlaceholder": "Hledat příkazy",
       "resetAll": "Obnovit všechny příkazy",
       "resetRow": "Obnovit výchozí",
-      "defaultPhrasesNote": "Výchozí fráze jsou anglická slova, která rozpoznávač poslouchá. Přidejte vlastní frázi v jakémkoli jazyce na kterýkoli řádek.",
+      "defaultPhrasesNote": "Výchozí fráze jsou anglická slova, která rozpoznávač poslouchá, plusvestavěné aliasy v hindštině a čínštině. Vlastní frázi přidáte v libovolnémjazyce na libovolném řádku.",
       "addPhrase": "Přidat",
       "removePhrase": "Odebrat {{phrase}}",
       "placeholder": "Přidat frázi",
@@ -986,7 +987,8 @@
         "copied": "Zkopírováno",
         "clearConfirm": "Vymazat zachycené řádky z tohoto zobrazení? Soubor protokolu na disku zůstane zachován.",
         "lineCount": "Řádků: {{count}}",
-        "empty": "Čekání na logy… Záznamy se zde zobrazí, jakmile je aplikace vygeneruje."
+        "empty": "Čekání na logy… Záznamy se zde zobrazí, jakmile je aplikace vygeneruje.",
+        "clearConfirmTitle": "Vymazat zachycené řádky?"
       },
       "updateChecks": {
         "label": "Kontrolovat aktualizace",
@@ -1175,7 +1177,7 @@
       },
       "log": {
         "title": "Protokol oznámení",
-        "description": "Posledních 50 upozornění na chyby a výsledky. Nové záznamy se ukládají pouze při zapnutých systémových oznámeních.",
+        "description": "Posledních 50 upozornění na chyby a výsledky.",
         "empty": "Zatím žádná oznámení.",
         "clear": "Vymazat vše"
       }
@@ -1283,6 +1285,7 @@
     "loading": "Načítání...",
     "delete": "Smazat",
     "close": "Zavřít",
+    "cancel": "Zrušit",
     "open": "Otevřít",
     "copy": "Kopírovat",
     "clear": "Vymazat",

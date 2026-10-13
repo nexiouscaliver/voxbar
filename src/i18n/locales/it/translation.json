@@ -36,7 +36,7 @@
     "output": "Output",
     "advanced": "Avanzate",
     "postProcessing": "Post-Elaborazione",
-"addonsGroup": "Estensioni",
+    "addonsGroup": "Estensioni",
     "enableInAdvancedHint": "Attivala in Avanzate",
     "history": "Cronologia",
     "debug": "Debug",
@@ -243,7 +243,7 @@
       "addFromHf": {
         "title": "Aggiungi modello da Hugging Face",
         "description": "Incolla un URL di repository pubblico o proprietario/repository, ad esempio https://huggingface.co/proprietario/modello.",
-        "placeholder": "https://huggingface.co/proprietario/modello o proprietario/modello",
+        "placeholder": "owner/repo",
         "add": "Aggiungi",
         "cancel": "Annulla",
         "pickFile": "Scegli un file da {{repo}}:",
@@ -318,7 +318,8 @@
           "reset": "Errore nella reinizializzazione della scorciatoia al valore originale"
         },
         "unbound": "Non assegnato",
-        "recordHint": "Fai clic per registrare una nuova scorciatoia"
+        "recordHint": "Fai clic per registrare una nuova scorciatoia",
+        "gatedHint": "Attiva {{action}} per associare un tasto"
       },
       "language": {
         "title": "Lingua",
@@ -368,7 +369,7 @@
       "searchPlaceholder": "Cerca comandi",
       "resetAll": "Ripristina tutti i comandi",
       "resetRow": "Ripristina",
-      "defaultPhrasesNote": "Le frasi predefinite sono le parole inglesi che il riconoscitore ascolta. Aggiungi una tua frase in qualsiasi lingua su qualsiasi riga.",
+      "defaultPhrasesNote": "Le frasi predefinite sono le parole inglesi che il riconoscitore ascolta,più gli alias integrati in hindi e cinese. Aggiungi una tua frase in qualunquelingua su qualsiasi riga.",
       "addPhrase": "Aggiungi",
       "removePhrase": "Rimuovi {{phrase}}",
       "placeholder": "Aggiungi una frase",
@@ -982,7 +983,8 @@
         "copied": "Copiato",
         "clearConfirm": "Cancellare le righe acquisite da questa vista? Il file di log su disco viene mantenuto.",
         "lineCount": "{{count}} righe",
-        "empty": "In attesa di log… Le voci appariranno qui man mano che l'app le emette."
+        "empty": "In attesa di log… Le voci appariranno qui man mano che l'app le emette.",
+        "clearConfirmTitle": "Cancellare le righe catturate?"
       },
       "updateChecks": {
         "label": "Controlla aggiornamenti",
@@ -1171,7 +1173,7 @@
       },
       "log": {
         "title": "Registro delle notifiche",
-        "description": "Gli ultimi 50 avvisi di errori ed esiti. Nuove voci vengono registrate solo mentre le notifiche di sistema sono attive.",
+        "description": "Gli ultimi 50 avvisi di errori ed esiti.",
         "empty": "Ancora nessuna notifica.",
         "clear": "Cancella tutto"
       }
@@ -1267,6 +1269,7 @@
     "loading": "Caricamento...",
     "delete": "Elimina",
     "close": "Chiudi",
+    "cancel": "Annulla",
     "open": "Apri",
     "copy": "Copia",
     "clear": "Svuota",

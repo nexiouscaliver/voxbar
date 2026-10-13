@@ -36,7 +36,7 @@
     "output": "Salida",
     "advanced": "Avanzado",
     "postProcessing": "Post proceso",
-"addonsGroup": "Complementos",
+    "addonsGroup": "Complementos",
     "enableInAdvancedHint": "Actívalo en Avanzado",
     "history": "Historial",
     "debug": "Depuración",
@@ -243,7 +243,7 @@
       "addFromHf": {
         "title": "Añadir modelo de Hugging Face",
         "description": "Pega una URL de repositorio público o propietario/repositorio, por ejemplo https://huggingface.co/propietario/modelo.",
-        "placeholder": "https://huggingface.co/propietario/modelo o propietario/modelo",
+        "placeholder": "owner/repo",
         "add": "Añadir",
         "cancel": "Cancelar",
         "pickFile": "Elige un archivo de {{repo}}:",
@@ -318,7 +318,8 @@
           "reset": "Error al restablecer el atajo al valor original"
         },
         "unbound": "Sin asignar",
-        "recordHint": "Haz clic para grabar un atajo nuevo"
+        "recordHint": "Haz clic para grabar un atajo nuevo",
+        "gatedHint": "Activa {{action}} para asignar una tecla"
       },
       "language": {
         "title": "Idioma",
@@ -368,7 +369,7 @@
       "searchPlaceholder": "Buscar comandos",
       "resetAll": "Restablecer todos los comandos",
       "resetRow": "Restablecer",
-      "defaultPhrasesNote": "Las frases predeterminadas son las palabras en inglés que escucha el reconocedor. Añade tu propia frase en cualquier idioma en cualquier fila.",
+      "defaultPhrasesNote": "Las frases predeterminadas son las palabras inglesas que escucha elreconocedor, además de los alias integrados en hindi y chino. Añade tu propiafrase en cualquier idioma en cualquier fila.",
       "addPhrase": "Añadir",
       "removePhrase": "Quitar {{phrase}}",
       "placeholder": "Añadir una frase",
@@ -982,7 +983,8 @@
         "copied": "Copiado",
         "clearConfirm": "¿Borrar las líneas capturadas de esta vista? El archivo de registro del disco se conserva.",
         "lineCount": "{{count}} líneas",
-        "empty": "Esperando registros… Las entradas aparecerán aquí a medida que la aplicación las emita."
+        "empty": "Esperando registros… Las entradas aparecerán aquí a medida que la aplicación las emita.",
+        "clearConfirmTitle": "Borrar las líneas capturadas?"
       },
       "updateChecks": {
         "label": "Buscar actualizaciones",
@@ -1171,7 +1173,7 @@
       },
       "log": {
         "title": "Registro de notificaciones",
-        "description": "Los últimos 50 avisos de errores y resultados. Solo se registran entradas nuevas mientras las notificaciones del sistema estén activadas.",
+        "description": "Los últimos 50 avisos de errores y resultados.",
         "empty": "Todavía no hay notificaciones.",
         "clear": "Limpiar todo"
       }
@@ -1267,6 +1269,7 @@
     "loading": "Cargando...",
     "delete": "Eliminar",
     "close": "Cerrar",
+    "cancel": "Cancelar",
     "open": "Abrir",
     "copy": "Copiar",
     "clear": "Limpiar",
