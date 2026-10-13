@@ -161,6 +161,29 @@ struct StoppingSession {
     prefs: protocol::SessionPrefs,
 }
 
+/// KB-292 (v1.6.6): the coalescing gate for the connect/disconnect tray
+/// re-syncs. Every hello and every disconnect used to spawn a detached
+/// worker whose body recomputed the full tray snapshot (a settings read,
+/// the model list, an icon decode) - a flapping phone firing N reconnect
+/// edges in quick succession paid N full rebuilds whose intermediate
+/// results were stale the moment the next edge landed. The gate collapses
+/// the storm: the FIRST edge in a quiet period claims the rebuild, every
+/// edge landing while a rebuild is live only marks the state dirty, and
+/// the rebuilding pass loops once more after finishing so the FINAL
+/// rebuild always reflects the settled registration state (the rebuild
+/// reads live state, never the worker's captured arguments, so whichever
+/// worker holds the gate picks every later edge up). At most one rebuild
+/// is live at any instant and at most one rebuild runs per settled state.
+#[derive(Default)]
+struct TrayResyncGate {
+    /// A rebuild pass is live (claimed, not yet settled).
+    running: bool,
+    /// An edge landed while a pass was live: the next
+    /// [`CompanionManager::tray_resync_pass_done`] must schedule one more
+    /// pass instead of releasing the gate.
+    dirty: bool,
+}
+
 pub struct CompanionManager {
     // Locking note (v1.6.4, the crashed-client accept-wedge hardening):
     // every std Mutex this manager owns is acquired poison-tolerantly
@@ -206,6 +229,9 @@ pub struct CompanionManager {
     failure_limiter: Mutex<auth::FailureLimiter>,
     /// The Rust-side notice listener id (registered once at init).
     notice_listener: Mutex<Option<tauri::EventId>>,
+    /// KB-292 (v1.6.6): the coalescing gate for the edge tray re-syncs
+    /// (see [`TrayResyncGate`]).
+    tray_resync: Mutex<TrayResyncGate>,
 }
 
 impl CompanionManager {
@@ -237,6 +263,7 @@ impl CompanionManager {
                 Duration::from_secs(60),
             )),
             notice_listener: Mutex::new(None),
+            tray_resync: Mutex::new(TrayResyncGate::default()),
         }
     }
 
@@ -279,7 +306,11 @@ impl CompanionManager {
     /// newest name as `companion_last_device` and re-sync the tray's
     /// companion block (W1-L8 - the paired count tracks the connection,
     /// not the next unrelated sync point; runs on the server's task thread
-    /// so the snapshot compute never lands on the UI thread).
+    /// so the snapshot compute never lands on the UI thread). KB-292
+    /// (v1.6.6): the tray re-sync rides the coalescing gate, so a
+    /// reconnect storm's N edges pay at most one rebuild per settled
+    /// state; the settings RMW above still runs per edge (serialized by
+    /// its own lock, and the persisted name must track every hello).
     pub fn note_device_connected(&self, app: &AppHandle, device: &str) {
         // KB-261 (fleet pass 1): this whole-settings read-modify-write rides
         // the connect-edge lock because the same hello can race the other
@@ -296,7 +327,7 @@ impl CompanionManager {
                 false
             }
         });
-        let _ = crate::tray::update_tray_menu(app);
+        self.resync_tray_coalesced(app);
     }
 
     /// v1.6.2 W1-L2 (KB-255): release a connection's registration. Both
@@ -312,9 +343,79 @@ impl CompanionManager {
     }
 
     /// The disconnect-edge tray re-sync (the forget_device rule, now
-    /// keyed on registrations instead of names).
+    /// keyed on registrations instead of names). KB-292 (v1.6.6): rides
+    /// the same coalescing gate as the connect edge, so a reconnect
+    /// storm's alternating hello/drop edges collapse to the latest tray
+    /// state instead of paying one full rebuild per edge.
     pub fn note_device_disconnected(&self, app: &AppHandle) {
-        let _ = crate::tray::update_tray_menu(app);
+        self.resync_tray_coalesced(app);
+    }
+
+    /// KB-292 (v1.6.6): an edge wants the tray re-synced. Returns true
+    /// when the caller must run the rebuild (no rebuild is live, and this
+    /// call claimed it); false when a live rebuild will pick this edge's
+    /// state up (the dirty mark makes it loop once more, so the settled
+    /// state is always rebuilt). The claim/release pair is one critical
+    /// section each, so an edge either marks dirty before the live pass
+    /// settles (the pass loops again) or claims after the release (it
+    /// rebuilds itself) - no lost wakeup.
+    fn claim_tray_resync(&self) -> bool {
+        let mut gate = self.tray_resync.lock().unwrap_or_else(|e| e.into_inner());
+        if gate.running {
+            gate.dirty = true;
+            false
+        } else {
+            gate.running = true;
+            true
+        }
+    }
+
+    /// KB-292 (v1.6.6): a rebuild pass finished. Returns true when an edge
+    /// landed during the pass (the caller must rebuild once more so the
+    /// tray reflects the settled state); false when the gate is quiet
+    /// again (the pass releases the gate and its caller stops looping).
+    fn tray_resync_pass_done(&self) -> bool {
+        let mut gate = self.tray_resync.lock().unwrap_or_else(|e| e.into_inner());
+        if gate.dirty {
+            gate.dirty = false;
+            true
+        } else {
+            gate.running = false;
+            false
+        }
+    }
+
+    /// KB-292 (v1.6.6): a rebuild pass panicked mid-loop. Resets the gate
+    /// so the next edge claims a fresh rebuild instead of marking a gate
+    /// dirty that no pass will ever settle (a wedged gate would freeze
+    /// the companion tray block forever).
+    fn tray_resync_abandon(&self) {
+        let mut gate = self.tray_resync.lock().unwrap_or_else(|e| e.into_inner());
+        *gate = TrayResyncGate::default();
+    }
+
+    /// KB-292 (v1.6.6): the coalesced tray re-sync both connection edges
+    /// route through. The claiming caller loops rebuild passes until the
+    /// gate settles (every rebuild reads LIVE state, so the last pass
+    /// always reflects the settled registration set); concurrent edge
+    /// workers return immediately, their dirty mark absorbed by the live
+    /// loop. A panicking pass is caught here so the gate is always
+    /// released (the panic is logged through the app's logger, the
+    /// spawn_worker convention).
+    fn resync_tray_coalesced(&self, app: &AppHandle) {
+        if !self.claim_tray_resync() {
+            return;
+        }
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| loop {
+            let _ = crate::tray::update_tray_menu(app);
+            if !self.tray_resync_pass_done() {
+                break;
+            }
+        }));
+        if let Err(panic) = result {
+            self.tray_resync_abandon();
+            log::error!("companion: tray re-sync pass panicked: {panic:?}");
+        }
     }
 
     /// The deduplicated device names of the live connections, in
@@ -1929,6 +2030,135 @@ mod tests {
             manager.register_connection_with_identity("iPhone", Some("aaaa1111-0000"));
         assert_eq!(registration.device, "iPhone#aaaa");
         assert_eq!(manager.devices(), vec!["iPhone#aaaa".to_string()]);
+    }
+
+    /// KB-292 (v1.6.6): the coalescing gate. N rapid edges landing while a
+    /// rebuild is live schedule at most ONE more rebuild (the dirty mark),
+    /// never one rebuild per edge; the settled state gets exactly one
+    /// final rebuild and the gate goes quiet, so the next edge after the
+    /// storm claims a fresh rebuild. Drives the gate's claim/settle pair
+    /// directly (the same methods resync_tray_coalesced drives in its
+    /// loop; a live tray rebuild needs a Wry app the unit harness cannot
+    /// mount, the established convention for tray seams).
+    #[test]
+    fn kb292_n_rapid_edges_schedule_at_most_one_tray_rebuild_per_settled_state() {
+        let manager = CompanionManager::new();
+
+        // Quiet period: the first edge claims the rebuild.
+        assert!(
+            manager.claim_tray_resync(),
+            "the first edge in a quiet period must claim the rebuild"
+        );
+
+        // The storm: N rapid edges (a flapping phone's alternating hellos
+        // and drops) all land while that rebuild is live.
+        const STORM: usize = 24;
+        for _ in 0..STORM {
+            assert!(
+                !manager.claim_tray_resync(),
+                "an edge while a rebuild is live must NOT schedule another rebuild; it marks the state dirty and the live pass picks it up"
+            );
+        }
+
+        // The live pass finishes: the whole storm's N edges collapse into
+        // exactly ONE further pass (which rebuilds the settled state).
+        assert!(
+            manager.tray_resync_pass_done(),
+            "the storm's dirty mark must schedule exactly one final pass"
+        );
+        // An edge landing during that final pass coalesces into it the
+        // same way - still no per-edge rebuild.
+        assert!(!manager.claim_tray_resync());
+        assert!(
+            manager.tray_resync_pass_done(),
+            "the final pass must absorb the late edge into one more pass"
+        );
+        // The state has settled: the gate releases, quiet again.
+        assert!(
+            !manager.tray_resync_pass_done(),
+            "a settled gate must release (no phantom rebuilds)"
+        );
+
+        // The next edge after the storm claims a fresh rebuild (the gate
+        // never wedges quiet-shut).
+        assert!(manager.claim_tray_resync());
+        assert!(!manager.tray_resync_pass_done());
+    }
+
+    /// KB-292 (v1.6.6): a panicking rebuild pass must not wedge the gate.
+    /// The pass is caught by resync_tray_coalesced and the gate reset, so
+    /// the next edge claims a fresh rebuild instead of marking a gate
+    /// dirty that no pass will ever settle (a wedged gate would freeze
+    /// the companion tray block forever).
+    #[test]
+    fn kb292_a_panicking_pass_releases_the_gate_for_the_next_edge() {
+        let manager = CompanionManager::new();
+        assert!(manager.claim_tray_resync());
+        // Edges land during the ill-fated pass.
+        assert!(!manager.claim_tray_resync());
+        // The pass panics; the abandon resets the gate wholesale.
+        manager.tray_resync_abandon();
+        // The next edge claims a fresh rebuild (no wedge).
+        assert!(
+            manager.claim_tray_resync(),
+            "after a panicked pass the gate must accept a fresh claim"
+        );
+        // And the reset dropped the storm's stale dirty mark: the fresh
+        // pass settles immediately.
+        assert!(
+            !manager.tray_resync_pass_done(),
+            "the abandon must clear the stale dirty mark (no phantom second pass)"
+        );
+    }
+
+    /// KB-292 (v1.6.6) source pin: both connection edges route their tray
+    /// re-sync through the coalescing gate - no bare update_tray_menu call
+    /// may return in either edge body (that is the uncoalesced per-edge
+    /// storm shape), and the gated helper's loop must catch panics and
+    /// abandon the gate so a failed pass cannot wedge it.
+    #[test]
+    fn kb292_edge_tray_resyncs_ride_the_coalescing_gate() {
+        let source = include_str!("mod.rs");
+        let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
+
+        for site in [
+            "pub fn note_device_connected(",
+            "pub fn note_device_disconnected(",
+        ] {
+            let at = source
+                .find(site)
+                .unwrap_or_else(|| panic!("the edge bookkeeping must exist: {site}"));
+            let end = at + source[at..].find("\n    }\n").expect("fn end");
+            let body = &source[at..end];
+            assert!(
+                body.contains("self.resync_tray_coalesced(app);"),
+                "{site} must route its tray re-sync through the coalescing gate"
+            );
+            assert!(
+                !body.contains("crate::tray::update_tray_menu(app)"),
+                "{site} must not rebuild the tray directly (the uncoalesced per-edge storm, KB-292)"
+            );
+        }
+
+        // The gated helper: claim, loop until settled, and the panic path
+        // that releases the gate.
+        let helper_at = production
+            .find("fn resync_tray_coalesced(")
+            .expect("the coalescing tray re-sync helper");
+        let helper_end = helper_at + production[helper_at..].find("\n    }\n").expect("fn end");
+        let helper = &production[helper_at..helper_end];
+        assert!(
+            helper.contains("claim_tray_resync()"),
+            "the helper must claim the gate before rebuilding"
+        );
+        assert!(
+            helper.contains("tray_resync_pass_done()"),
+            "the helper must loop passes until the gate settles"
+        );
+        assert!(
+            helper.contains("catch_unwind") && helper.contains("tray_resync_abandon()"),
+            "a panicking pass must release the gate (a wedged gate freezes the companion tray block forever)"
+        );
     }
 
     /// KB-261 (v1.6.4 review pass, re-anchored by fleet pass 1): the twin
