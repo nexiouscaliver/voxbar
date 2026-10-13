@@ -144,7 +144,7 @@ Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-00
 
 **KB-179 · FIXED (v1.6.2, 8b94fdc1, operator decision D3).** Was: a corrupted or unwritable history.db panics the app at every launch (`HistoryManager::new(...).expect(...)` in setup) [R3]. Fixed: new() quarantines the unreadable file as history.db.corrupt (timestamped suffix when taken, stale rollback journal dropped), starts a fresh database at the same path, and records the recovery; the frontend posts one persistent notice naming the quarantined file (settings.history.dbRecoveredNotice across all locales). Pinned by corrupt_db_is_quarantined_and_a_fresh_one_starts, second_quarantine_takes_the_timestamped_suffix, quarantine_drops_the_stale_rollback_journal, init_failure_quarantines_and_retries_instead_of_failing.
 
-**KB-183 · FIXED · Experimental off is now a companion kill switch (cycle 3 wave 4 fcb3e742; hardened in the v1.5.4 cycle 69a7820c + da66553a).** Was [R3]: the LAN TLS server kept running with its only control unmounted (AdvancedSettings gates rendering only; companion::init armed purely on companion_devices_enabled), re-armed every boot, findable by neither search nor tray. Fixed: `effective_enabled` requires BOTH toggles with a 4-combination test (companion/mod.rs:537-539, 783-815); `init` arms on the conjunction (mod.rs:551); the toggle command applies the conjunction, never the raw flag - including for direct IPC callers the UI unmount cannot gate (shortcut/mod.rs:955-990, `companion_toggle_runtime_value`, this cycle); the Experimental switch itself stops the server (shortcut/mod.rs:1689). The persist re-reads settings AFTER apply so the pairing token `start()` regenerates mid-enable survives the full-store write (da66553a). Round 4's list already verified the wave 4 half; the entry above was the stale part.
+**KB-183 · FIXED · Experimental off is now a companion kill switch (cycle 3 wave 4 fcb3e742; hardened in the v1.5.4 cycle 69a7820c + da66553a).** Was [R3]: the LAN TLS server kept running with its only control unmounted (AdvancedSettings gates rendering only; companion::init armed purely on companion_devices_enabled), re-armed every boot, findable by neither search nor tray. Fixed: `effective_enabled` requires BOTH toggles with a 4-combination test (companion/mod.rs:1373 and the test at :2868, fleet pass 2 re-read); `init` arms on the conjunction (mod.rs:1382); the toggle command applies the conjunction, never the raw flag - including for direct IPC callers the UI unmount cannot gate (shortcut/mod.rs:955-990, `companion_toggle_runtime_value`, this cycle); the Experimental switch itself stops the server (shortcut/mod.rs:1689). The persist re-reads settings AFTER apply so the pairing token `start()` regenerates mid-enable survives the full-store write (da66553a). Round 4's list already verified the wave 4 half; the entry above was the stale part.
 
 **KB-185 · FIXED · tray "Unload After → Custom…" switches mode before focusing.** Was [R3]: a silent no-op whenever the setting was a preset - the custom input rendered only when the stored value was already Custom (`customActive = isCustom(storedValue)` ✓R4 at ModelUnloadTimeout.tsx:41), so the promised focus landed on a null ref and nothing switched modes. Fixed in 14369da8: the tray-focus effect first switches the stored setting to custom (backend command + optimistic store update, seeding 90 s like the dropdown does) when a preset is stored, so the field has rendered by the time the await resolves and the ref is attached.
 
@@ -163,7 +163,7 @@ _Re-verified in round 3 (tag `[R3]`) unless marked `carried`:_
 - **KB-055** stale debug-gated claim [R3]. **KB-056** delay sliders inert with reliable paste [R3]. **KB-057** auto-submit × paste-method None [R3]. **KB-058** Dropdown English placeholder: instances now also: stale custom sound theme (SoundPicker builds Custom only when wavs exist) [R3]. **KB-059** send_edit_action dead + still-false doc (grep exit=1) [R3]. **KB-060** Linux probe forking (static) [R3]. **KB-061** generic paste toast + enigo init console.warn only [R3]. **KB-062** main-thread paste sleeps >10 s worst case [R3]. **KB-063** TypingTool probe staleness [R3].
 - **KB-064** global timeout dead + wired command [R3]. **KB-065** verdict detail English (26 locales) [R3]. **KB-066** tray staleness: now THREE surfaces: prompt submenu (all five settings-side mutations silent), local-LLM submenu (post-process-model-changed has zero listeners), AND voice Models submenu (download-complete/model-deleted never rebuild; only model-state-changed does: lib.rs:468-478) [R3 ×4]. **KB-067** runs table binding column: _carried_. **KB-068** renamed built-in masked [R3]. **KB-069** reseed drops NAME; no rename-only test case (re-ran, confirms gap) [R3]. **KB-070** evicted-live run loses outcome line + starts leak [R3]. **KB-071** ${output} never validated; legacy path sends no transcript [R3]. **KB-072** timestamp-ms ids + false comment + unguarded Duplicate [R3]. **KB-073** versionLabel dead key (re-grepped: 26 locale files, 0 refs) [R3 ×2].
 - **KB-074** spoken undo/paste inert vs copy in 26 locales [R3]. **KB-075** mid-session snapshot vs fresh finalize (fresh line evidence) [R3]. **KB-076 · FIXED (v1.6.2, 6b054cd1)** (was: ASCII terminal punctuation on CJK/Hindi; the marks are script aware now, with KB-135/KB-178). **KB-077** filler \b never fires between Han [R3: bites only once a writer exists, cf KB-078]. **KB-078** custom_filler_words dead setting [R3]. **KB-079** lazy retention, three call sites [R3].
-- **KB-080 · FIXED (v1.6.2, 58a920ff):** was (upgraded to medium [R3]) silent play of missing WAV, reachable in one step from the "Open Recordings Folder" button; custom cues now resolve through an existence check that falls back to the default theme's same cue. **KB-081 · FIXED (v1.6.2, 58a920ff)** (was: star toggle race + blind revert; now per-row pending, revert-to-pre-click, failure toast). **KB-082** cert SAN freezes first LAN IP (load_persisted ignores current IP, cert.rs:31-33) [R3; round 9 fleet re-verified open]. **KB-085 residual** rapid off/on port race (pre-auth deadline half fixed in 9655d8fc; KB-083 residual folded here) [R3; round 9 fleet re-verified]. **KB-086 residual** two dead protocol fields (the zero-tests half closed in v1.6.2: server.rs:686 now carries a tests module). **KB-087 · FIXED (v1.6.2, 58a920ff)** (was: copy-last silent on all paths; both tray copy actions now report every terminal path). **KB-088 · FIXED (v1.6.2, 58a920ff)** (was: debug-key auto-repeat; the chord ignores repeats). **KB-089 · FIXED (82e8700d)** ghost Debug section (sharpened: neither renderer checks debug_mode) [R3; round 9 fleet re-verified]. **KB-090 · FIXED (v1.6.2, 58a920ff)** (was: dark: follows OS + log-surface override media-query-only; a custom dark variant now follows the app theme). **KB-091 · FIXED (v1.6.2, 58a920ff)** (was: verify-state mislabel + light colors + no feedback on still-denied; Check Again answers current state, paired emerald shades). **KB-092 · FIXED (v1.6.2, 58a920ff)** (was: AppData+LogDirectory light colors; skeletons and errors on tokens). **KB-093 · FIXED (v1.6.2, 58a920ff)** (was: no ErrorBoundary on settings tree; the scroll content sits inside one).
+- **KB-080 · FIXED (v1.6.2, 58a920ff):** was (upgraded to medium [R3]) silent play of missing WAV, reachable in one step from the "Open Recordings Folder" button; custom cues now resolve through an existence check that falls back to the default theme's same cue. **KB-081 · FIXED (v1.6.2, 58a920ff)** (was: star toggle race + blind revert; now per-row pending, revert-to-pre-click, failure toast). **KB-082** cert SAN freezes first LAN IP (load_persisted ignores current IP, cert.rs:31-33) [R3; round 9 fleet re-verified open]. **KB-085 residual** rapid off/on port race (pre-auth deadline half fixed in 9655d8fc; KB-083 residual folded here) [R3; round 9 fleet re-verified]. **KB-086 residual** two dead protocol fields (the zero-tests half closed in v1.6.2: companion/server.rs:952 now carries a tests module; fleet pass 2 re-read). **KB-087 · FIXED (v1.6.2, 58a920ff)** (was: copy-last silent on all paths; both tray copy actions now report every terminal path). **KB-088 · FIXED (v1.6.2, 58a920ff)** (was: debug-key auto-repeat; the chord ignores repeats). **KB-089 · FIXED (82e8700d)** ghost Debug section (sharpened: neither renderer checks debug_mode) [R3; round 9 fleet re-verified]. **KB-090 · FIXED (v1.6.2, 58a920ff)** (was: dark: follows OS + log-surface override media-query-only; a custom dark variant now follows the app theme). **KB-091 · FIXED (v1.6.2, 58a920ff)** (was: verify-state mislabel + light colors + no feedback on still-denied; Check Again answers current state, paired emerald shades). **KB-092 · FIXED (v1.6.2, 58a920ff)** (was: AppData+LogDirectory light colors; skeletons and errors on tokens). **KB-093 · FIXED (v1.6.2, 58a920ff)** (was: no ErrorBoundary on settings tree; the scroll content sits inside one).
 - **KB-094** failed install still shows "installed" prompt [R3 ×2]. **KB-095** confirm-card stacking [R3]. **KB-097** attribution literals [R3]. **KB-098** tray empty-string hole (re-measured clean today; gate counts "" as present) [R3 ×2]. **KB-099** translocation toast: mount-only, 15 s, expires unseen for start_hidden; comment's promise wrong; English race [R3 ×2]. **KB-100 · CLOSED (test:updater half 2bdd6049 per round 6 item 5; check:text-style half v1.6.2 fd63e677, ci.yml:187; round 9 fleet re-verified both).** **KB-101** up-to-date path logs nothing [R3]. **KB-149** text-style omits release-notes + tsx literals (ran clean today) [R3].
 - **KB-114** command-mode latch (re-verified ×2) [R3]. **KB-115** unclamped u64 family: now also paste*delay_ms/paste_delay_after_ms (five setters total; R3 re-read all bodies) [R3 ×2]. **KB-116** margin no upper bound [R3]. **KB-117** delete_model no in-flight guard, both layers (re-verified ×2) [R3]. **KB-118** keyboard-impl dropdown literals: instance family grows: **LogLevelSelector.tsx:8-13 same class** [R3]. **KB-119** SoundPicker no disabled prop [R3]. **KB-120** per-drag full-store writes: family now: volume + **all five Output-tab sliders + the two new post-process sliders (timeout/keep-warm) + word-correction slider** [R3 ×3]. **KB-121** position/style/language no settings-changed emit → inverted card (fix shape: one emit per command) [R3]. **KB-122 · FIXED (v1.6.2, 6b054cd1, with KB-015)** (was: raw-English interpolation umbrella: instances re-confirmed across overlay notices, channel toast, companion panel+notice, verdicts; the memory-gate refusal and the raw toast descriptions now localize). **KB-123** Shift+F4 on macOS + setter accepts hidden methods [R3]. **KB-124** toggle-off no-op no feedback (re-verified ×2) [R3]. **KB-125** external script unvalidated [R3]. **KB-126** Windows auto-submit try_lock skip: \_carried*. **KB-127** final clipboard-write failure inverts signal [R3]. **KB-128** isNotAPostProcessModelError dead [R3]. **KB-129** allow_base_url_edit decorative (three hardcoded gates) [R3]. **KB-130** off-path grid flash [R3]. **KB-131** Apple chars_out bytes (changed_ratio ~3× for CJK) [R3 ×2]. **KB-132** prompt_test consumes toast budgets: extended: also the skip-reason budget AND arms the overlay "Polishing" chip during a Test [R3 ×2]. **KB-133** shared test state/panel [R3 ×2]. **KB-134** everyday-gate English-only [R3]. **KB-135 · FIXED (v1.6.2, 6b054cd1)** (was: CJK ASCII punctuation pinned by test; terminal punctuation is script aware now, with KB-076/KB-178). **KB-136** assert-script tests never run in CI: now THREE instances: commandGroups, skipToastDedupe, historyLimitInput (R3 ran both invocations for two of them) [R3 ×2]. **KB-137** `|| 5` coercion [R3]. **KB-138** AudioPlayer aria [R3]. **KB-139** retry toast drops detail [R3]. **KB-140** no-confirm delete + page-1 reload [R3]. **KB-141** stale synthesized-release comments (one now factually wrong about stop()) [R3]. **KB-142** sync-command main-thread block: second instance: **change_keyboard_implementation_setting, up to 10 s on first handy_keys switch** [R3]. **KB-143** tray submenu sync rejections log-only [R3]. **KB-145** experimental-off hides but doesn't deactivate [R3]. **KB-146** degenerate submenu label [R3 ×2]. **KB-147** sidebar mouse-only [R3].
 
@@ -477,8 +477,8 @@ commits); each entry names the path or commit it was verified against.
    failed reopen, KB-104 comment).
 3. **KB-183 OPEN -> FIXED** (fcb3e742 + this cycle 69a7820c/da66553a).
    Round 4's list names KB-145/183 as verified; the entry above was never
-   flipped. Verified: companion/mod.rs:537-539 (effective_enabled
-   conjunction) + :551 (init) + :783-815 (4-combination test);
+   flipped. Verified: companion/mod.rs:1373 (effective_enabled
+   conjunction, fleet pass 2 re-read) + :1382 (init) + :2868 (4-combination test);
    shortcut/mod.rs:955-990 (IPC gate) and :1689 (Experimental kill switch).
 4. **KB-206 -> FIXED** (b63cd215, cycle 3 wave 5; round 5 verified). The
    entry above was never flipped. Verified: settingsSearchIndex.ts:152-158
@@ -734,7 +734,7 @@ rather than a one-line fix, so v1.6.0 ships with them disclosed.
   same-name registration. Fixed: connections register by (server-assigned
   lane, monotonic generation) and release only on a matching pair, pinned by
   registrations_release_by_lane_and_generation_never_by_name
-  (companion/mod.rs:1291); the device list derives from live registrations
+  (companion/mod.rs:1745 after the fleet pass 2 re-read); the device list derives from live registrations
   (round 8 meaning; see the round 9 correction log for the id collision
   with round 7's KB-255).
 - **KB-256 · FIXED (v1.6.2, 8b94fdc1) · a v1.5.x built-in rename strands the
@@ -855,7 +855,7 @@ transcription_coordinator.rs:1710 with input_routing_is_exhaustively_classified
 (:4013), two_lanes_each_hold_a_live_session_with_independent_stops (:4247),
 a_companion_press_while_the_keyboard_records_never_reaches_the_lane_machine
 (:4419), registrations_release_by_lane_and_generation_never_by_name
-(companion/mod.rs:1457), session_identity_freezes_per_lane_and_cannot_be_renamed,
+(companion/mod.rs:1745 after the fleet pass 2 re-read), session_identity_freezes_per_lane_and_cannot_be_renamed,
 session_prefs_freeze_per_lane_and_survive_the_stop_pipeline,
 transcript_delivery_and_state_frames_flow_through_app_state_per_lane,
 stream_owner_tokens_round_trip_and_never_collide; the new capture_device
@@ -1066,10 +1066,18 @@ extended to scope the delete body (also mutation-checked).
   identity (no transcript, no history row) and stranded its recorder
   recording=true. Server stop, restart, and toggle-off all shared the
   path. Fixed: the sweep retains exactly the live lanes' records
-  (retain_live_lane_sessions, companion/mod.rs:361) and never touches the
-  transient stopping slot. Pinned by
+  (retain_live_lane_sessions at that round's location in the companion
+  module) and never
+  touches the transient stopping slot. Pinned then by
   server_stop_sweep_keeps_live_lanes_records_for_their_pipelines and
-  stop_routes_the_sweep_not_a_clear.
+  stop_routes_the_sweep_not_a_clear. (Fleet pass 2 of the v1.6.4 review
+  superseded this shape: the retain sweep removed exactly the
+  false-edged-but-unconsumed records whose cancel pipelines were still in
+  flight, so records are now removed at their pipeline's consumption
+  point, note_stopping_session at companion/mod.rs:1250, and stop()
+  performs no map surgery at all; pinned by
+  server_stop_leaves_records_for_their_pipelines_in_both_stop_orders and
+  stop_leaves_the_session_map_to_its_pipelines.)
 - **KB-268 · FIXED · the cancel shortcut's want was one boolean, so the
   first overlapping drain unregistered Escape for every concurrently-live
   session (round 9 fleet pass 2, 801d48d3).** Fixed: the want is a
@@ -1147,10 +1155,10 @@ extended to scope the delete body (also mutation-checked).
   flipped round 11) · the Esc resolution cannot reach older live phone
   sessions (round 9 W1-L6 review).** Two gaps in the cancel resolution,
   read from code: (1) last_recording_lane is stored only at recorder
-  start (audio.rs:1361 in this tree) and reset only in
-  close_remote_stream (audio.rs:1587); the cancel lane arm removes the
+  start (audio.rs:1368 in this tree; fleet pass 2 re-read) and reset only in
+  close_remote_stream (audio.rs:1594); the cancel lane arm removes the
   lane's entry without re-pointing the pointer, and it only fires while
-  the local machine is Idle (audio.rs:2232-2236), so after the newest
+  the local machine is Idle (audio.rs:2250; fleet pass 2 re-read), so after the newest
   phone session is cancelled OR merely stops, the next Esc resolves to
   CancelTarget::None and only bumps in-flight stop pipelines: a
   still-live older phone session is unreachable from the keyboard until
@@ -1172,8 +1180,8 @@ extended to scope the delete body (also mutation-checked).
 ## Still open after this cycle (anchors refreshed where re-read)
 
 - **KB-028:** companion stop() still closes the lane recorders only when
-  nothing is recording (companion/mod.rs:766-772 after the v1.6.4
-  rewrite and the fleet pass 1 re-read; the anchor at round 9 time was
+  nothing is recording (companion/mod.rs:750-755 after the v1.6.4
+  rewrite and the fleet pass 2 re-read; the anchor at round 9 time was
   mod.rs:604-609); the shape
   survived the W1-L2 rewrite, both fleet passes, and the v1.6.4 lane. A
   disable during a live local recording can still strand the pre-warmed
@@ -1186,20 +1194,23 @@ extended to scope the delete body (also mutation-checked).
   at 43f4c092).
 - **KB-085 residual:** the rapid off/on port race (stop returns without
   awaiting the accept loop, whose only signal is the shutdown send at
-  companion/mod.rs:763 in this tree; the anchor was mod.rs:600 before the
-  v1.6.4 companion rewrite and :779 before the fleet pass 1 companion
-  edits; bind fails EADDRINUSE with no retry). The
+  companion/mod.rs:746 in this tree; the anchor was mod.rs:600 before the
+  v1.6.4 companion rewrite, :779 before the fleet pass 1 companion
+  edits, and :763 before the fleet pass 2 edits; bind fails EADDRINUSE
+  with no retry). The
   pre-auth deadline half was already fixed in 9655d8fc. (Round 11
   re-verified against the rewritten file, anchors refreshed by the fleet
-  pass 1 companion re-read: start() spawns the accept loop
-  fire-and-forget at companion/mod.rs:690 and waits only on the bind
-  outcome, stop() sends and returns at :763, restart() bridges the two
-  with a fixed 150 ms sleep at :797, and the accept loop releases the
+  pass 1 companion re-read and refreshed again by pass 2: start() spawns
+  the accept loop
+  fire-and-forget at companion/mod.rs:673 and waits only on the bind
+  outcome, stop() sends and returns at :746, restart() bridges the two
+  with a fixed 150 ms sleep at :780, and the accept loop releases the
   listener only when its select breaks on the shutdown watch at
   server.rs:83 - so a rebinding start inside the sleep window can still
   lose the race, exactly the round 9 shape.)
 - **KB-086 residual:** the two dead protocol fields. The zero-tests half is
-  closed this cycle: server.rs now carries a tests module (server.rs:695)
+  closed this cycle: server.rs now carries a tests module
+  (companion/server.rs:952 after the fleet pass 2 re-read)
   from the W1-L0 work.
 - **KB-155 residual:** model-download cancel failures are still invisible
   in the settings UI (fleet verdict; the delete half renders only the
@@ -1220,7 +1231,7 @@ extended to scope the delete body (also mutation-checked).
   keys before :141's requiresExperimental block).
 - **KB-258:** the phone's Polish-text toggle still arms the NEXT session;
   per-lane prefs freeze at session start (freeze_session,
-  companion/mod.rs:313, pinned by
+  companion/mod.rs:467 after the fleet pass 2 re-read, pinned by
   session_prefs_freeze_per_lane_and_survive_the_stop_pipeline) and the phone
   surface still does not say so.
 - **KB-261, KB-262, and KB-275 above** (KB-275 now reads PARTIALLY
@@ -1315,7 +1326,7 @@ none touched a KB item, so no statuses moved.
   stand.
 - **KB-237 · FIXED, verified against this tree.** The pin
   mode_flip_may_close_local_stream is live (managers/audio.rs:300, call
-  site :1195, pin cases :2943-2953). The round 5 and round 9 W1-L5
+  site :1202, pin cases :3026-3036; anchors fleet pass 2 re-read). The round 5 and round 9 W1-L5
   markers stand.
 - **KB-254 · FIXED (round 8 meaning), verified against this tree.** The
   zero-audio detail names the stopping session's own device, with the
@@ -1326,7 +1337,8 @@ none touched a KB item, so no statuses moved.
 - **KB-255 · FIXED (round 8 meaning), verified against this tree.** The
   lane-plus-generation release rule is pinned by
   registrations_release_by_lane_and_generation_never_by_name
-  (companion/mod.rs:1725). Round 8's marker stands.
+  (companion/mod.rs:1745 after the fleet pass 2 re-read). Round 8's
+  marker stands.
 - **KB-241 · FIXED, verified.** No is_model_loading reference remains in
   any shipped source (grep over src/, src-tauri/src/, and the generated
   bindings; the only repo hit is a .zcode workflow draft artifact, which
@@ -1344,14 +1356,14 @@ none touched a KB item, so no statuses moved.
   transcription_coordinator.rs:1298-1325 with its source pin at
   :5130-5165, and the scoped singleton teardown at utils.rs:86-140).
   Gap (1), the last_recording_lane no-re-point, is the open residual
-  (stored only at audio.rs:1361, reset only at :1587, read only while
-  Idle at :2232-2236).
+  (stored only at audio.rs:1368, reset only at :1594, read only while
+  Idle at :2250; anchors fleet pass 2 re-read).
 - The round 10 tail's carried six-pack line was cut while five of the
   six round 8 entries already read FIXED; it now says so. Only KB-258
   was and is open (re-verified: the phone's "Polish text" label,
   client/index.html:554-557, still carries no next-session hint).
 - Round 9's KB-028 anchor refreshed to the current tree
-  (companion/mod.rs:766-772 after the fleet pass 1 companion edits).
+  (companion/mod.rs:750-755 after the fleet pass 2 companion edits).
 
 ## Round 10 closures recorded (this cycle's lanes; round 10 meanings)
 
@@ -1363,10 +1375,11 @@ pass), cdb14c51 (the validator wave), 5223d8a2, e7f9abc5, and 560440a2
   with entropy (client/index.html:660-672, protocol.rs:186), so
   same-hour phones stop sharing an identity tag.
 - **KB-261 · FIXED (645e3eff + cba077a9).** A persisted known-identity
-  set survives a Mac origin change (companion/mod.rs:206, seeded at
-  :610, persisted at :1039) and identity resolution is atomic with
-  registration under one critical section (server.rs:364, barrier race
-  pin at companion/mod.rs:1911).
+  set survives a Mac origin change (companion/mod.rs:213, seeded at
+  :584, persisted at :1048; anchors fleet pass 2 re-read after the pass 1
+  rewrite removed adoption) and identity resolution is atomic with
+  registration under one critical section (companion/server.rs:526,
+  barrier race pin at companion/mod.rs:1892).
 - **KB-262 · FIXED (5223d8a2; the mechanical fix landed in v1.6.3 under
   the same id).** The zeroAudio recovery advice is activation-aware,
   all 26 locales ship the variants, locked by the KB-262 block in
@@ -1374,7 +1387,9 @@ pass), cdb14c51 (the validator wave), 5223d8a2, e7f9abc5, and 560440a2
 - **KB-263 · FIXED (645e3eff, corrected by cba077a9).** The disconnect
   path performs no pause ack at all (the eager ack was a no-op and is
   removed; the producer-gone close is the ack), pinned across server,
-  audio, and recorder tests (server.rs:734, source pin :1249).
+  audio, and recorder tests (the no-ack contract lives in
+  finalize_disconnected_connection, companion/server.rs:313 after the
+  fleet pass 2 extraction, source pin :1391).
 - **KB-265 · FIXED (cdb14c51).** The digit-script guard keeps a strict
   tie leader and sanctions carried digit runs verbatim; pinned at
   post_process_runs.rs:1516.
@@ -1389,14 +1404,19 @@ pass), cdb14c51 (the validator wave), 5223d8a2, e7f9abc5, and 560440a2
   directoryOpenErrorPins.test.ts.
 - **KB-269 · FIXED (645e3eff).** The dotool split normalizes CRLF and
   lone CR before typing (clipboard.rs:682, pin :1268).
-- **KB-270 · FIXED (645e3eff).** Session end sweeps the lane record
-  (companion/mod.rs:1153, pin :2032) and the disconnect retires the
-  lane's coordinator machine and bookkeeping (server.rs:713, source pin
-  :1316).
+- **KB-270 · FIXED (645e3eff; consumption point moved by fleet pass
+  2).** The lane record is removed by its stop pipeline's handoff
+  (note_stopping_session, companion/mod.rs:1250 - the pass 2 fix for the
+  cancel-vs-Stop interleave that used to strip the record before the
+  pipeline could read it; pin :2077) and the disconnect retires the
+  lane's coordinator machine and bookkeeping
+  (companion/server.rs:297 inside finalize_disconnected_connection,
+  source pin :1446).
 - **KB-272 · FIXED (645e3eff + cba077a9).** push_remote_chunk routes
   through the free core with real-lane-recorder coverage: round trip,
-  lane isolation, and the removed-lane false (audio.rs:458,
-  server.rs:284, pins :1148 and :1204).
+  lane isolation, and the removed-lane false (audio.rs:468,
+  companion/server.rs:436, pins :1278 and :1332; anchors fleet pass 2
+  re-read).
 - **KB-273 · FIXED (645e3eff).** The lid-driven capture restart is
   gated on a configured clamshell microphone before the state lock
   (audio.rs:1880-1894, source pin :2552).
@@ -1422,16 +1442,16 @@ untouched this cycle).
 
 ## Round 9 open list, re-verified this pass
 
-KB-028 (anchor refreshed, companion/mod.rs:766-772 after fleet pass 1),
+KB-028 (anchor refreshed, companion/mod.rs:750-755 after fleet pass 2),
 KB-029
 (reset_pairing returns its error to the caller with no status.error
-write, companion/mod.rs:922-935 after fleet pass 1), KB-085 residual (re-verified against
+write, companion/mod.rs:905-918 after fleet pass 2), KB-085 residual (re-verified against
 the REWRITTEN companion file, not waved off: this cycle's diff touched
 companion/mod.rs and server.rs heavily, so the round 9 anchor was
 re-read - the residual holds, with the shutdown send now at
-companion/mod.rs:763 (fleet pass 1 re-read), the fire-and-forget accept
-spawn at :690, the
-fixed 150 ms restart sleep at :797, and the accept loop's shutdown
+companion/mod.rs:746 (fleet pass 2 re-read), the fire-and-forget accept
+spawn at :673, the
+fixed 150 ms restart sleep at :780, and the accept loop's shutdown
 break at server.rs:83; the round 9 entry above carries the refreshed
 anchor), KB-082 and KB-155 residual (their anchored files, cert.rs and
 the model-settings sources, are genuinely untouched by this cycle's
@@ -1480,11 +1500,11 @@ reintroducing its defect and watching it trip).
   [persist writes][connected writes] let the last whole-settings writer
   erase the other's field - and both fire together exactly when a first
   pairing mints an identity and changes the last device. Both cycles now
-  route through CONNECT_EDGE_SETTINGS_RMW (companion/mod.rs:1035), whose
-  guard spans the read through the write (companion/mod.rs:1042), making
+  route through CONNECT_EDGE_SETTINGS_RMW (companion/mod.rs:1018), whose
+  guard spans the read through the write (companion/mod.rs:1025), making
   the persist doc's no-clobber claim true. Pinned by
   kb261_connect_edge_settings_rmws_serialize_through_one_lock
-  (companion/mod.rs:1996; the real store cannot mount under a mock app,
+  (companion/mod.rs:2026 after the fleet pass 2 re-read; the real store cannot mount under a mock app,
   so the lock discipline is pinned on the source, the established
   convention). Mutation-checked by reverting note_device_connected to a
   direct get/write pair and watching the pin fail.
@@ -1505,12 +1525,12 @@ reintroducing its defect and watching it trip).
   violating the pinned protocol invariant that a client with no id keeps
   the bare name. Identities are now exact
   (companion/mod.rs:395, register_connection_with_identity); the known
-  set stays as the durable pairing record (seeded at :601, persisted at
-  :1065). Disclosed cost: a Mac origin change resets that phone's Recent
+  set stays as the durable pairing record (seeded at :584, persisted at
+  :1048; anchors fleet pass 2 re-read). Disclosed cost: a Mac origin change resets that phone's Recent
   list, the pre-v1.6.4 behavior - the round 10 KB-261 UX half this cycle
   tried to fix stays open as a design question (a consent prompt on the
   phone is the shape that could bring adoption back safely). Pinned by
-  kb261_identities_are_exact_and_never_adopt (companion/mod.rs:1786) plus
+  kb261_identities_are_exact_and_never_adopt (companion/mod.rs:1808) plus
   a source pin that the adoption matcher cannot reappear
   (mutation-checked by re-adding the function and watching the pin
   trip); the round 11 KB-261 FIXED marker above records the v1.6.4
@@ -1544,3 +1564,100 @@ reintroducing its defect and watching it trip).
   verbatim with a recording t() across all four status/count
   combinations and asserts the bare family keys with count riding the
   call (mutation-checked by regressing to a suffixed key).
+
+### Round 12, fleet pass 2 (2026-10-13)
+
+Six more confirmed findings on the same branch, fixed in one commit, each
+pinned and mutation-checked (the mutation reintroduced the defect and
+watched its pin trip; every restore re-verified green).
+
+- **Welcome-failure leak · FIXED.** The only post-registration early
+  exit - the Welcome send failing because the phone died between hello
+  and welcome (companion/server.rs:614) - was a bare silent return that
+  skipped the ENTIRE disconnect finalize: the connections entry survived
+  until server stop (a phantom phone in the tray's paired count) and the
+  KB-270 lane machine, post-process mirror entry, and cancel generation
+  leaked forever. The whole teardown now lives in
+  finalize_disconnected_connection (companion/server.rs:274) and BOTH
+  exits route through it (the session loop's tail and the
+  welcome-failure arm, which also logs like every other exit on the
+  path). Pinned by
+  welcome_send_failure_finalizes_the_lane_instead_of_leaking_it
+  (companion/server.rs:1596; mutation-checked by restoring the bare
+  return).
+- **Stale ledger anchors · FIXED.** The pass 1 companion rewrite moved
+  13+ companion/mod.rs and companion/server.rs citations in the round
+  10/11 sections (and KB-086's tests-module anchor had been stale since
+  the v1.6.4 rewrite), while the goldmine pin live-checked exactly one
+  anchor. Every companion citation in the ledger is refreshed against
+  this tree (each marked with its re-read), and the pin now
+  live-checks ALL of them: an anchor table maps every cited
+  companion-file span to the token its lines must carry, the
+  enumeration check forces every NEW citation through a table row, and
+  dead rows fail. Mutation-checked both ways: shifting a ledger line by
+  one trips the enumeration check; moving the code without the ledger
+  trips the token check. Anchors outside the companion module remain
+  outside the pin's scope (disclosed).
+- **KB-270 review: the cancel-vs-Stop interleave · FIXED.** The session
+  record was removed at on_lane_session_changed(false) on the assumption
+  the stop pipeline had already consumed the identity, but the cancel
+  path false-edges the session BEFORE its pipeline runs
+  note_stopping_session - the handoff found nothing, and the stop
+  pipeline fell back to companion_last_device (the most recent phone to
+  hello, possibly a different phone), attributing the dictation's
+  history row and Recent routing to the wrong identity. The record now
+  survives the false edge as live=false and is removed at the
+  consumption point (note_stopping_session, companion/mod.rs:1250);
+  stop()'s retain sweep is gone entirely (it removed exactly the
+  pending-consumption records), so every record still present at server
+  stop belongs to a pipeline that will consume it. The false edge with
+  no record (the normal post-consumption stop) still sends the phone's
+  State frame and clears the overlay instead of returning early.
+  Pinned by
+  server_stop_leaves_records_for_their_pipelines_in_both_stop_orders
+  (companion/mod.rs:1642),
+  stop_leaves_the_session_map_to_its_pipelines (companion/mod.rs:1718), and the
+  reworked kb270_lane_session_records_are_consumed_at_every_session_end
+  (companion/mod.rs:2077); mutation-checked by restoring the edge removal.
+- **Accept-wedge hardening, closed seam · FIXED.** The Welcome frame's
+  settings read ran get_settings synchronously ON the async connection
+  task - a read-modify-write over the plugin store's mutex (migration
+  and binding-merge write-backs), the exact blocking class the
+  hardening moved off the task, one line after the workers it created
+  for that purpose. The read now rides
+  tauri::async_runtime::spawn_blocking and the task awaits the handle
+  (a failed read falls back to the shipped defaults). The pin's blanket
+  claim ("every synchronous seam ... never inside the async task") is
+  scoped to the seams it actually enumerates, the four spawn_worker
+  seams plus the welcome read. Pinned by
+  connection_blocking_seams_run_off_the_async_connection_task
+  (companion/server.rs:1476; mutation-checked by restoring the inline
+  read).
+- **Phone-path lock poison tolerance · FIXED.** route_remote_chunk (the
+  KB-272 core that runs on EVERY phone audio frame on the connection
+  task) and drop_lane_cancel_generation (newly called from the
+  coordinator thread's retire_dead_lane, whose catch_unwind logs once
+  and exits with no restart) still locked with .unwrap(), the exact
+  failure class the companion manager converted every one of its own
+  Mutexes away from (a panic under try_start_remote_lane_recording's
+  CoreAudio/VAD open poisons the map, and every later push panics its
+  connection task). Both acquire poison-tolerantly now (managers/
+  audio.rs:468 and :2101). Pinned by
+  kb272_route_remote_chunk_survives_a_poisoned_lanes_guard (executes the
+  real routing core against a deliberately poisoned guard) and
+  phone_path_lock_sites_are_poison_tolerant (source slice;
+  mutation-checked by reverting the unwrap).
+- **Worker panics observable · FIXED.** The four detached
+  connect/disconnect workers (persist_known_identities,
+  note_device_connected, send_recent_history_to_lane,
+  note_device_disconnected) were bare std::thread::spawn bodies whose
+  panic output never reached the app's rotating log (no panic hook
+  exists anywhere in src-tauri, and tauri_plugin_log captures log
+  records, not panics) - a packaged .app launched from Finder showed
+  nothing while the pairing record silently diverged. Every worker body
+  now rides spawn_worker (companion/server.rs:252): catch_unwind plus an
+  error log through the app's logger. Pinned inside
+  connection_blocking_seams_run_off_the_async_connection_task (each seam
+  must be introduced by spawn_worker with its name, and the helper must
+  catch and log; mutation-checked by reducing the helper to a bare
+  spawn).

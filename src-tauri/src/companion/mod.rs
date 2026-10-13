@@ -503,23 +503,6 @@ impl CompanionManager {
         lanes
     }
 
-    /// Fleet pass 2: the session-record sweep the server-stop path runs
-    /// AFTER queueing its finalize commands. Those commands are resolved
-    /// later, on the coordinator thread, and each pipeline reads its
-    /// lane's record through note_stopping_session - so the sweep may only
-    /// remove records whose sessions are NOT live (already-drained entries
-    /// from an earlier cycle). A live lane's record must survive until its
-    /// own pipeline consumes it, or the pipeline resolves session_lane
-    /// None and discards the dictation. Pure map surgery; pinned with the
-    /// note_stopping_session roundtrip in the tests below.
-    fn retain_live_lane_sessions(&self) {
-        let live: std::collections::HashSet<u64> = self.live_session_lanes().into_iter().collect();
-        self.lane_sessions
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .retain(|lane, _| live.contains(lane));
-    }
-
     /// v1.6.0: arm the preferences the next companion session will run
     /// with. Called by the server on every press edge, so the tray's
     /// companion status block shows the latest phone choice as "what the
@@ -742,20 +725,20 @@ impl CompanionManager {
                 coordinator.finalize_companion_lane(lane);
             }
         }
-        // Fleet pass 2: those finalize commands are ASYNCHRONOUS (mpsc
-        // sends; the coordinator thread turns each into a Stop effect
-        // whose pipeline reads THIS lane's session record through
-        // note_stopping_session), so this thread must NOT clear the map
-        // out from under them - the pre-fix synchronous clear raced every
-        // pipeline into session_lane None and silently discarded the
-        // dictation (no transcript, no history row) while stranding the
-        // lane's recorder recording=true. Keep exactly the LIVE lanes'
-        // records (their pipelines consume them and the false edge removes
-        // them, KB-270); never touch the stopping
-        // slot at all (it is transient by design: note_stopping_session
-        // writes it and take_stopping_session consumes it on the same
-        // thread).
-        self.retain_live_lane_sessions();
+        // Fleet pass 2 (KB-270 review): those finalize commands are
+        // ASYNCHRONOUS (mpsc sends; the coordinator thread turns each into
+        // a Stop effect whose pipeline reads THIS lane's session record
+        // through note_stopping_session), so this thread must not touch
+        // the session map at all - the pre-review synchronous clear raced
+        // every pipeline into session_lane None and silently discarded the
+        // dictation, and the retain-live-only sweep that replaced it
+        // removed exactly the false-edged-but-unconsumed records whose
+        // cancel pipelines were still in flight. Records are consumed (and
+        // removed) by their own pipelines now, so the map here holds only
+        // records those queued commands will consume; never touch the
+        // stopping slot either (it is transient by design:
+        // note_stopping_session writes it and take_stopping_session
+        // consumes it on the same thread).
 
         self.broadcast_frame(&protocol::ServerFrame::Goodbye {
             reason: "server_stopping",
@@ -1141,27 +1124,36 @@ pub fn on_lane_session_changed<R: tauri::Runtime>(
         .lane_sessions
         .lock()
         .unwrap_or_else(|e| e.into_inner());
+    // Fleet pass 2 (KB-270 review): the record is KEPT here on the false
+    // edge, as live=false - the v1.6.4 sweep removed it at this edge on
+    // the assumption the stop pipeline had already consumed the identity,
+    // but the cancel path raises this same false edge BEFORE its pipeline
+    // runs note_stopping_session (the coordinator's cancel arm), so the
+    // removal raced the handoff: note_stopping_session found no record,
+    // take_stopping_session returned None, and the stop pipeline fell back
+    // to companion_last_device - the most recent phone to hello, possibly
+    // a DIFFERENT phone - attributing the dictation's history row and
+    // Recent-list routing to the wrong identity. Removal now happens at
+    // the consumption point (note_stopping_session), so the record is
+    // observably identical to the pre-branch live=false drain: every
+    // present record has a pipeline that will consume it, nothing
+    // accumulates (KB-270's growth bound holds: consumption removes), and
+    // the next session on the lane re-inserts a fresh record at its own
+    // Start commit.
     let device = match sessions.get_mut(&lane) {
         Some(session) => {
             session.live = active;
-            session.device.clone()
+            Some(session.device.clone())
         }
-        None => return, // no session was ever committed for this lane
+        // A live edge with no record is meaningless (no session was ever
+        // committed for this lane); a FALSE edge without one is the
+        // normal post-consumption stop (the pipeline already took the
+        // identity) and must still send the State frame and clear the
+        // overlay - returning early here would leave the phone's record
+        // button stuck on "recording".
+        None if active => return,
+        None => None,
     };
-    // KB-270 (v1.6.4): the session END sweeps the record right here. The
-    // stop pipeline resolved this session's identity BEFORE this edge (the
-    // coordinator's Stop effect hands it over through
-    // note_stopping_session, and the pipeline's first synchronous step
-    // takes it - both strictly before on_lane_session_changed(false) runs
-    // inside stop()), so the drained record is dead weight; leaving it for
-    // the next server stop's sweep grew the map by one entry per session
-    // per lane forever (a flapping phone = monotonic growth). Removal is
-    // observably identical to live=false: lane_owns_live_session reads
-    // false either way, and the next session on the lane re-inserts a
-    // fresh record at its own Start commit.
-    if !active {
-        sessions.remove(&lane);
-    }
     drop(sessions);
     manager.send_frame_to_lane(lane, &protocol::ServerFrame::State { recording: active });
     let _ = app.emit_to(
@@ -1169,7 +1161,7 @@ pub fn on_lane_session_changed<R: tauri::Runtime>(
         "companion-session-changed",
         serde_json::json!({
             "active": active,
-            "device": if active { Some(device) } else { None },
+            "device": device.filter(|_| active),
         }),
     );
 }
@@ -1245,18 +1237,28 @@ pub fn discard_session<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lane: u64) 
 /// pipeline, whose TranscribeAction signature predates lanes. Called
 /// immediately before the Stop effect runs; consumed exactly once by the
 /// pipeline's first synchronous step on the same thread.
+///
+/// Fleet pass 2 (KB-270 review): this handoff is also the record's
+/// CONSUMPTION point - the record is removed here, not at the session's
+/// false edge, because the cancel path false-edges the session BEFORE its
+/// pipeline reaches this seam (the coordinator's cancel arm), and a record
+/// removed at the edge left this seam nothing to hand over (the pipeline
+/// then fell back to companion_last_device, attributing the dictation to
+/// whatever phone hello'd most recently). Removal here keeps KB-270's
+/// growth bound exactly: a record exists from its Start commit to its
+/// pipeline's handoff, nothing accumulates on a flapping phone.
 pub fn note_stopping_session<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lane: u64) {
     let Some(manager) = manager(app) else {
         return;
     };
-    let sessions = manager
+    let mut sessions = manager
         .lane_sessions
         .lock()
         .unwrap_or_else(|e| e.into_inner());
-    if let Some(session) = sessions.get(&lane) {
+    if let Some(session) = sessions.remove(&lane) {
         *manager.stopping.lock().unwrap_or_else(|e| e.into_inner()) = Some(StoppingSession {
             lane,
-            device: session.device.clone(),
+            device: session.device,
             prefs: session.prefs,
         });
     }
@@ -1627,17 +1629,17 @@ mod tests {
         assert!(manager.live_session_lanes().is_empty());
     }
 
-    /// Fleet pass 2: the server-stop sweep must not race the finalize
-    /// pipelines it just queued. stop() sends one finalize command per
-    /// live lane (an mpsc send resolved LATER on the coordinator thread)
-    /// and then sweeps the session records on ITS OWN thread; the
-    /// pre-fix sweep was a full clear, so every pipeline found no record,
-    /// resolved session_lane None, and silently discarded its dictation.
-    /// The sweep must keep exactly the LIVE lanes' records - the pipeline
-    /// handoff (note_stopping_session -> take_stopping_session) still
-    /// resolves after it - and may only remove already-drained entries.
+    /// Fleet pass 2 (KB-270 review): session records survive until their
+    /// pipeline CONSUMES them, in both stop orders. The v1.6.4 edge sweep
+    /// removed the record at on_lane_session_changed(false), which raced
+    /// the cancel path (its false edge lands BEFORE the pipeline's
+    /// note_stopping_session): the handoff found nothing, and the stop
+    /// pipeline attributed the dictation to companion_last_device - the
+    /// most recent phone to hello, possibly a different phone. Now the
+    /// false edge only drains (live=false) and note_stopping_session is
+    /// the consumption point that removes.
     #[test]
-    fn server_stop_sweep_keeps_live_lanes_records_for_their_pipelines() {
+    fn server_stop_leaves_records_for_their_pipelines_in_both_stop_orders() {
         let app = tauri::test::mock_app();
         let manager = Arc::new(CompanionManager::new());
         app.manage(Arc::clone(&manager));
@@ -1650,50 +1652,70 @@ mod tests {
         };
         begin_session(app.handle(), lane_a, prefs.clone());
         begin_session(app.handle(), lane_b, prefs.clone());
-        // Lane B's session already drained (an earlier cycle's leftover:
-        // live=false, its pipeline long finished).
-        on_lane_session_changed(app.handle(), lane_b, false);
 
-        // The sweep, exactly as stop() runs it after queueing its
-        // finalizes.
-        manager.retain_live_lane_sessions();
-
-        // The drained record is gone; the LIVE record survived, and the
-        // pipeline handoff still resolves it: note_stopping_session (the
-        // coordinator thread's Stop-effect seam) reads the record, and
-        // take_stopping_session (the pipeline's first step) receives the
-        // lane, device, and prefs - the identity whose absence made the
-        // pre-fix stop discard the audio.
+        // The ordinary order (a release-edge Stop): the coordinator's Stop
+        // effect hands the identity over first, the false edge lands after.
         note_stopping_session(app.handle(), lane_a);
         let stopping = take_stopping_session(app.handle());
         assert_eq!(
             stopping,
-            Some((lane_a, "iPhone#7f3a".to_string(), prefs)),
-            "a live lane's record must survive the server-stop sweep so its finalize pipeline resolves its identity"
+            Some((lane_a, "iPhone#7f3a".to_string(), prefs.clone())),
+            "the ordinary stop order resolves the identity"
+        );
+        on_lane_session_changed(app.handle(), lane_a, false);
+        assert!(
+            !manager.lane_owns_live_session(lane_a),
+            "the consumed lane is no longer live"
         );
 
-        // The stopping slot was never cleared by the sweep (it is
-        // transient: written by the Stop effect, consumed exactly once).
+        // The CANCEL order (the review's finding): the false edge lands
+        // FIRST (the coordinator's cancel arm), the pipeline's handoff
+        // runs later. The drained record must still be there to hand over
+        // ITS OWN identity - not companion_last_device's.
+        on_lane_session_changed(app.handle(), lane_b, false);
+        assert!(
+            !manager.lane_owns_live_session(lane_b),
+            "the false edge drained the session"
+        );
+        note_stopping_session(app.handle(), lane_b);
+        let stopping = take_stopping_session(app.handle());
+        assert_eq!(
+            stopping,
+            Some((lane_b, "iPhone#c3d4".to_string(), prefs)),
+            "a session false-edged before its pipeline still hands over its OWN identity"
+        );
+
+        // Consumption removed both records: nothing accumulates.
+        assert!(
+            manager
+                .lane_sessions
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .is_empty(),
+            "consumption removes the record, so no drained entry outlives its pipeline"
+        );
+        // The stopping slot was consumed exactly once (it is transient:
+        // written by the Stop effect, consumed exactly once).
         assert!(take_stopping_session(app.handle()).is_none());
-        // And a second sweep (the next server stop) collects the drained
-        // record once its pipeline flipped liveness.
-        on_lane_session_changed(app.handle(), lane_a, false);
-        manager.retain_live_lane_sessions();
-        assert!(manager.live_session_lanes().is_empty());
-        note_stopping_session(app.handle(), lane_a);
+        // And a second handoff for an already-consumed lane hands out
+        // nothing (a drained record no longer exists to re-adopt).
+        note_stopping_session(app.handle(), lane_b);
         assert!(
             take_stopping_session(app.handle()).is_none(),
-            "a drained record no longer hands out an identity"
+            "a consumed record no longer hands out an identity"
         );
     }
 
-    /// The source-level companion of the sweep test above: stop() must run
-    /// the sweep (retain), never a synchronous clear, and never touch the
-    /// stopping slot. Mounting a RUNNING TLS server in a unit test is not
+    /// The source-level companion of the test above: stop() must not touch
+    /// the session map at all - no synchronous clear (the pre-fix race
+    /// that discarded dictations), no retain-based sweep (the fleet pass 2
+    /// finding: it removed exactly the false-edged-but-unconsumed records
+    /// whose cancel pipelines were still in flight), no stopping-slot
+    /// surgery. Mounting a RUNNING TLS server in a unit test is not
     /// practical, so the arm is pinned against this committed source (the
     /// same convention as the coordinator's executor pins).
     #[test]
-    fn stop_routes_the_sweep_not_a_clear() {
+    fn stop_leaves_the_session_map_to_its_pipelines() {
         let source = include_str!("mod.rs");
         let at = source
             .find("pub fn stop(&self, app: &AppHandle)")
@@ -1701,12 +1723,12 @@ mod tests {
         let end = at + source[at..].find("\n    }\n").expect("fn end");
         let body = &source[at..end];
         assert!(
-            body.contains("self.retain_live_lane_sessions();"),
-            "stop() must sweep through retain_live_lane_sessions after queueing its finalizes"
+            !body.contains("lane_sessions"),
+            "stop() must not touch the session map: every record still present belongs to a pipeline that will consume it (live lanes' queued finalizes and false-edged lanes' in-flight stop pipelines)"
         );
         assert!(
-            !body.contains("lane_sessions.lock().unwrap_or_else(|e| e.into_inner()).clear()"),
-            "stop() must never clear the session map synchronously: the finalize pipelines it just queued read those records"
+            !body.contains("retain_live_lane_sessions"),
+            "the retain sweep is gone: it removed pending-consumption records"
         );
         assert!(
             !body.contains("stopping.lock"),
@@ -2043,19 +2065,22 @@ mod tests {
         }
     }
 
-    /// KB-270 (v1.6.4): the per-lane session records stop growing. Every
-    /// session END sweeps its record (the stop pipeline has already
-    /// consumed the identity by then), so a phone flapping through
-    /// reconnect-and-dictate cycles leaves the map EMPTY, not one drained
-    /// record per cycle - the pre-fix growth was monotonic because lane
-    /// ids are never reused and the sweep ran only at server stop.
+    /// KB-270 (v1.6.4, fleet pass 2): the per-lane session records stop
+    /// growing because the pipeline's handoff CONSUMES its record
+    /// (note_stopping_session removes it), so a phone flapping through
+    /// reconnect-and-dictate cycles leaves the map EMPTY - in the ordinary
+    /// stop order AND the cancel order (false edge first), and even when a
+    /// cycle's false edge lands with no pipeline at all before the next
+    /// Start re-commits the lane (the next begin_session replaces the
+    /// drained record in place).
     #[test]
-    fn kb270_lane_session_records_are_swept_at_every_session_end() {
+    fn kb270_lane_session_records_are_consumed_at_every_session_end() {
         let app = tauri::test::mock_app();
         let manager = Arc::new(CompanionManager::new());
         app.manage(Arc::clone(&manager));
 
-        // A flapping phone: N reconnect cycles, one dictation each.
+        // A flapping phone: N reconnect cycles, one dictation each, in the
+        // production order (handoff, take, then the false edge).
         for cycle in 0..25u64 {
             let (lane, _gen, _rx) = manager.register_connection("Pixel 8");
             begin_session(app.handle(), lane, protocol::SessionPrefs::default());
@@ -2063,8 +2088,6 @@ mod tests {
                 manager.lane_owns_live_session(lane),
                 "cycle {cycle}: the session is live while recording"
             );
-            // The stop pipeline consumed the identity (production order),
-            // then the session END lands.
             note_stopping_session(app.handle(), lane);
             assert!(
                 take_stopping_session(app.handle()).is_some(),
@@ -2073,18 +2096,42 @@ mod tests {
             on_lane_session_changed(app.handle(), lane, false);
             assert!(
                 manager.lane_sessions.lock().unwrap().is_empty(),
-                "cycle {cycle}: a drained session leaves no record behind"
+                "cycle {cycle}: a consumed session leaves no record behind"
             );
         }
 
-        // Two live sessions coexist and each end removes exactly its own.
+        // The cancel order on the same flapping shape: false edge first
+        // (the coordinator's cancel arm), pipeline handoff after. The map
+        // is empty after the handoff too - and the identity it handed over
+        // was the drained record's OWN (the wrong-phone guard the fleet
+        // pass pinned above in
+        // server_stop_leaves_records_for_their_pipelines_in_both_stop_orders).
+        for cycle in 0..25u64 {
+            let (lane, _gen, _rx) = manager.register_connection("Pixel 8");
+            begin_session(app.handle(), lane, protocol::SessionPrefs::default());
+            on_lane_session_changed(app.handle(), lane, false);
+            note_stopping_session(app.handle(), lane);
+            assert!(
+                take_stopping_session(app.handle()).is_some(),
+                "cycle {cycle}: the cancel order still resolves the identity"
+            );
+            assert!(
+                manager.lane_sessions.lock().unwrap().is_empty(),
+                "cycle {cycle}: the cancel order leaves no record either"
+            );
+        }
+
+        // Two live sessions coexist; draining one leaves the other's
+        // record pending, and each consumption removes exactly its own.
         let (lane_a, _ga, _ra) = manager.register_connection("iPhone#7f3a");
         let (lane_b, _gb, _rb) = manager.register_connection("iPhone#c3d4");
         begin_session(app.handle(), lane_a, protocol::SessionPrefs::default());
         begin_session(app.handle(), lane_b, protocol::SessionPrefs::default());
         on_lane_session_changed(app.handle(), lane_a, false);
         assert!(manager.lane_owns_live_session(lane_b), "B survives A's end");
-        on_lane_session_changed(app.handle(), lane_b, false);
+        note_stopping_session(app.handle(), lane_a);
+        assert!(manager.lane_owns_live_session(lane_b), "B still live");
+        note_stopping_session(app.handle(), lane_b);
         assert!(manager.lane_sessions.lock().unwrap().is_empty());
     }
 

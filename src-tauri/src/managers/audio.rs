@@ -470,7 +470,14 @@ fn route_remote_chunk(
     lane: u64,
     samples: &[f32],
 ) -> bool {
-    let lanes = lanes.lock().unwrap();
+    // Fleet pass 2: poison-tolerant, like every companion-manager lock
+    // (see companion/mod.rs's locking note). This guard runs on EVERY
+    // phone audio frame on the connection task, and the map is poisonable
+    // in practice (try_start_remote_lane_recording opens the CoreAudio
+    // device and the VAD under it); a poisoned `.unwrap()` here panicked
+    // every later push, killing all phone dictation until restart with a
+    // stderr-only trace.
+    let lanes = lanes.lock().unwrap_or_else(|e| e.into_inner());
     match lanes.get(&lane) {
         Some(entry) => {
             entry.source.push_chunk(samples);
@@ -2085,8 +2092,17 @@ impl AudioRecordingManager {
     /// its own drain as a cancellation, discarding the dictation - the
     /// coordinator's retirement rule (lane_machine_retirable) calls this
     /// only for a fully drained machine whose connection is gone.
+    /// Fleet pass 2: poison-tolerant, like route_remote_chunk's guard -
+    /// this runs on the COORDINATOR thread inside retire_dead_lane, and a
+    /// poisoned `.unwrap()` here would end that thread permanently (its
+    /// catch_unwind logs once and exits, no restart), extending a poison's
+    /// blast radius from one pipeline to keyboard plus all phone
+    /// dictation.
     pub fn drop_lane_cancel_generation(&self, lane: u64) {
-        self.lane_cancel_generations.lock().unwrap().remove(&lane);
+        self.lane_cancel_generations
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&lane);
     }
 
     /// Stop the LOCAL recording session and return its captured samples.
@@ -2725,6 +2741,77 @@ mod tests {
         let lane12_overruns = lane12.source.overrun_samples();
         let _ = lane12.recorder.close();
         assert_eq!(lane12_overruns, 0, "chunks for unknown lanes touch nothing");
+    }
+
+    /// Fleet pass 2: the routing core survives a POISONED lanes guard. The
+    /// companion manager converted every std Mutex it owns to
+    /// poison-tolerant acquisition for exactly this failure class (a panic
+    /// under the guard - try_start_remote_lane_recording opens the
+    /// CoreAudio device and the VAD while holding it), but
+    /// route_remote_chunk's `.lock().unwrap()` was left behind: after one
+    /// poison, EVERY phone audio frame panicked its connection task - all
+    /// phone dictation dead until restart, stderr-only. The guard is
+    /// bookkeeping (route by lane key), so recovery beats poisoning the
+    /// whole phone-ingestion surface.
+    #[test]
+    fn kb272_route_remote_chunk_survives_a_poisoned_lanes_guard() {
+        let lanes = Mutex::new(std::collections::HashMap::new());
+
+        // Poison the guard: panic in a task while holding it (caught, the
+        // way tokio catches a task panic).
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = lanes.lock().unwrap();
+            panic!("poison the lanes guard");
+        }));
+
+        // Every later phone frame must still route - an unknown lane
+        // reports false, the admitted-dropped shape - instead of
+        // panicking its connection task.
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            route_remote_chunk(&lanes, 7, &[0.5, -0.5])
+        }));
+        assert_eq!(
+            result.expect("a poisoned guard must not panic the routing core"),
+            false,
+            "an unknown lane still reports not-delivered under poison"
+        );
+    }
+
+    /// Fleet pass 2, source pin (the manager shell cannot be constructed
+    /// under the mock runtime; see the module note): the two NEW audio-side
+    /// lock sites on the phone path stay poison-tolerant like the
+    /// companion manager's -
+    /// route_remote_chunk (every phone audio frame, connection task) and
+    /// drop_lane_cancel_generation (the coordinator thread's
+    /// retire_dead_lane, whose catch_unwind logs once and exits with no
+    /// restart - a poison there ends keyboard AND phone dictation). A
+    /// `.lock().unwrap()` at either site reintroduces the exact failure
+    /// class the companion locks were converted for.
+    #[test]
+    fn phone_path_lock_sites_are_poison_tolerant() {
+        let source = include_str!("../managers/audio.rs");
+        for site in [
+            "fn route_remote_chunk(",
+            "pub fn drop_lane_cancel_generation(",
+        ] {
+            let at = source
+                .find(site)
+                .unwrap_or_else(|| panic!("{site} must exist"));
+            let end = at
+                + source[at..]
+                    .find("\n    }\n")
+                    .or_else(|| source[at..].find("\n}\n"))
+                    .expect("fn end");
+            let body = &source[at..end];
+            assert!(
+                body.contains("unwrap_or_else(|e| e.into_inner())"),
+                "{site} must acquire its lock poison-tolerantly (see companion/mod.rs's locking note)"
+            );
+            assert!(
+                !body.contains(".lock().unwrap()"),
+                "{site} must not panic on a poisoned lock"
+            );
+        }
     }
 
     /// Fleet pass, source pin (the interleavings need real sockets, so the
