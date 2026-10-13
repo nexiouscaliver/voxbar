@@ -741,7 +741,13 @@ const shots = [
       // scrolling IT into view frames the in-flight state as the subject
       // instead of a cropped card edge.
       await page
-        .getByText(tIn("en", "modelSelector.downloading").replace("{{percentage}}", "33"), { exact: false })
+        .getByText(
+          tIn("en", "modelSelector.downloading").replace(
+            "{{percentage}}",
+            "33",
+          ),
+          { exact: false },
+        )
         .last()
         .scrollIntoViewIfNeeded({ timeout: 5000 });
       await settle(900);
@@ -814,6 +820,96 @@ const shots = [
     prepare: async (page) => {
       await page.waitForSelector("#root div", { timeout: 15000 });
       await settle(1200);
+    },
+  },
+
+  // Mic-denial guidance: grant was tapped, the system prompt was dismissed,
+  // and 60s later the waiting spinner gives way to the System Settings
+  // guidance. The fake clock fast-forwards the denial deadline (real time
+  // would take a minute of capture).
+  {
+    name: "onboarding-mic-denied",
+    scenario: "onboarding-mic-denied",
+    url: MAIN,
+    viewport: { width: 680, height: 570 },
+    state: "mic-denied",
+    prepare: async (page) => {
+      // The grant tap opens the prompt, which the scenario dismisses; the
+      // 60s denial deadline is a product timer, so the wait is real.
+      await page.waitForSelector("#root div", { timeout: 15000 });
+      await settle(800);
+      await page
+        .getByRole("button", {
+          name: tIn("en", "onboarding.permissions.grant"),
+        })
+        .last()
+        .click({ timeout: 5000 });
+      await page.waitForFunction(
+        (label) => document.body.innerText.includes(label),
+        tIn("en", "onboarding.permissions.microphone.deniedGuidance"),
+        { timeout: 75_000 },
+      );
+      await page
+        .getByText(
+          tIn("en", "onboarding.permissions.microphone.deniedGuidance"),
+          { exact: false },
+        )
+        .first()
+        .scrollIntoViewIfNeeded({ timeout: 8000 })
+        .catch(() => {});
+      await settle(700);
+    },
+  },
+
+  // Memory-gate refusal: the pending selection is refused by the memory
+  // guard and the inline card renders the structured numbers with its four
+  // recovery actions (no capture existed anywhere in the corpus).
+  {
+    name: "onboarding-memory-refusal",
+    scenario: "onboarding-model",
+    url: MAIN,
+    viewport: { width: 680, height: 570 },
+    state: "memory-refusal",
+    prepare: async (page) => {
+      await page.waitForSelector("#root div", { timeout: 15000 });
+      // Permissions granted: the all-set confirmation step shows first; the
+      // model step starts after Done.
+      await page
+        .getByRole("button", {
+          name: tIn("en", "onboarding.permissions.done"),
+        })
+        .click({ timeout: 15000 });
+      await page.waitForFunction(() => document.body.innerText.length > 200, {
+        timeout: 15000,
+      });
+      await settle(1400);
+      // Tap a downloadable card (Nemotron): selecting an INSTALLED model
+      // completes onboarding, but a download tap only sets the pending
+      // selection the refusal answers.
+      await page
+        .getByText("Nemotron Streaming 3.5", { exact: true })
+        .first()
+        .click({ timeout: 5000 });
+      await settle(300);
+      await page.evaluate(() => {
+        window.__voxshot.emit("model-state-changed", {
+          event_type: "loading_failed",
+          model_id:
+            "handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf/nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf",
+          model_name: "Nemotron Streaming 3.5",
+          memory_gate: {
+            forecast_bytes: 2_400_000_000,
+            free_bytes: 2_100_000_000,
+            headroom_bytes: 512_000_000,
+          },
+        });
+      });
+      await page
+        .getByText(tIn("en", "onboarding.refusal.title"), { exact: true })
+        .first()
+        .scrollIntoViewIfNeeded({ timeout: 8000 })
+        .catch(() => {});
+      await settle(700);
     },
   },
 
@@ -979,6 +1075,28 @@ const shots = [
         timeout: 5000,
       });
       await settle(1000);
+      await page.evaluate(() => {
+        const scroller = document.querySelector("[data-settings-scroll]");
+        if (scroller) scroller.scrollTop = scroller.scrollHeight;
+      });
+      await settle(400);
+    },
+  }),
+  // Studio in-flight: the batch never settles, so the result cards render
+  // their running status line (spinner + Running...) below the disabled
+  // Run pill. Dark theme: the only prior in-flight capture was a light
+  // l3 round with the results card below the fold.
+  settingsShot({
+    name: "settings-studio-inflight",
+    scenario: "studio-inflight",
+    section: "promptStudio",
+    state: "inflight-spinner",
+    prepare: async (page) => {
+      const runLabel = tIn("en", "settings.studio.run_one");
+      await page.getByRole("button", { name: runLabel }).click({
+        timeout: 5000,
+      });
+      await settle(900);
       await page.evaluate(() => {
         const scroller = document.querySelector("[data-settings-scroll]");
         if (scroller) scroller.scrollTop = scroller.scrollHeight;
@@ -1275,17 +1393,17 @@ const shots = [
       // carry, so the sweep proves the explicit dark token AND adds a
       // state no other capture holds; light rows already differ from the
       // dark resting shots and keep the plain pairing.
+      // Sidebar consistency beats row novelty for the theme PAIRS: the
+      // dark general/history rows keep the same post-process-disabled
+      // scenario as their light siblings, so a dark-vs-light comparison
+      // sees the same sidebar state (the pp-on dark sidebar stays covered
+      // by the postprocessing row below).
       const overrides =
         theme === "dark"
           ? {
-              // pp-on General: the sidebar's enabled Post Process row and
-              // the footer's polishing status, in explicit dark.
-              general: { scenario: "settings-full" },
               // No dark-accent Post Process shot exists (the accent sweep
               // covers light only): dark + blue here is new coverage.
               postprocessing: { accent: "blue" },
-              // pp-on History: entries carry their post-process badges.
-              history: { scenario: "settings-full" },
               // No accent sweep touches About: dark + blue is new.
               about: { accent: "blue" },
             }[section] || {}
@@ -1362,6 +1480,293 @@ const shots = [
     section: "general",
     lang: "hi",
     state: "locale-hi",
+  }),
+
+  // ---- capture-gap closure: coded states that had no capture ----
+
+  // Commands pane filter matching nothing: the scoped no-results state.
+  settingsShot({
+    name: "settings-commands-no-results",
+    scenario: "settings-full",
+    section: "commands",
+    state: "no-results",
+    prepare: async (page) => {
+      const placeholder = tIn("en", "settings.commands.searchPlaceholder");
+      await page
+        .getByLabel(placeholder)
+        .fill("zzz-no-match-zzz", { timeout: 5000 });
+      await settle(600);
+    },
+  }),
+
+  // Phrase-row inline validation: an over-long draft shows the too-long
+  // error under its row.
+  settingsShot({
+    name: "settings-commands-validation",
+    scenario: "settings-full",
+    section: "commands",
+    state: "phrase-validation",
+    prepare: async (page) => {
+      const input = page.getByLabel("Question mark", { exact: true });
+      await input.scrollIntoViewIfNeeded({ timeout: 5000 });
+      await input.fill("x".repeat(70), { timeout: 5000 });
+      // Enter submits the draft: the too-long error renders under the row.
+      await input.press("Enter");
+      await input.scrollIntoViewIfNeeded({ timeout: 5000 });
+      await settle(400);
+    },
+  }),
+
+  // Light-theme pairing for the Commands pane (no light capture existed).
+  settingsShot({
+    name: "theme-light-settings-commands",
+    scenario: "settings-full",
+    section: "commands",
+    theme: "light",
+    state: "theme-light",
+  }),
+
+  // Light-theme pairing for the Advanced pane (no light capture existed).
+  settingsShot({
+    name: "theme-light-settings-advanced",
+    scenario: "settings-default",
+    section: "advanced",
+    theme: "light",
+    state: "theme-light",
+  }),
+
+  // Experimental toggle feedback: clicking the toggle reveals the gated
+  // group and scrolls it into view; this capture holds that revealed state
+  // (the pixel diff of the old pair showed only the toggle itself moving).
+  settingsShot({
+    name: "settings-advanced-experimental-revealed",
+    scenario: "settings-default",
+    section: "advanced",
+    state: "experimental-revealed",
+    prepare: async (page) => {
+      // The Advanced pane's switch order is stable (Post Processing, Memory
+      // Pressure Guard, RAM Auto-Fallback, Menu-Bar Model Title,
+      // Experimental Features); the fifth <label> wraps the Experimental
+      // track, so clicking it flips the toggle and the host hook reveals
+      // and scrolls to the gated group.
+      await page
+        .locator("label")
+        .filter({ has: page.getByRole("checkbox") })
+        .nth(4)
+        .click({ timeout: 5000 });
+      await settle(1200);
+    },
+  }),
+
+  // Models delete guard: the in-app confirm dialog over the card grid.
+  settingsShot({
+    name: "settings-models-delete-confirm",
+    scenario: "settings-default",
+    section: "models",
+    state: "delete-confirm",
+    prepare: async (page) => {
+      // The active Parakeet's Delete is disabled (the card comment points at
+      // this guard); the enabled Canary card's Delete opens the in-app
+      // confirm over the grid.
+      await page
+        .locator("div.rounded-xl")
+        .filter({ hasText: "Canary 180M Flash" })
+        .first()
+        .getByRole("button", {
+          name: tIn("en", "common.delete"),
+          exact: true,
+        })
+        .click({ timeout: 5000 });
+      await settle(700);
+    },
+  }),
+
+  // Post-process engine delete guard: the pinned Local Model row's Delete
+  // opens the same in-app confirm.
+  settingsShot({
+    name: "settings-postprocessing-delete-confirm",
+    scenario: "settings-full",
+    section: "postprocessing",
+    state: "engine-delete-confirm",
+    prepare: async (page) => {
+      await page
+        .getByRole("button", {
+          name: tIn("en", "settings.postProcessing.local.delete"),
+          exact: true,
+        })
+        .first()
+        .click({ timeout: 5000 });
+      await settle(700);
+    },
+  }),
+
+  // Debug clear guard: with captured lines in the view, Clear opens the
+  // in-app confirm dialog.
+  settingsShot({
+    name: "settings-debug-clear-confirm",
+    scenario: "settings-full",
+    section: "debug",
+    state: "clear-confirm",
+    prepare: async (page) => {
+      await page.evaluate(() => {
+        window.__voxshot.emit("log://log", {
+          level: "info",
+          message: "pp: requested binding=transcribe_with_post_process",
+        });
+      });
+      await settle(900);
+      await page
+        .getByRole("button", { name: tIn("en", "common.clear") })
+        .first()
+        .click({ timeout: 5000 });
+      await settle(700);
+    },
+  }),
+
+  // Notifications with a populated log: entries render with kinds and
+  // timestamps, and the Clear all action is present.
+  settingsShot({
+    name: "settings-notifications-populated",
+    scenario: "settings-default",
+    section: "notifications",
+    state: "log-populated",
+    prepare: async (page) => {
+      await page.evaluate(() => {
+        const now = Date.now();
+        const entries = [0, 1, 2].map((i) => ({
+          id: now - i * 60_000,
+          kind: i === 0 ? "error" : "info",
+          code:
+            i === 0
+              ? "microphone_permission_denied"
+              : "post_process_memory_gate",
+          detail: i === 0 ? null : "2.4 GB free, model needs 3.1 GB",
+          receivedAt: now - i * 60_000,
+        }));
+        localStorage.setItem("voxbar.notificationLog", JSON.stringify(entries));
+      });
+      // The log store reads localStorage at mount: reload, then navigate.
+      await page.reload({ waitUntil: "networkidle" });
+      await page.click(`p[title="${tIn("en", "sidebar.notifications")}"]`, {
+        timeout: 5000,
+      });
+      await settle(800);
+    },
+  }),
+
+  // Notifications with the master off: the Outcome row renders disabled
+  // with its dependency as inline secondary text on the row itself.
+  settingsShot({
+    name: "settings-notifications-master-off",
+    scenario: "settings-default",
+    section: "notifications",
+    state: "master-off",
+    prepare: async (page) => {
+      // The master toggle is the pane's first switch; its <label> wraps the
+      // track, so clicking it flips the master off and the Outcome row
+      // renders disabled with its dependency inline.
+      await page.locator("label").first().click({ timeout: 5000 });
+      await settle(700);
+    },
+  }),
+
+  // General pane on the no-devices scenario: audio-gated rows disabled
+  // (Output device, Volume) and the pickers' empty states.
+  settingsShot({
+    name: "settings-general-no-devices",
+    scenario: "settings-no-devices",
+    section: "general",
+    state: "audio-gated-no-devices",
+    prepare: async (page) => {
+      // Frame the audio-gated tail of the Sound group (Output Device and
+      // Volume, disabled under audio_feedback=false) instead of the group
+      // heading: the gated rows and their empty pickers ARE the coded
+      // state this capture exists for.
+      const rowLabel = tIn("en", "settings.sound.outputDevice.title");
+      await page.evaluate((label) => {
+        const scroller = document.querySelector("[data-settings-scroll]");
+        const heading = [...document.querySelectorAll("h3")].find(
+          (n) => n.textContent?.trim() === label,
+        );
+        if (scroller && heading) {
+          scroller.scrollTop =
+            heading.getBoundingClientRect().top +
+            scroller.scrollTop -
+            scroller.getBoundingClientRect().top -
+            90;
+        }
+      }, rowLabel);
+      await settle(600);
+    },
+  }),
+
+  // The it-IT Commands pane with the seeded trigger chips in frame: the
+  // finding's evidence shot left the chips below the fold, so this capture
+  // frames the caption plus the first (Punto) row's chips themselves.
+  settingsShot({
+    name: "locale-it-settings-commands-triggers",
+    scenario: "settings-default",
+    section: "commands",
+    lang: "it",
+    state: "locale-it-triggers",
+    prepare: async (page) => {
+      const groupLabel = tIn("it", "settings.commands.groups.punctuation");
+      await page
+        .getByText(groupLabel, { exact: true })
+        .first()
+        .scrollIntoViewIfNeeded({ timeout: 5000 });
+      await page.evaluate(() => {
+        const scroller = document.querySelector("[data-settings-scroll]");
+        if (scroller) scroller.scrollTop -= 60;
+      });
+      await settle(600);
+    },
+  }),
+
+  // A pane scrolled to its very end: the footer padding and the fade's
+  // end-of-scroll behavior are only verifiable in a bottom capture (the
+  // mid-scroll captures always sliced some card at the fold).
+  settingsShot({
+    name: "settings-general-scrolled-bottom",
+    scenario: "settings-full",
+    section: "general",
+    state: "scrolled-bottom",
+    prepare: async (page) => {
+      await page.evaluate(() => {
+        const scroller = document.querySelector("[data-settings-scroll]");
+        if (scroller) scroller.scrollTop = scroller.scrollHeight;
+      });
+      await settle(700);
+    },
+  }),
+
+  // The other audit-named panes at their very end: the same bottom-padding
+  // and fade verification as the General capture, on the panes whose
+  // end-of-scroll state had no capture at all (History, Commands, About).
+  ...["history", "commands", "about"].map((section) =>
+    settingsShot({
+      name: `settings-${section}-scrolled-bottom`,
+      section,
+      state: "scrolled-bottom",
+      prepare: async (page) => {
+        await page.evaluate(() => {
+          const scroller = document.querySelector("[data-settings-scroll]");
+          if (scroller) scroller.scrollTop = scroller.scrollHeight;
+        });
+        await settle(700);
+      },
+    }),
+  ),
+
+  // Debug pane with nothing observed yet: the mock's settings-debug-empty
+  // scenario empties the runs ring, and no log line has arrived, so both
+  // tables render their zero states (the empty-log/empty-runs captures the
+  // populated shots cannot stand in for).
+  settingsShot({
+    name: "settings-debug-empty",
+    scenario: "settings-debug-empty",
+    section: "debug",
+    state: "empty",
   }),
 
   // ---- toast states (main window; each on a fresh page for dedupe) ----
