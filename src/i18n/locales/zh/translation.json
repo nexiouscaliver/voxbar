@@ -763,7 +763,7 @@
           "retry": "重试",
           "visibleDescription": "每次听写后改写转录文本的模型。",
           "fetchingList": "正在获取模型列表...",
-          "listSummary_one": "1 个模型，获取于 {{time}}",
+          "listSummary_one": "{{count}} 个模型，获取于 {{time}}",
           "listSummary_other": "{{count}} 个模型，获取于 {{time}}",
           "notFetched": "尚未获取模型列表。",
           "emptyTitle": "列表中没有模型",
@@ -1209,9 +1209,9 @@
         "noModel": "未配置模型",
         "noModelHint": "未设置模型。请在 Post Process 中选择。"
       },
-      "run_one": "运行 1 组",
+      "run_one": "运行 {{count}} 组",
       "run_other": "运行 {{count}} 组",
-      "runHint_one": "1 个提示词在 1 个引擎上运行。不会输入或保存任何内容。",
+      "runHint_one": "运行 {{count}} 组。不会输入或保存任何内容。",
       "runHint_other": "{{count}} 组提示词和引擎。不会输入或保存任何内容。",
       "running": "运行中...",
       "cancel": "取消",
@@ -1220,7 +1220,7 @@
       "latency": "{{ms}} 毫秒",
       "rawKept": "引擎失败或被跳过，因此将保留原始转录。",
       "partialFailure": "部分运行失败或被跳过，其他运行已产生结果。请检查每张卡片。",
-      "results_one": "1 个结果",
+      "results_one": "{{count}} 个结果",
       "results_other": "{{count}} 个结果",
       "errors": {
         "engineNotFound": "引擎 '{{id}}' 未配置。",
@@ -1229,7 +1229,7 @@
       },
       "diff": {
         "lines": "行",
-        "charsChanged_one": "1 个字符变更",
+        "charsChanged_one": "{{count}} 个字符变更",
         "charsChanged_other": "{{count}} 个字符变更",
         "identical": "无更改。",
         "added_one": "新增 {{count}} 行",
@@ -1389,9 +1389,9 @@
     "gotIt": "知道了"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} 可能正在阻止 1 个快捷键",
+    "blockedWithCulprit_one": "{{name}} 可能正在阻止 {{count}} 个快捷键",
     "blockedWithCulprit_other": "{{name}} 可能正在阻止 {{count}} 个快捷键",
-    "blockedNoCulprit_one": "macOS 正在暂时阻止 1 个快捷键",
+    "blockedNoCulprit_one": "macOS 正在暂时阻止 {{count}} 个快捷键",
     "blockedNoCulprit_other": "macOS 正在暂时阻止 {{count}} 个快捷键",
     "recorderBlockedWithCulprit": "{{name}} 可能正在阻止快捷键更改",
     "recorderBlockedNoCulprit": "macOS 正在暂时阻止快捷键更改",

@@ -763,7 +763,7 @@
           "retry": "Prøv igen",
           "visibleDescription": "Modellen, der omskriver din transskription efter hver diktéring.",
           "fetchingList": "Henter modellisten...",
-          "listSummary_one": "1 model, hentet {{time}}",
+          "listSummary_one": "{{count}} model, hentet {{time}}",
           "listSummary_other": "{{count}} modeller, hentet {{time}}",
           "notFetched": "Endnu ingen modelliste.",
           "emptyTitle": "Ingen modeller på listen",
@@ -1209,9 +1209,9 @@
         "noModel": "Ingen model konfigureret",
         "noModelHint": "Ingen model valgt. Vælg en under Post Process."
       },
-      "run_one": "Kør 1 par",
+      "run_one": "Kør {{count}} par",
       "run_other": "Kør {{count}} par",
-      "runHint_one": "1 prompt på 1 motor. Der tastes eller gemmes intet.",
+      "runHint_one": "Kør {{count}} par. Der tastes eller gemmes intet.",
       "runHint_other": "{{count}} prompt-motor-par. Der tastes eller gemmes intet.",
       "running": "Kører...",
       "cancel": "Annullér",
@@ -1220,7 +1220,7 @@
       "latency": "{{ms}} ms",
       "rawKept": "Motoren fejlede eller blev sprunget over, så råtransskriptionen ville blive beholdt.",
       "partialFailure": "Nogle kørsler fejlede eller blev sprunget over, mens andre gav output. Tjek hvert kort.",
-      "results_one": "1 resultat",
+      "results_one": "{{count}} resultat",
       "results_other": "{{count}} resultater",
       "errors": {
         "engineNotFound": "Motoren '{{id}}' er ikke konfigureret.",
@@ -1229,7 +1229,7 @@
       },
       "diff": {
         "lines": "linjer",
-        "charsChanged_one": "1 tegn ændret",
+        "charsChanged_one": "{{count}} tegn ændret",
         "charsChanged_other": "{{count}} tegn ændret",
         "identical": "Ingen ændringer.",
         "added_one": "+{{count}} tilføjet",
@@ -1389,9 +1389,9 @@
     "companionBadge": "Følgeomikrofon"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} blokerer muligvis 1 genvej",
+    "blockedWithCulprit_one": "{{name}} blokerer muligvis {{count}} genvej",
     "blockedWithCulprit_other": "{{name}} blokerer muligvis {{count}} genveje",
-    "blockedNoCulprit_one": "macOS blokerer midlertidigt 1 genvej",
+    "blockedNoCulprit_one": "macOS blokerer midlertidigt {{count}} genvej",
     "blockedNoCulprit_other": "macOS blokerer midlertidigt {{count}} genveje",
     "recorderBlockedWithCulprit": "{{name}} blokerer muligvis ændringer af genveje",
     "recorderBlockedNoCulprit": "macOS blokerer midlertidigt ændringer af genveje",

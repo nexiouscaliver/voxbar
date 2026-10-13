@@ -763,7 +763,7 @@
           "retry": "Retry",
           "visibleDescription": "The model that rewrites your transcript after each dictation.",
           "fetchingList": "Fetching the model list...",
-          "listSummary_one": "1 model, fetched {{time}}",
+          "listSummary_one": "{{count}} model, fetched {{time}}",
           "listSummary_other": "{{count}} models, fetched {{time}}",
           "notFetched": "No model list yet.",
           "emptyTitle": "No models listed",
@@ -1209,9 +1209,9 @@
         "noModel": "No model configured",
         "noModelHint": "No model set. Choose one in Post Process."
       },
-      "run_one": "Run 1 pair",
+      "run_one": "Run {{count}} pair",
       "run_other": "Run {{count}} pairs",
-      "runHint_one": "1 prompt on 1 engine. Nothing is typed or saved.",
+      "runHint_one": "Run {{count}} pair. Nothing is typed or saved.",
       "runHint_other": "{{count}} prompt-engine pairs. Nothing is typed or saved.",
       "running": "Running...",
       "cancel": "Cancel",
@@ -1220,7 +1220,7 @@
       "latency": "{{ms}} ms",
       "rawKept": "The engine failed or skipped, so the raw transcript would be kept.",
       "partialFailure": "Some runs failed or skipped while others produced output. Check each card.",
-      "results_one": "1 result",
+      "results_one": "{{count}} result",
       "results_other": "{{count}} results",
       "errors": {
         "engineNotFound": "Engine '{{id}}' is not configured.",
@@ -1229,7 +1229,7 @@
       },
       "diff": {
         "lines": "lines",
-        "charsChanged_one": "1 char changed",
+        "charsChanged_one": "{{count}} char changed",
         "charsChanged_other": "{{count}} chars changed",
         "identical": "No changes.",
         "added_one": "+{{count}} added",
@@ -1389,9 +1389,9 @@
     "companionBadge": "Companion microphone"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} may be blocking 1 shortcut",
+    "blockedWithCulprit_one": "{{name}} may be blocking {{count}} shortcut",
     "blockedWithCulprit_other": "{{name}} may be blocking {{count}} shortcuts",
-    "blockedNoCulprit_one": "macOS is temporarily blocking 1 shortcut",
+    "blockedNoCulprit_one": "macOS is temporarily blocking {{count}} shortcut",
     "blockedNoCulprit_other": "macOS is temporarily blocking {{count}} shortcuts",
     "recorderBlockedWithCulprit": "{{name}} may be blocking shortcut changes",
     "recorderBlockedNoCulprit": "macOS is temporarily blocking shortcut changes",

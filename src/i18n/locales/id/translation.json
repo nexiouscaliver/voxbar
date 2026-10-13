@@ -763,7 +763,7 @@
           "retry": "Coba lagi",
           "visibleDescription": "Model yang menulis ulang transkrip Anda setelah setiap dikte.",
           "fetchingList": "Mengambil daftar model...",
-          "listSummary_one": "1 model, diambil {{time}}",
+          "listSummary_one": "{{count}} model, diambil {{time}}",
           "listSummary_other": "{{count}} model, diambil {{time}}",
           "notFetched": "Belum ada daftar model.",
           "emptyTitle": "Tidak ada model tercantum",
@@ -1209,9 +1209,9 @@
         "noModel": "Belum ada model yang dikonfigurasi",
         "noModelHint": "Belum ada model dipilih. Pilih di Post Process."
       },
-      "run_one": "Jalankan 1 pasangan",
+      "run_one": "Jalankan {{count}} pasangan",
       "run_other": "Jalankan {{count}} pasangan",
-      "runHint_one": "1 prompt pada 1 mesin. Tidak ada yang diketik atau disimpan.",
+      "runHint_one": "Jalankan {{count}} pasangan. Tidak ada yang diketik atau disimpan.",
       "runHint_other": "{{count}} pasangan prompt-mesin. Tidak ada yang diketik atau disimpan.",
       "running": "Sedang berjalan...",
       "cancel": "Batalkan",
@@ -1220,7 +1220,7 @@
       "latency": "{{ms}} md",
       "rawKept": "Mesin gagal atau dilewati, sehingga transkripsi mentah akan dipertahankan.",
       "partialFailure": "Beberapa eksekusi gagal atau dilewati sementara yang lain menghasilkan keluaran. Periksa setiap kartu.",
-      "results_one": "1 hasil",
+      "results_one": "{{count}} hasil",
       "results_other": "{{count}} hasil",
       "errors": {
         "engineNotFound": "Mesin '{{id}}' belum dikonfigurasi.",
@@ -1229,7 +1229,7 @@
       },
       "diff": {
         "lines": "baris",
-        "charsChanged_one": "1 karakter berubah",
+        "charsChanged_one": "{{count}} karakter berubah",
         "charsChanged_other": "{{count}} karakter berubah",
         "identical": "Tidak ada perubahan.",
         "added_one": "+{{count}} ditambahkan",
@@ -1389,9 +1389,9 @@
     "companionBadge": "Mikrofon pendamping"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} mungkin memblokir 1 pintasan",
+    "blockedWithCulprit_one": "{{name}} mungkin memblokir {{count}} pintasan",
     "blockedWithCulprit_other": "{{name}} mungkin memblokir {{count}} pintasan",
-    "blockedNoCulprit_one": "macOS untuk sementara memblokir 1 pintasan",
+    "blockedNoCulprit_one": "macOS untuk sementara memblokir {{count}} pintasan",
     "blockedNoCulprit_other": "macOS untuk sementara memblokir {{count}} pintasan",
     "recorderBlockedWithCulprit": "{{name}} mungkin memblokir perubahan pintasan",
     "recorderBlockedNoCulprit": "macOS untuk sementara memblokir perubahan pintasan",

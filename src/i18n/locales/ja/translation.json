@@ -763,7 +763,7 @@
           "retry": "再試行",
           "visibleDescription": "ディテーションごとに文字起こしを書き直すモデルです。",
           "fetchingList": "モデル一覧を取得中...",
-          "listSummary_one": "1 件のモデル、{{time}} に取得",
+          "listSummary_one": "{{count}} 件のモデル、{{time}} に取得",
           "listSummary_other": "{{count}} 件のモデル、{{time}} に取得",
           "notFetched": "モデル一覧はまだありません。",
           "emptyTitle": "モデルが一覧にありません",
@@ -1209,9 +1209,9 @@
         "noModel": "モデルが未設定です",
         "noModelHint": "モデルが未設定です。Post Process で選択してください。"
       },
-      "run_one": "1 ペアを実行",
+      "run_one": "{{count}} ペアを実行",
       "run_other": "{{count}} ペアを実行",
-      "runHint_one": "1 つのプロンプトを 1 つのエンジンで実行。入力も保存もされません。",
+      "runHint_one": "{{count}} ペアを実行。入力も保存もされません。",
       "runHint_other": "プロンプトとエンジンの組み合わせ {{count}} 件。入力も保存もされません。",
       "running": "実行中...",
       "cancel": "キャンセル",
@@ -1220,7 +1220,7 @@
       "latency": "{{ms}} ミリ秒",
       "rawKept": "エンジンが失敗またはスキップされたため、元の文字起こしが保持されます。",
       "partialFailure": "一部の実行は失敗またはスキップされ、他の実行は結果を生成しました。各カードを確認してください。",
-      "results_one": "1 件の結果",
+      "results_one": "{{count}} 件の結果",
       "results_other": "{{count}} 件の結果",
       "errors": {
         "engineNotFound": "エンジン '{{id}}' は設定されていません。",
@@ -1229,7 +1229,7 @@
       },
       "diff": {
         "lines": "行",
-        "charsChanged_one": "1 文字変更",
+        "charsChanged_one": "{{count}} 文字変更",
         "charsChanged_other": "{{count}} 文字変更",
         "identical": "変更なし。",
         "added_one": "+{{count}} 行追加",

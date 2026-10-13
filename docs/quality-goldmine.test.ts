@@ -394,6 +394,15 @@ assert.ok(
       "fn connection_blocking_seams_run_off_the_async_connection_task()",
     ],
     ["server", 252, 252, "fn spawn_worker("],
+    ["mod", 563, 580, "fn start("],
+    ["mod", 577, 584, "companion_known_identities.clone()"],
+    ["server", 539, 543, "persist_known_identities"],
+    ["server", 543, 655, "spawn_worker("],
+    ["mod", 395, 434, "fn register_connection_with_identity("],
+    ["mod", 1048, 1075, "fn persist_known_identities("],
+    ["mod", 125, 133, "persist_identities"],
+    ["mod", 1038, 1046, "converge"],
+    ["server", 655, 655, "std::thread::spawn"],
   ];
 
   // 1. Every table row's token really sits in the cited span of the live

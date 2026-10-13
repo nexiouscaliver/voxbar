@@ -1389,9 +1389,9 @@
     "companionBadge": "साथी माइक्रोफोन"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} ले 1 सर्टकट रोकिरहेको हुन सक्छ",
+    "blockedWithCulprit_one": "{{name}} ले {{count}} सर्टकट रोकिरहेको हुन सक्छ",
     "blockedWithCulprit_other": "{{name}} ले {{count}} सर्टकटहरू रोकिरहेको हुन सक्छ",
-    "blockedNoCulprit_one": "macOS ले अस्थायी रूपमा 1 सर्टकट रोकिरहेको छ",
+    "blockedNoCulprit_one": "macOS ले अस्थायी रूपमा {{count}} सर्टकट रोकिरहेको छ",
     "blockedNoCulprit_other": "macOS ले अस्थायी रूपमा {{count}} सर्टकटहरू रोकिरहेको छ",
     "recorderBlockedWithCulprit": "{{name}} ले सर्टकट परिवर्तन रोकिरहेको हुन सक्छ",
     "recorderBlockedNoCulprit": "macOS ले अस्थायी रूपमा सर्टकट परिवर्तन रोकिरहेको छ",

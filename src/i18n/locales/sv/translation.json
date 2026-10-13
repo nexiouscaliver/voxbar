@@ -763,7 +763,7 @@
           "retry": "Försök igen",
           "visibleDescription": "Modellen som skriver om din transkription efter varje diktering.",
           "fetchingList": "Hämtar modellistan...",
-          "listSummary_one": "1 modell, hämtad {{time}}",
+          "listSummary_one": "{{count}} modell, hämtad {{time}}",
           "listSummary_other": "{{count}} modeller, hämtade {{time}}",
           "notFetched": "Ingen modelllista ännu.",
           "emptyTitle": "Inga modeller i listan",
@@ -1209,9 +1209,9 @@
         "noModel": "Ingen modell konfigurerad",
         "noModelHint": "Ingen modell vald. Välj en under Post Process."
       },
-      "run_one": "Kör 1 par",
+      "run_one": "Kör {{count}} par",
       "run_other": "Kör {{count}} par",
-      "runHint_one": "1 prompt på 1 motor. Inget skrivs eller sparas.",
+      "runHint_one": "Kör {{count}} par. Inget skrivs eller sparas.",
       "runHint_other": "{{count}} prompt-motor-par. Inget skrivs eller sparas.",
       "running": "Kör...",
       "cancel": "Avbryt",
@@ -1220,7 +1220,7 @@
       "latency": "{{ms}} ms",
       "rawKept": "Motorn misslyckades eller hoppades över, så råtranskriptionen skulle behållas.",
       "partialFailure": "Vissa körningar misslyckades eller hoppades över medan andra gav resultat. Kontrollera varje kort.",
-      "results_one": "1 resultat",
+      "results_one": "{{count}} resultat",
       "results_other": "{{count}} resultat",
       "errors": {
         "engineNotFound": "Motorn '{{id}}' är inte konfigurerad.",
@@ -1229,7 +1229,7 @@
       },
       "diff": {
         "lines": "rader",
-        "charsChanged_one": "1 tecken ändrat",
+        "charsChanged_one": "{{count}} tecken ändrat",
         "charsChanged_other": "{{count}} tecken ändrade",
         "identical": "Inga ändringar.",
         "added_one": "+{{count}} tillagd",
@@ -1389,9 +1389,9 @@
     "gotIt": "Uppfattat"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} kanske blockerar 1 kortkommando",
+    "blockedWithCulprit_one": "{{name}} kanske blockerar {{count}} kortkommando",
     "blockedWithCulprit_other": "{{name}} kanske blockerar {{count}} kortkommandon",
-    "blockedNoCulprit_one": "macOS blockerar tillfälligt 1 kortkommando",
+    "blockedNoCulprit_one": "macOS blockerar tillfälligt {{count}} kortkommando",
     "blockedNoCulprit_other": "macOS blockerar tillfälligt {{count}} kortkommandon",
     "recorderBlockedWithCulprit": "{{name}} kanske blockerar ändringar av kortkommandon",
     "recorderBlockedNoCulprit": "macOS blockerar tillfälligt ändringar av kortkommandon",

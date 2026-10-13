@@ -763,7 +763,7 @@
           "retry": "重試",
           "visibleDescription": "每次聽寫後改寫轉錄文字的模型。",
           "fetchingList": "正在取得模型清單...",
-          "listSummary_one": "1 個模型，取得於 {{time}}",
+          "listSummary_one": "{{count}} 個模型，取得於 {{time}}",
           "listSummary_other": "{{count}} 個模型，取得於 {{time}}",
           "notFetched": "尚未取得模型清單。",
           "emptyTitle": "清單中沒有模型",
@@ -1209,9 +1209,9 @@
         "noModel": "未設定模型",
         "noModelHint": "未設定模型。請在 Post Process 中選擇。"
       },
-      "run_one": "執行 1 組",
+      "run_one": "執行 {{count}} 組",
       "run_other": "執行 {{count}} 組",
-      "runHint_one": "1 個提示詞在 1 個引擎上執行。不會輸入或儲存任何內容。",
+      "runHint_one": "執行 {{count}} 組。不會輸入或儲存任何內容。",
       "runHint_other": "{{count}} 組提示詞與引擎。不會輸入或儲存任何內容。",
       "running": "執行中...",
       "cancel": "取消",
@@ -1220,7 +1220,7 @@
       "latency": "{{ms}} 毫秒",
       "rawKept": "引擎失敗或被略過，因此將保留原始轉錄。",
       "partialFailure": "部分執行失敗或被略過，其他執行已產生結果。請檢查每張卡片。",
-      "results_one": "1 個結果",
+      "results_one": "{{count}} 個結果",
       "results_other": "{{count}} 個結果",
       "errors": {
         "engineNotFound": "引擎 '{{id}}' 未設定。",
@@ -1229,7 +1229,7 @@
       },
       "diff": {
         "lines": "行",
-        "charsChanged_one": "1 個字元變更",
+        "charsChanged_one": "{{count}} 個字元變更",
         "charsChanged_other": "{{count}} 個字元變更",
         "identical": "無變更。",
         "added_one": "新增 {{count}} 行",
@@ -1389,9 +1389,9 @@
     "gotIt": "知道了"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} 可能正在阻擋 1 個快捷鍵",
+    "blockedWithCulprit_one": "{{name}} 可能正在阻擋 {{count}} 個快捷鍵",
     "blockedWithCulprit_other": "{{name}} 可能正在阻擋 {{count}} 個快捷鍵",
-    "blockedNoCulprit_one": "macOS 正在暫時阻擋 1 個快捷鍵",
+    "blockedNoCulprit_one": "macOS 正在暫時阻擋 {{count}} 個快捷鍵",
     "blockedNoCulprit_other": "macOS 正在暫時阻擋 {{count}} 個快捷鍵",
     "recorderBlockedWithCulprit": "{{name}} 可能正在阻擋快捷鍵變更",
     "recorderBlockedNoCulprit": "macOS 正在暫時阻擋快捷鍵變更",

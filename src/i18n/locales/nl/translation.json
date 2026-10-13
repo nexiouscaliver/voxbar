@@ -763,7 +763,7 @@
           "retry": "Opnieuw proberen",
           "visibleDescription": "Het model dat je transcript na elke dicteersessie herschrijft.",
           "fetchingList": "Modellenlijst ophalen...",
-          "listSummary_one": "1 model, opgehaald {{time}}",
+          "listSummary_one": "{{count}} model, opgehaald {{time}}",
           "listSummary_other": "{{count}} modellen, opgehaald {{time}}",
           "notFetched": "Nog geen modellenlijst.",
           "emptyTitle": "Geen modellen in de lijst",
@@ -1209,9 +1209,9 @@
         "noModel": "Geen model geconfigureerd",
         "noModelHint": "Geen model ingesteld. Kies er een bij Post Process."
       },
-      "run_one": "1 paar uitvoeren",
+      "run_one": "{{count}} paar uitvoeren",
       "run_other": "{{count}} paren uitvoeren",
-      "runHint_one": "1 prompt op 1 engine. Er wordt niets getypt of opgeslagen.",
+      "runHint_one": "{{count}} paar uitvoeren. Er wordt niets getypt of opgeslagen.",
       "runHint_other": "{{count}} prompt-engineparen. Er wordt niets getypt of opgeslagen.",
       "running": "Bezig met uitvoeren...",
       "cancel": "Annuleren",
@@ -1220,7 +1220,7 @@
       "latency": "{{ms}} ms",
       "rawKept": "De engine mislukte of werd overgeslagen, dus de ruwe transcriptie zou behouden blijven.",
       "partialFailure": "Sommige runs mislukten of werden overgeslagen terwijl anderen output leverden. Controleer elke kaart.",
-      "results_one": "1 resultaat",
+      "results_one": "{{count}} resultaat",
       "results_other": "{{count}} resultaten",
       "errors": {
         "engineNotFound": "Engine '{{id}}' is niet geconfigureerd.",
@@ -1229,7 +1229,7 @@
       },
       "diff": {
         "lines": "regels",
-        "charsChanged_one": "1 teken gewijzigd",
+        "charsChanged_one": "{{count}} teken gewijzigd",
         "charsChanged_other": "{{count}} tekens gewijzigd",
         "identical": "Geen wijzigingen.",
         "added_one": "+{{count}} toegevoegd",
@@ -1389,9 +1389,9 @@
     "companionBadge": "Companion-microfoon"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} blokkeert mogelijk 1 sneltoets",
+    "blockedWithCulprit_one": "{{name}} blokkeert mogelijk {{count}} sneltoets",
     "blockedWithCulprit_other": "{{name}} blokkeert mogelijk {{count}} sneltoetsen",
-    "blockedNoCulprit_one": "macOS blokkeert tijdelijk 1 sneltoets",
+    "blockedNoCulprit_one": "macOS blokkeert tijdelijk {{count}} sneltoets",
     "blockedNoCulprit_other": "macOS blokkeert tijdelijk {{count}} sneltoetsen",
     "recorderBlockedWithCulprit": "{{name}} blokkeert mogelijk wijzigingen aan sneltoetsen",
     "recorderBlockedNoCulprit": "macOS blokkeert tijdelijk wijzigingen aan sneltoetsen",

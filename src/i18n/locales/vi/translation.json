@@ -763,7 +763,7 @@
           "retry": "Thử lại",
           "visibleDescription": "Mô hình viết lại bản ghi của bạn sau mỗi lần đọc chính tả.",
           "fetchingList": "Đang tải danh sách mô hình...",
-          "listSummary_one": "1 mô hình, tải lúc {{time}}",
+          "listSummary_one": "{{count}} mô hình, tải lúc {{time}}",
           "listSummary_other": "{{count}} mô hình, tải lúc {{time}}",
           "notFetched": "Chưa có danh sách mô hình.",
           "emptyTitle": "Không có mô hình nào trong danh sách",
@@ -1209,9 +1209,9 @@
         "noModel": "Chưa cấu hình mô hình",
         "noModelHint": "Chưa đặt mô hình. Chọn một mô hình trong Post Process."
       },
-      "run_one": "Chạy 1 cặp",
+      "run_one": "Chạy {{count}} cặp",
       "run_other": "Chạy {{count}} cặp",
-      "runHint_one": "1 prompt trên 1 engine. Không gõ hay lưu gì.",
+      "runHint_one": "Chạy {{count}} cặp. Không gõ hay lưu gì.",
       "runHint_other": "{{count}} cặp prompt-engine. Không gõ hay lưu gì.",
       "running": "Đang chạy...",
       "cancel": "Hủy",
@@ -1220,7 +1220,7 @@
       "latency": "{{ms}} ms",
       "rawKept": "Engine lỗi hoặc bị bỏ qua nên bản ghi thô sẽ được giữ nguyên.",
       "partialFailure": "Một số lần chạy lỗi hoặc bị bỏ qua trong khi số khác tạo ra kết quả. Kiểm tra từng thẻ.",
-      "results_one": "1 kết quả",
+      "results_one": "{{count}} kết quả",
       "results_other": "{{count}} kết quả",
       "errors": {
         "engineNotFound": "Engine '{{id}}' chưa được cấu hình.",
@@ -1229,7 +1229,7 @@
       },
       "diff": {
         "lines": "dòng",
-        "charsChanged_one": "1 ký tự thay đổi",
+        "charsChanged_one": "{{count}} ký tự thay đổi",
         "charsChanged_other": "{{count}} ký tự thay đổi",
         "identical": "Không có thay đổi.",
         "added_one": "+{{count}} đã thêm",
@@ -1389,9 +1389,9 @@
     "gotIt": "Đã hiểu"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} có thể đang chặn 1 phím tắt",
+    "blockedWithCulprit_one": "{{name}} có thể đang chặn {{count}} phím tắt",
     "blockedWithCulprit_other": "{{name}} có thể đang chặn {{count}} phím tắt",
-    "blockedNoCulprit_one": "macOS đang tạm thời chặn 1 phím tắt",
+    "blockedNoCulprit_one": "macOS đang tạm thời chặn {{count}} phím tắt",
     "blockedNoCulprit_other": "macOS đang tạm thời chặn {{count}} phím tắt",
     "recorderBlockedWithCulprit": "{{name}} có thể đang chặn việc thay đổi phím tắt",
     "recorderBlockedNoCulprit": "macOS đang tạm thời chặn việc thay đổi phím tắt",

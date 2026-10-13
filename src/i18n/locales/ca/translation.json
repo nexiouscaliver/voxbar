@@ -763,7 +763,7 @@
           "retry": "Torna-ho a provar",
           "visibleDescription": "El model que reescriu la teva transcripció després de cada dictat.",
           "fetchingList": "S'està obtenint la llista de models...",
-          "listSummary_one": "1 model, obtingut {{time}}",
+          "listSummary_one": "{{count}} model, obtingut {{time}}",
           "listSummary_other": "{{count}} models, obtinguts {{time}}",
           "notFetched": "Encara no hi ha llista de models.",
           "emptyTitle": "Cap model a la llista",
@@ -1209,9 +1209,9 @@
         "noModel": "Cap model configurat",
         "noModelHint": "Cap model establert. Tria'n un a Post Process."
       },
-      "run_one": "Executar 1 parell",
+      "run_one": "Executar {{count}} parell",
       "run_other": "Executar {{count}} parells",
-      "runHint_one": "1 prompt en 1 motor. No s'escriu ni es desa res.",
+      "runHint_one": "Executar {{count}} parell. No s'escriu ni es desa res.",
       "runHint_other": "{{count}} parells prompt-motor. No s'escriu ni es desa res.",
       "running": "S'està executant...",
       "cancel": "Cancel·la",
@@ -1220,7 +1220,7 @@
       "latency": "{{ms}} ms",
       "rawKept": "El motor ha fallat o s'ha omès, per tant es mantindria la transcripció en brut.",
       "partialFailure": "Algunes execucions han fallat o s'han omès mentre d'altres han produït resultats. Comprova cada targeta.",
-      "results_one": "1 resultat",
+      "results_one": "{{count}} resultat",
       "results_other": "{{count}} resultats",
       "errors": {
         "engineNotFound": "El motor '{{id}}' no està configurat.",
@@ -1229,7 +1229,7 @@
       },
       "diff": {
         "lines": "línies",
-        "charsChanged_one": "1 caràcter canviat",
+        "charsChanged_one": "{{count}} caràcter canviat",
         "charsChanged_other": "{{count}} caràcters canviats",
         "identical": "Sense canvis.",
         "added_one": "+{{count}} afegida",
@@ -1389,9 +1389,9 @@
     "companionBadge": "Micròfon acompanyant"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} pot estar blocant 1 drecera",
+    "blockedWithCulprit_one": "{{name}} pot estar blocant {{count}} drecera",
     "blockedWithCulprit_other": "{{name}} pot estar blocant {{count}} dreceres",
-    "blockedNoCulprit_one": "El macOS està blocant temporalment 1 drecera",
+    "blockedNoCulprit_one": "El macOS està blocant temporalment {{count}} drecera",
     "blockedNoCulprit_other": "El macOS està blocant temporalment {{count}} dreceres",
     "recorderBlockedWithCulprit": "{{name}} pot estar blocant els canvis de dreceres",
     "recorderBlockedNoCulprit": "El macOS està blocant temporalment els canvis de dreceres",

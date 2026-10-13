@@ -763,7 +763,7 @@
           "retry": "Riprova",
           "visibleDescription": "Il modello che riscrive la trascrizione dopo ogni dettatura.",
           "fetchingList": "Recupero dell'elenco dei modelli...",
-          "listSummary_one": "1 modello, recuperato {{time}}",
+          "listSummary_one": "{{count}} modello, recuperato {{time}}",
           "listSummary_other": "{{count}} modelli, recuperati {{time}}",
           "notFetched": "Nessun elenco di modelli.",
           "emptyTitle": "Nessun modello in elenco",
@@ -1209,9 +1209,9 @@
         "noModel": "Nessun modello configurato",
         "noModelHint": "Nessun modello impostato. Scegline uno in Post Process."
       },
-      "run_one": "Esegui 1 coppia",
+      "run_one": "Esegui {{count}} coppia",
       "run_other": "Esegui {{count}} coppie",
-      "runHint_one": "1 prompt su 1 motore. Nulla viene digitato o salvato.",
+      "runHint_one": "Esegui {{count}} coppia. Nulla viene digitato o salvato.",
       "runHint_other": "{{count}} coppie prompt-motore. Nulla viene digitato o salvato.",
       "running": "Esecuzione...",
       "cancel": "Annulla",
@@ -1220,7 +1220,7 @@
       "latency": "{{ms}} ms",
       "rawKept": "Il motore ha fallito o è stato saltato, quindi la trascrizione grezza verrebbe mantenuta.",
       "partialFailure": "Alcune esecuzioni sono fallite o saltate mentre altre hanno prodotto output. Controlla ogni scheda.",
-      "results_one": "1 risultato",
+      "results_one": "{{count}} risultato",
       "results_other": "{{count}} risultati",
       "errors": {
         "engineNotFound": "Il motore '{{id}}' non è configurato.",
@@ -1229,7 +1229,7 @@
       },
       "diff": {
         "lines": "righe",
-        "charsChanged_one": "1 carattere modificato",
+        "charsChanged_one": "{{count}} carattere modificato",
         "charsChanged_other": "{{count}} caratteri modificati",
         "identical": "Nessuna modifica.",
         "added_one": "+{{count}} aggiunta",
@@ -1389,9 +1389,9 @@
     "gotIt": "Ho capito"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} potrebbe bloccare 1 scorciatoia",
+    "blockedWithCulprit_one": "{{name}} potrebbe bloccare {{count}} scorciatoia",
     "blockedWithCulprit_other": "{{name}} potrebbe bloccare {{count}} scorciatoie",
-    "blockedNoCulprit_one": "macOS sta bloccando temporaneamente 1 scorciatoia",
+    "blockedNoCulprit_one": "macOS sta bloccando temporaneamente {{count}} scorciatoia",
     "blockedNoCulprit_other": "macOS sta bloccando temporaneamente {{count}} scorciatoie",
     "recorderBlockedWithCulprit": "{{name}} potrebbe bloccare le modifiche alle scorciatoie",
     "recorderBlockedNoCulprit": "macOS sta bloccando temporaneamente le modifiche alle scorciatoie",

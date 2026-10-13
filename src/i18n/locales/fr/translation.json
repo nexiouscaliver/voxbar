@@ -1211,7 +1211,7 @@
       },
       "run_one": "Exécuter {{count}} paire",
       "run_other": "Exécuter {{count}} paires",
-      "runHint_one": "{{count}} prompt sur 1 moteur. Rien n'est tapé ni enregistré.",
+      "runHint_one": "Exécuter {{count}} paire. Rien n'est tapé ni enregistré.",
       "runHint_other": "{{count}} paires prompt-moteur. Rien n'est tapé ni enregistré.",
       "running": "Exécution...",
       "cancel": "Annuler",
@@ -1389,9 +1389,9 @@
     "gotIt": "Compris"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} bloque peut-être 1 raccourci",
+    "blockedWithCulprit_one": "{{name}} bloque peut-être {{count}} raccourci",
     "blockedWithCulprit_other": "{{name}} bloque peut-être {{count}} raccourcis",
-    "blockedNoCulprit_one": "macOS bloque temporairement 1 raccourci",
+    "blockedNoCulprit_one": "macOS bloque temporairement {{count}} raccourci",
     "blockedNoCulprit_other": "macOS bloque temporairement {{count}} raccourcis",
     "recorderBlockedWithCulprit": "{{name}} bloque peut-être la modification des raccourcis",
     "recorderBlockedNoCulprit": "macOS bloque temporairement la modification des raccourcis",

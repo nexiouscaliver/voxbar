@@ -558,42 +558,22 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                         {t("onboarding.permissions.microphone.checkAgain")}
                       </button>
                     </div>
-                  ) : micDenied ? (
-                    <div className="space-y-2">
-                      <p className="text-sm text-text/70">
-                        {t("onboarding.permissions.microphone.deniedGuidance")}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={handleOpenMicSettings}
-                          className="px-4 py-2 rounded-lg bg-background-ui hover:bg-background-ui/80 text-white text-sm font-medium transition-colors"
-                        >
-                          {t("onboarding.permissions.microphone.openSettings")}
-                        </button>
-                        <button
-                          onClick={handleCheckAgain}
-                          className="px-4 py-2 rounded-lg border border-text/20 hover:bg-text/10 text-text text-sm font-medium transition-colors"
-                        >
-                          {t("onboarding.permissions.microphone.checkAgain")}
-                        </button>
-                      </div>
-                    </div>
-                  ) : permissions.microphone === "waiting" ? (
-                    <div className="flex items-center gap-2 text-text/50 text-sm">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      {t("onboarding.permissions.waiting")}
-                    </div>
-                  ) : (
-                    <button
-                      onClick={handleGrantMicrophone}
-                      className="px-4 py-2 rounded-lg bg-background-ui hover:bg-background-ui/80 text-white text-sm font-medium transition-colors"
-                    >
-                      {isWindows
-                        ? t("accessibility.openSettings")
-                        : t("onboarding.permissions.grant")}
-                    </button>
-                  )}
-                </div>
+                  </div>
+                ) : permissions.microphone === "waiting" ? (
+                  <div className="flex items-center gap-2 text-text/50 text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {t("onboarding.permissions.waiting")}
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleGrantMicrophone}
+                    className="px-4 py-2 rounded-lg bg-background-ui hover:bg-background-ui/80 text-accent-on text-sm font-medium transition-colors"
+                  >
+                    {isWindows
+                      ? t("accessibility.openSettings")
+                      : t("onboarding.permissions.grant")}
+                  </button>
+                )}
               </div>
             </div>
           </div>

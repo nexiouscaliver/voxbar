@@ -1678,13 +1678,13 @@ report (dwfrun-adf93b4e).
 - KB-286 Arabic dual forms carry the numeral plus the dual noun ("2 two-shortcuts"); the bare dual is correct. ar/translation.json:1391, 1397.
 - KB-287 the KB-277 README sentence is pinned only as a ledger marker; no test reads README.md.
 - KB-288 the KB-267 contrast pin hardcodes the background and hex table instead of reading theme.css.
-- KB-289 start()/reset_pairing/set_log_level still whole-settings-write outside the connect-edge RMW lock (lost-update interleave). companion/mod.rs:609-626, 931-934; commands/mod.rs:57-74.
-- KB-290 stop-then-start re-seed can drop a freshly minted identity whose detached persist worker is mid-flight. companion/mod.rs:594-601, server.rs:385-391.
-- KB-291 companion_known_identities is behaviorally write-only machinery justified by a stale cost rationale; delete or wire it. companion/mod.rs:395-434, 1046-1075.
-- KB-292 every hello/disconnect spawns uncoalesced workers (up to 3 + 1) and both edges rebuild the tray; a coalescing flag bounds the storm. server.rs:389-449, 735.
+- KB-289 start()/reset_pairing/set_log_level still whole-settings-write outside the connect-edge RMW lock (lost-update interleave). companion/mod.rs:563-580, 905-912; commands/mod.rs:57-74.
+- KB-290 stop-then-start re-seed can drop a freshly minted identity whose detached persist worker is mid-flight. companion/mod.rs:577-584, companion/server.rs:539-543.
+- KB-291 companion_known_identities is behaviorally write-only machinery justified by a stale cost rationale; delete or wire it. companion/mod.rs:395-434, companion/mod.rs:1048-1075.
+- KB-292 every hello/disconnect spawns uncoalesced workers (up to 3 + 1) and both edges rebuild the tray; a coalescing flag bounds the storm. companion/server.rs:543-655, companion/server.rs:655.
 - KB-293 retire_dead_lane guards by correlation (Stage==Idle + connection-gone) not the IN_FLIGHT_PIPELINES registry; one registry check makes it by-construction. transcription_coordinator.rs:1186-1222.
 - KB-294 a mid-dictation disconnect still pays the release-buffer sleep for unroutable audio; skip the tail when the lane route is gone. audio.rs:1397-1433.
 - KB-295 companion_known_identities lacks the house serde round-trip/backfill test pattern. settings.rs test module.
 - KB-296 retire_dead_lane polls the connections mutex after every dictation drain on the coordinator's hot loop; a deferred-retire set removes the lock. transcription_coordinator.rs:1191-1225, 1347.
-- KB-297 the identity-list hydration seed does not clamp to KNOWN_IDENTITIES_LIMIT at the read boundary. companion/mod.rs:598-601.
-- KB-298 the persist payload Vec is documented and pinned as the set to persist but every consumer ignores it; make it a flag or fix the docs. companion/mod.rs:125-133, 1055-1067.
+- KB-297 the identity-list hydration seed does not clamp to KNOWN_IDENTITIES_LIMIT at the read boundary. companion/mod.rs:577-584.
+- KB-298 the persist payload Vec is documented and pinned as the set to persist but every consumer ignores it; make it a flag or fix the docs. companion/mod.rs:125-133, companion/mod.rs:1038-1046.

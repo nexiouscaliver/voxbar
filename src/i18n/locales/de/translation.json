@@ -763,7 +763,7 @@
           "retry": "Erneut versuchen",
           "visibleDescription": "Das Modell, das dein Transkript nach jedem Diktat neu schreibt.",
           "fetchingList": "Modellliste wird geladen...",
-          "listSummary_one": "1 Modell, geladen {{time}}",
+          "listSummary_one": "{{count}} Modell, geladen {{time}}",
           "listSummary_other": "{{count}} Modelle, geladen {{time}}",
           "notFetched": "Noch keine Modellliste.",
           "emptyTitle": "Keine Modelle gelistet",
@@ -1209,9 +1209,9 @@
         "noModel": "Kein Modell konfiguriert",
         "noModelHint": "Kein Modell gesetzt. Wähle eines unter Post Process."
       },
-      "run_one": "1 Paar ausführen",
+      "run_one": "{{count}} Paar ausführen",
       "run_other": "{{count}} Paare ausführen",
-      "runHint_one": "1 Prompt auf 1 Engine. Es wird nichts eingetippt oder gespeichert.",
+      "runHint_one": "{{count}} Paar ausführen. Es wird nichts eingetippt oder gespeichert.",
       "runHint_other": "{{count}} Prompt-Engine-Paare. Es wird nichts eingetippt oder gespeichert.",
       "running": "Wird ausgeführt...",
       "cancel": "Abbrechen",
@@ -1220,7 +1220,7 @@
       "latency": "{{ms}} ms",
       "rawKept": "Die Engine ist fehlgeschlagen oder wurde übersprungen, daher würde das rohe Transkript behalten.",
       "partialFailure": "Einige Läufe sind fehlgeschlagen oder wurden übersprungen, während andere Ausgaben erzeugt haben. Prüfe jede Karte.",
-      "results_one": "1 Ergebnis",
+      "results_one": "{{count}} Ergebnis",
       "results_other": "{{count}} Ergebnisse",
       "errors": {
         "engineNotFound": "Engine '{{id}}' ist nicht konfiguriert.",
@@ -1229,7 +1229,7 @@
       },
       "diff": {
         "lines": "Zeilen",
-        "charsChanged_one": "1 Zeichen geändert",
+        "charsChanged_one": "{{count}} Zeichen geändert",
         "charsChanged_other": "{{count}} Zeichen geändert",
         "identical": "Keine Änderungen.",
         "added_one": "+{{count}} hinzugefügt",
@@ -1389,9 +1389,9 @@
     "gotIt": "Verstanden"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} blockiert möglicherweise 1 Tastenkürzel",
+    "blockedWithCulprit_one": "{{name}} blockiert möglicherweise {{count}} Tastenkürzel",
     "blockedWithCulprit_other": "{{name}} blockiert möglicherweise {{count}} Tastenkürzel",
-    "blockedNoCulprit_one": "macOS blockiert vorübergehend 1 Tastenkürzel",
+    "blockedNoCulprit_one": "macOS blockiert vorübergehend {{count}} Tastenkürzel",
     "blockedNoCulprit_other": "macOS blockiert vorübergehend {{count}} Tastenkürzel",
     "recorderBlockedWithCulprit": "{{name}} blockiert möglicherweise Änderungen an Tastenkürzeln",
     "recorderBlockedNoCulprit": "macOS blockiert vorübergehend Änderungen an Tastenkürzeln",
