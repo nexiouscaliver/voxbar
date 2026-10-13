@@ -36,6 +36,7 @@
     "output": "出力",
     "advanced": "詳細設定",
     "postProcessing": "後処理",
+"addonsGroup": "アドオン",
     "enableInAdvancedHint": "詳細設定で有効にできます",
     "history": "履歴",
     "debug": "デバッグ",

@@ -36,6 +36,7 @@
     "output": "Wyjście",
     "advanced": "Zaawansowane",
     "postProcessing": "Postproces",
+"addonsGroup": "Dodatki",
     "enableInAdvancedHint": "Włącz w Zaawansowanych",
     "history": "Historia",
     "debug": "Debugowanie",

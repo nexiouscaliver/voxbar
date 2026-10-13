@@ -36,6 +36,7 @@
     "output": "Вывод",
     "advanced": "Продвинутые",
     "postProcessing": "Постобработка",
+"addonsGroup": "Дополнения",
     "enableInAdvancedHint": "Включите в разделе Продвинутые",
     "history": "История",
     "debug": "Отладка",

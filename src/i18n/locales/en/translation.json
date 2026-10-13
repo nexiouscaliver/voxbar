@@ -36,6 +36,7 @@
     "output": "Output",
     "advanced": "Advanced",
     "postProcessing": "Post Process",
+"addonsGroup": "Add-ons",
     "enableInAdvancedHint": "Enable in Advanced",
     "history": "History",
     "debug": "Debug",

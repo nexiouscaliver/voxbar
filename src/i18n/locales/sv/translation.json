@@ -36,6 +36,7 @@
     "output": "Utmatning",
     "advanced": "Avancerat",
     "postProcessing": "Efterbearbetning",
+"addonsGroup": "Tillägg",
     "enableInAdvancedHint": "Aktivera under Avancerat",
     "history": "Historik",
     "debug": "Felsökning",

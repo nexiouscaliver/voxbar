@@ -36,6 +36,7 @@
     "output": "출력",
     "advanced": "고급",
     "postProcessing": "후처리",
+"addonsGroup": "애드온",
     "enableInAdvancedHint": "고급에서 사용 설정",
     "history": "히스토리",
     "debug": "디버그",

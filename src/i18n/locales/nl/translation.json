@@ -36,6 +36,7 @@
     "output": "Uitvoer",
     "advanced": "Geavanceerd",
     "postProcessing": "Naverwerking",
+"addonsGroup": "Extensies",
     "enableInAdvancedHint": "Inschakelen bij Geavanceerd",
     "history": "Geschiedenis",
     "debug": "Probleemoplossing",

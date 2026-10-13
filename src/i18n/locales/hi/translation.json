@@ -36,6 +36,7 @@
     "output": "आउटपुट",
     "advanced": "ऐडवांस",
     "postProcessing": "पोस्ट प्रोसेस",
+"addonsGroup": "ऐड-ऑन",
     "enableInAdvancedHint": "ऐडवांस में सक्षम करें",
     "history": "इतिहास",
     "debug": "डिबग",

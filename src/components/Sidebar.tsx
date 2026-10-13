@@ -171,54 +171,68 @@ export const Sidebar: React.FC<SidebarProps> = ({
           const isActive = section.enabledNow && activeSection === section.id;
 
           return (
-            <div
-              key={section.id}
-              className={`flex gap-2 items-center py-1.5 px-2 w-full shrink-0 rounded-lg transition-colors ${
-                isActive
-                  ? // The selected pill fills with the solid accent and
-                    // carries on-accent content, matching Badge's primary
-                    // variant: the fill/onFill pair is contrast-tested for
-                    // every accent in both themes (>= 4.5:1), unlike the
-                    // old logo-primary/80 tint where the 13px label fell to
-                    // 3.03:1 on dark accent fills.
-                    "bg-background-ui text-accent-on"
-                  : "hover:bg-mid-gray/20 hover:opacity-100 opacity-85"
-              } ${section.enabledNow ? "cursor-pointer" : "cursor-default"}`}
-              aria-disabled={!section.enabledNow}
-              onClick={() =>
-                onSectionChange(
-                  // A disabled Post Process row still goes somewhere useful:
-                  // Advanced hosts the toggle that turns it on.
-                  section.enabledNow ? section.id : "advanced",
-                )
-              }
-            >
-              <Icon
-                width={24}
-                height={24}
-                className={`shrink-0 ${section.enabledNow ? "" : "opacity-50"}`}
-              />
-              <div className="flex flex-col min-w-0">
-                <p
-                  className={`text-sm font-medium truncate ${section.enabledNow ? "" : "opacity-50"}`}
-                  title={
-                    section.enabledNow
-                      ? t(section.labelKey)
-                      : `${t(section.labelKey)}: ${t("sidebar.enableInAdvancedHint")}`
-                  }
-                >
-                  {t(section.labelKey)}
-                </p>
-                {!section.enabledNow && (
+            <React.Fragment key={section.id}>
+              {/* The add-on surfaces (Post Process, Prompt Studio) group under
+                  a small labeled divider: without it, the disabled Post
+                  Process row's taller block reads as an unlabeled separator
+                  instead of an intentional group (the sidebar-row audit). */}
+              {section.id === "postprocessing" && (
+                <div className="flex items-center gap-2 px-2 pt-2 pb-0.5 w-full shrink-0">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-secondary truncate">
+                    {t("sidebar.addonsGroup")}
+                  </span>
+                  <span className="h-px flex-1 bg-mid-gray/20" />
+                </div>
+              )}
+              <div
+                key={section.id}
+                className={`flex gap-2 items-center py-1.5 px-2 w-full shrink-0 rounded-lg transition-colors ${
+                  isActive
+                    ? // The selected pill fills with the solid accent and
+                      // carries on-accent content, matching Badge's primary
+                      // variant: the fill/onFill pair is contrast-tested for
+                      // every accent in both themes (>= 4.5:1), unlike the
+                      // old logo-primary/80 tint where the 13px label fell to
+                      // 3.03:1 on dark accent fills.
+                      "bg-background-ui text-accent-on"
+                    : "hover:bg-mid-gray/20 hover:opacity-100 opacity-85"
+                } ${section.enabledNow ? "cursor-pointer" : "cursor-default"}`}
+                aria-disabled={!section.enabledNow}
+                onClick={() =>
+                  onSectionChange(
+                    // A disabled Post Process row still goes somewhere useful:
+                    // Advanced hosts the toggle that turns it on.
+                    section.enabledNow ? section.id : "advanced",
+                  )
+                }
+              >
+                <Icon
+                  width={24}
+                  height={24}
+                  className={`shrink-0 ${section.enabledNow ? "" : "opacity-50"}`}
+                />
+                <div className="flex flex-col min-w-0">
                   <p
-                    className="text-xs leading-tight text-secondary truncate"
-                    title={t("sidebar.enableInAdvancedHint")}
+                    className={`text-sm font-medium truncate ${section.enabledNow ? "" : "opacity-50"}`}
+                    title={
+                      section.enabledNow
+                        ? t(section.labelKey)
+                        : `${t(section.labelKey)}: ${t("sidebar.enableInAdvancedHint")}`
+                    }
                   >
-                    {t("sidebar.enableInAdvancedHint")}
+                    {t(section.labelKey)}
                   </p>
-                )}
+                  {!section.enabledNow && (
+                    <p
+                      className="text-xs leading-tight text-secondary truncate"
+                      title={t("sidebar.enableInAdvancedHint")}
+                    >
+                      {t("sidebar.enableInAdvancedHint")}
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
+            </React.Fragment>
           );
         })}
       </div>

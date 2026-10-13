@@ -36,6 +36,7 @@
     "output": "Sortida",
     "advanced": "Avançat",
     "postProcessing": "Postprocessament",
+"addonsGroup": "Complements",
     "enableInAdvancedHint": "Activa-ho a Avançat",
     "history": "Historial",
     "debug": "Depuració",

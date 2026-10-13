@@ -36,6 +36,7 @@
     "output": "Вивід",
     "advanced": "Розширені",
     "postProcessing": "Постобробка",
+"addonsGroup": "Додатки",
     "enableInAdvancedHint": "Увімкніть у розділі Розширені",
     "history": "Історія",
     "debug": "Дебаг",

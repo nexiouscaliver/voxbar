@@ -36,6 +36,7 @@
     "output": "Çıktı",
     "advanced": "Gelişmiş",
     "postProcessing": "Son İşlem",
+"addonsGroup": "Eklentiler",
     "enableInAdvancedHint": "Gelişmiş bölümünden etkinleştirin",
     "history": "Geçmiş",
     "debug": "Hata Ayıklama",

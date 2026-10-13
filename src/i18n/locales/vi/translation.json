@@ -36,6 +36,7 @@
     "output": "Đầu ra",
     "advanced": "Nâng cao",
     "postProcessing": "Xử lý sau",
+"addonsGroup": "Tiện ích",
     "enableInAdvancedHint": "Bật trong Nâng cao",
     "history": "Lịch sử",
     "debug": "Gỡ lỗi",

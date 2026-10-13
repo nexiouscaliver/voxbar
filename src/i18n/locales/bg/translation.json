@@ -36,6 +36,7 @@
     "output": "Изход",
     "advanced": "Разширени",
     "postProcessing": "Постобработка",
+"addonsGroup": "Добавки",
     "enableInAdvancedHint": "Включете в Разширени",
     "history": "История",
     "debug": "Отстраняване",

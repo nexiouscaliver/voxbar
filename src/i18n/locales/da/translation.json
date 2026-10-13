@@ -36,6 +36,7 @@
     "output": "Output",
     "advanced": "Avanceret",
     "postProcessing": "Efterbehandling",
+"addonsGroup": "Udvidelser",
     "enableInAdvancedHint": "Aktivér under Avanceret",
     "history": "Historik",
     "debug": "Fejlfinding",

@@ -36,6 +36,7 @@
     "output": "Ausgabe",
     "advanced": "Erweitert",
     "postProcessing": "Nachbearbeitung",
+"addonsGroup": "Add-ons",
     "enableInAdvancedHint": "Unter Erweitert aktivieren",
     "history": "Verlauf",
     "debug": "Debug",

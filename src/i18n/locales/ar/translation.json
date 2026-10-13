@@ -34,6 +34,7 @@
     "commands": "الأوامر",
     "advanced": "متقدم",
     "postProcessing": "معالجة لاحقة",
+"addonsGroup": "إضافات",
     "enableInAdvancedHint": "فعّلها من الإعدادات المتقدمة",
     "history": "السجل",
     "debug": "تصحيح الأخطاء",

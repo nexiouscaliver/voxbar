@@ -36,6 +36,7 @@
     "output": "Výstup",
     "advanced": "Pokročilé",
     "postProcessing": "Následné zpracování",
+"addonsGroup": "Rozšíření",
     "enableInAdvancedHint": "Zapněte v Pokročilém nastavení",
     "history": "Historie",
     "debug": "Ladění",

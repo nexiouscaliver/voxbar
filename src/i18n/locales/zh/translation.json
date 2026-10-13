@@ -36,6 +36,7 @@
     "output": "输出",
     "advanced": "高级",
     "postProcessing": "后处理",
+"addonsGroup": "扩展",
     "enableInAdvancedHint": "在高级设置中启用",
     "history": "历史记录",
     "debug": "调试",

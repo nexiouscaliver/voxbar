@@ -36,6 +36,7 @@
     "output": "輸出",
     "advanced": "進階",
     "postProcessing": "後處理",
+"addonsGroup": "附加元件",
     "enableInAdvancedHint": "在進階設定中啟用",
     "history": "歷史紀錄",
     "debug": "偵錯",

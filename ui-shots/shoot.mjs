@@ -1389,25 +1389,27 @@ const shots = [
       // The app's default theme is System, which resolves dark under this
       // rig, so a dark row with the resting shot's own scenario renders
       // byte-identical pixels to that shot (the audit's duplicate md5).
-      // Each dark row pairs with something its resting shot does not
-      // carry, so the sweep proves the explicit dark token AND adds a
-      // state no other capture holds; light rows already differ from the
-      // dark resting shots and keep the plain pairing.
-      // Sidebar consistency beats row novelty for the theme PAIRS: the
-      // dark general/history rows keep the same post-process-disabled
-      // scenario as their light siblings, so a dark-vs-light comparison
-      // sees the same sidebar state (the pp-on dark sidebar stays covered
-      // by the postprocessing row below).
+      // Each row must pair with something its resting shot does not carry,
+      // so the sweep proves the explicit dark token AND adds a state no
+      // other capture holds. The General rows carry the pp-ON scenario on
+      // BOTH themes at once: the light/dark pair stays internally
+      // consistent for palette diffing (same sidebar state on each side),
+      // and neither row can collapse into the resting pp-off settings-
+      // general shot (which a dark pp-off row would duplicate byte for
+      // byte, the audit's duplicate-md5 finding).
       const overrides =
-        theme === "dark"
+        (theme === "dark"
           ? {
               // No dark-accent Post Process shot exists (the accent sweep
               // covers light only): dark + blue here is new coverage.
               postprocessing: { accent: "blue" },
               // No accent sweep touches About: dark + blue is new.
               about: { accent: "blue" },
-            }[section] || {}
-          : {};
+            }
+          : {})[section] || {};
+      if (section === "general") {
+        overrides.scenario = "settings-full";
+      }
       return settingsShot({
         name: `theme-${theme}-settings-${section}`,
         scenario:

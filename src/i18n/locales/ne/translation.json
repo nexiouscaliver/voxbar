@@ -36,6 +36,7 @@
     "output": "आउटपुट",
     "advanced": "उन्नत",
     "postProcessing": "पोस्ट प्रोसेस",
+"addonsGroup": "एड-अन",
     "enableInAdvancedHint": "उन्नतमा सक्रिय गर्नुहोस्",
     "history": "हिस्ट्री",
     "debug": "डिबग",

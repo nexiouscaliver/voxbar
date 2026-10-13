@@ -36,6 +36,7 @@
     "output": "Keluaran",
     "advanced": "Lanjutan",
     "postProcessing": "Pascaproses",
+"addonsGroup": "Add-on",
     "enableInAdvancedHint": "Aktifkan di Lanjutan",
     "history": "Riwayat",
     "debug": "Debug",

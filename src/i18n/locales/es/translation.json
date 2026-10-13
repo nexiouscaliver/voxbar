@@ -36,6 +36,7 @@
     "output": "Salida",
     "advanced": "Avanzado",
     "postProcessing": "Post proceso",
+"addonsGroup": "Complementos",
     "enableInAdvancedHint": "Actívalo en Avanzado",
     "history": "Historial",
     "debug": "Depuración",
