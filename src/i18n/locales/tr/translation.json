@@ -36,13 +36,13 @@
     "output": "Çıktı",
     "advanced": "Gelişmiş",
     "postProcessing": "Son İşlem",
-    "addonsGroup": "Eklentiler",
     "enableInAdvancedHint": "Gelişmiş bölümünden etkinleştirin",
     "history": "Geçmiş",
     "debug": "Hata Ayıklama",
     "about": "Hakkında",
     "notifications": "Bildirimler",
-    "promptStudio": "Prompt Stüdyosu"
+    "promptStudio": "Prompt Stüdyosu",
+    "addonsGroup": "Eklentiler"
   },
   "onboarding": {
     "subtitle": "Başlamak için bir transkripsiyon modeli seçin",
@@ -243,7 +243,7 @@
       "addFromHf": {
         "title": "Hugging Face'ten model ekle",
         "description": "Herkese açık bir depo URL'si veya sahip/depo yapıştırın, örneğin https://huggingface.co/sahip/model.",
-        "placeholder": "owner/repo",
+        "placeholder": "https://huggingface.co/sahip/model veya sahip/model",
         "add": "Ekle",
         "cancel": "İptal",
         "pickFile": "{{repo}} içinden bir dosya seçin:",
@@ -369,7 +369,6 @@
       "searchPlaceholder": "Komutlarda ara",
       "resetAll": "Tüm komutları sıfırla",
       "resetRow": "Sıfırla",
-      "defaultPhrasesNote": "Varsayılan ifadeler, tanıyıcının dinlediği İngilizce kelimelerdir; ayrıcabuilt-in Hintçe ve Çince eş anlamlılar dahildir. Kendi ifadenizi herhangi birdilde, herhangi bir satıra ekleyebilirsiniz.",
       "addPhrase": "Ekle",
       "removePhrase": "{{phrase}} ifadesini kaldır",
       "placeholder": "Bir ifade ekle",
@@ -429,7 +428,8 @@
         "clearAll": "Söylenen her şeyi siler",
         "undo": "Odaktaki uygulamada geri al çalıştırır",
         "paste": "Panoyu odaktaki uygulamaya yapıştırır"
-      }
+      },
+      "defaultPhrasesNote": "Varsayılan ifadeler, tanıyıcının dinlediği İngilizce kelimelerdir; ayrıcabuilt-in Hintçe ve Çince eş anlamlılar dahildir. Kendi ifadenizi herhangi birdilde, herhangi bir satıra ekleyebilirsiniz."
     },
     "search": {
       "placeholder": "Ayarlarda ara",
@@ -654,7 +654,7 @@
       },
       "voiceDeletion": {
         "title": "Sesli silme komutları",
-        "description": "\"scratch that\", \"delete that\" ve \"remove that\" önceki kelimeyi siler, \"delete last three words\" birkaç kelimeyi siler, \"delete everything\" veya \"start over\" dikteyi temizler. Sıradan kelime olarak bırakmak için kapatın."
+        "description": "\"scratch that\", \"delete that\" ve \"remove that\" önceki kelimeyi siler, \"delete last three words\" birkaç kelimeyi siler, \"delete everything\" veya \"scratch everything\" dikteyi temizler. Sıradan kelime olarak bırakmak için kapatın."
       },
       "previewBeforePaste": {
         "title": "Yapıştırmadan önce önizleme",
@@ -671,7 +671,7 @@
       },
       "numberFormat": {
         "title": "Söylenen sayılar",
-        "description": "Söylenen sayıları rakam olarak yazar, böylece \"one eight zero one\" 1801 olarak yapıştırılır. \"Transkript edildiği gibi\" sayıları söylendiği gibi tutar; Smart ayrıca bileşik sıra sayılarını ve on bir ve üzeri tek sayıları dönüştürür.",
+        "description": "Söylenen sayıları rakam olarak yazar, böylece \"one eight zero one\" 1801 olarak yapıştırılır. Dönüştürme, İngilizce ve Hintçe (Hinglish dahil) sözlü sayıları bilir; diğer dillerde sayılar söylendiği gibi kalır. \"Transkript edildiği gibi\" sayıları söylendiği gibi tutar; Smart ayrıca bileşik sıra sayılarını ve on bir ve üzeri tek sayıları dönüştürür.",
         "options": {
           "asTranscribed": "Transkripsiyondaki gibi",
           "digits": "Rakamlar",
@@ -690,7 +690,6 @@
         "noDevices": "Henüz bağlı cihaz yok",
         "resetPairing": "Eşleştirmeyi sıfırla",
         "fingerprintLabel": "Sertifika parmak izi (SHA-256)",
-        "fingerprintCopied": "Kopyalandı",
         "firewallNote": "İlk açışta macOS gelen bağlantılara izin isteyebilir. İzin ver, yoksa telefonlar bu Mac'e ulaşamaz.",
         "unavailable": "Eşlik eden cihazlar bu döngüde macOS gerektirir.",
         "serverError": "Sunucu başarısız: {{error}}",
@@ -720,7 +719,8 @@
         "restartButton": "Sunucuyu yeniden başlat",
         "restartPending": "Değişiklikler yeniden başlatmadan sonra uygulanır",
         "qrPreviewNote": "Önizleme: Bu URL, sunucu bir dahaki sefere başladığında duyurulacak.",
-        "sharedNetworkNote": "Telefon ve bu Mac aynı ağı paylaşmalıdır: aynı Wi-Fi veya LAN ya da aynı tailnet (örneğin ikisi de Tailscale'de)."
+        "sharedNetworkNote": "Telefon ve bu Mac aynı ağı paylaşmalıdır: aynı Wi-Fi veya LAN ya da aynı tailnet (örneğin ikisi de Tailscale'de).",
+        "fingerprintCopied": "Kopyalandı"
       }
     },
     "postProcessing": {
@@ -763,13 +763,13 @@
           "notFetched": "Henüz model listesi yok.",
           "emptyTitle": "Listede model yok",
           "emptyHint": "Bu anahtarın gördüğü modelleri yüklemek için yenileyin veya aşağıya bir model kimliği yazın.",
-          "emptyNoKey": "Modelleri yüklemek için önce yukarıya API anahtarınızı girin, sonra yenileyin.",
           "customSet": "Ayarla",
           "customHint": "Listede olmasa bile sağlayıcınızın sunduğu her model kimliği çalışır.",
           "filterPlaceholder": "Modelleri filtrele",
           "showAll_one": "Tümünü göster ({{count}})",
           "showAll_other": "Tümünü göster ({{count}})",
-          "showFewer": "Daha az göster"
+          "showFewer": "Daha az göster",
+          "emptyNoKey": "Modelleri yüklemek için önce yukarıya API anahtarınızı girin, sonra yenileyin."
         },
         "timeout": {
           "title": "İstek zaman aşımı",
@@ -805,7 +805,8 @@
         "providerLabel": "Yerel (cihazda)",
         "keepWarm": {
           "title": "Yerel modeli sıcak tut",
-          "description": "Yerel son işlem modeli bir cilalamadan sonra hemen boşaltılmak yerine ne kadar süre bellekte kalır. Bir dikte her zaman önce belleği geri alır."
+          "description": "Yerel son işlem modeli bir cilalamadan sonra hemen boşaltılmak yerine ne kadar süre bellekte kalır. Bir dikte her zaman önce belleği geri alır.",
+          "off": "Kapalı"
         }
       },
       "models": {
@@ -936,14 +937,12 @@
       "title": "Geçmiş",
       "openFolder": "Kayıtlar Klasörünü Aç",
       "loading": "Geçmiş yükleniyor...",
-      "emptyTitle": "Henüz transkripsiyon yok",
-      "emptyHint": "İlk diktinizi kaydetmek için kayıt kısayolunuza basın.",
+      "empty": "Henüz transkripsiyon yok. Geçmişinizi oluşturmak için kayda başlayın!",
       "copyToClipboard": "Transkripsiyonu panoya kopyala",
       "copyError": "Transkripsiyon panoya kopyalanamadı.",
       "save": "Transkripsiyonu kaydet",
       "unsave": "Kaydedilenlerden kaldır",
       "delete": "Kaydı sil",
-      "deleteConfirm": "Bu girdi silinsin mi? Kayıt ve dökümü kalıcı olarak kaldırılacak.",
       "deleteError": "Kayıt silinemedi. Lütfen tekrar deneyin.",
       "retranscribe": "Yeniden transkribe et",
       "retranscribeError": "Yeniden transkripsiyon başarısız oldu. Lütfen tekrar deneyin.",
@@ -960,8 +959,13 @@
       "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms ile",
       "viewChanges": "Değişiklikleri göster",
       "hideChanges": "Değişiklikleri gizle",
+      "emptyTitle": "Henüz transkripsiyon yok",
+      "emptyHint": "İlk diktinizi kaydetmek için kayıt kısayolunuza basın.",
+      "deleteConfirm": "Bu girdi silinsin mi? Kayıt ve dökümü kalıcı olarak kaldırılacak.",
       "today": "Bugün",
-      "yesterday": "Dün"
+      "yesterday": "Dün",
+      "savedToggleError": "Kayıt durumu güncellenemedi.",
+      "dbRecoveredNotice": "Transkripsiyon geçmişi veritabanınız okunamadığı için yenisi başlatıldı. Önceki veritabanı {{file}} olarak saklandı."
     },
     "debug": {
       "title": "Hata Ayıklama",
@@ -981,9 +985,9 @@
         "pause": "Duraklat",
         "resume": "Sürdür",
         "copied": "Kopyalandı",
-        "clearConfirm": "Bu görünümden yakalanan satırlar temizlensin mi? Diskteki günlük dosyası saklanır.",
         "lineCount": "{{count}} satır",
         "empty": "Loglar bekleniyor… Uygulama logları ürettikçe girişler burada görünür.",
+        "clearConfirm": "Bu görünümden yakalanan satırlar temizlensin mi? Diskteki günlük dosyası saklanır.",
         "clearConfirmTitle": "Yakalanan satırlar temizlensin mi?"
       },
       "updateChecks": {
@@ -1173,7 +1177,7 @@
       },
       "log": {
         "title": "Bildirim günlüğü",
-        "description": "Son 50 hata ve sonuç bildirimi.",
+        "description": "Son 50 hata ve sonuç bildirimi. Yeni kayıtlar yalnızca sistem bildirimleri açıkken tutulur.",
         "empty": "Henüz bildirim yok.",
         "clear": "Tümünü temizle"
       }
@@ -1203,7 +1207,6 @@
       "runHint_one": "1 motorda 1 prompt. Hiçbir şey yazılmaz veya kaydedilmez.",
       "runHint_other": "{{count}} prompt-motor çifti. Hiçbir şey yazılmaz veya kaydedilmez.",
       "running": "Çalışıyor...",
-      "appliedLabel": "Başarılı",
       "rerun": "Yeniden çalıştır",
       "latency": "{{ms}} ms",
       "rawKept": "Motor başarısız oldu veya atlandı, bu nedenle ham transkript korunurdu.",
@@ -1216,16 +1219,20 @@
         "emptyBatch": "En az bir prompt ve bir motor seçin."
       },
       "diff": {
+        "lines": "satır",
+        "charsChanged_one": "1 karakter değişti",
+        "charsChanged_other": "{{count}} karakter değişti",
         "identical": "Değişiklik yok.",
         "added_one": "+{{count}} eklendi",
         "added_other": "+{{count}} eklendi",
         "removed_one": "{{count}} kaldırıldı",
-        "removed_other": "{{count}} kaldırıldı",
-        "charsChanged_one": "1 karakter değişti",
-        "charsChanged_other": "{{count}} karakter değişti"
+        "removed_other": "{{count}} kaldırıldı"
       },
       "resultsEmptyTitle": "Sonuçlar burada görünecek",
-      "resultsEmptyHint": "Yukarıdan bir kaynak, promptlar ve motorlar seçip çalıştırın. Her kart cilalanmış metni, değişiklikleri ve hızını gösterir."
+      "resultsEmptyHint": "Yukarıdan bir kaynak, promptlar ve motorlar seçip çalıştırın. Her kart cilalanmış metni, değişiklikleri ve hızını gösterir.",
+      "appliedLabel": "Başarılı",
+      "cancel": "İptal",
+      "cancelledCard": "Bu çalışma başlamadan önce iptal edildi."
     }
   },
   "footer": {
@@ -1269,11 +1276,11 @@
     "loading": "Yükleniyor...",
     "delete": "Sil",
     "close": "Kapat",
-    "cancel": "İptal",
     "open": "Aç",
     "copy": "Kopyala",
     "clear": "Temizle",
-    "noOptionsFound": "Seçenek bulunamadı"
+    "noOptionsFound": "Seçenek bulunamadı",
+    "cancel": "İptal"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar, transkribe edilen metni yazabilmek için erişilebilirlik izinlerine ihtiyaç duyar.",
@@ -1301,7 +1308,9 @@
     "transcriptionFailedTitle": "Transkripsiyon başarısız oldu",
     "noModelSelectedTitle": "Model seçilmedi",
     "noModelSelected": "Dikteye başlamadan önce Ayarlar'dan bir transkripsiyon modeli seçin.",
-    "openDirectory": "Klasör açılamadı: {{error}}"
+    "openDirectory": "Klasör açılamadı: {{error}}",
+    "modelLoadFailedMemoryGate": "{{model}} modelini yüklemek için yeterli boş bellek yok: yaklaşık {{needed}} gerekiyor, yaklaşık {{free}} boş.",
+    "modelLoadFailedDetail": "Model değiştirilmedi. Teknik neden günlük dosyasında."
   },
   "appLanguage": {
     "title": "Uygulama Dili",
@@ -1445,6 +1454,15 @@
     "historyTitle": "Son kayıtlar",
     "historyEmpty": "Bu telefonla yapılan dikatler burada görünür.",
     "stateMicBlocked": "Mikrofon engellendi",
-    "micBlockedRetry": "Mikrofon engellendi. Yeniden denemek için dokunun."
+    "micBlockedRetry": "Mikrofon engellendi. Yeniden denemek için dokunun.",
+    "zeroAudioHold": "Ses Mac'e ulaşmadı. Düğmeyi basılı tutup konuş.",
+    "zeroAudioHoldOrToggle": "Ses Mac'e ulaşmadı. Düğmeyi basılı tutup ya da dokunup konuş.",
+    "zeroAudioTap": "Ses Mac'e ulaşmadı. Düğmeye dokunup konuş.",
+    "holdOrToggleToTalk": "Konuşmak için basılı tut, kilitlemek için dokun"
+  },
+  "trayCopyOutcome": {
+    "copied": "Dikte panoya kopyalandı.",
+    "empty": "Henüz kopyalanacak bir şey yok.",
+    "failed": "Dikte panoya kopyalanamadı."
   }
 }

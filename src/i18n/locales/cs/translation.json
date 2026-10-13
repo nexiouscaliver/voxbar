@@ -36,13 +36,13 @@
     "output": "Výstup",
     "advanced": "Pokročilé",
     "postProcessing": "Následné zpracování",
-    "addonsGroup": "Rozšíření",
     "enableInAdvancedHint": "Zapněte v Pokročilém nastavení",
     "history": "Historie",
     "debug": "Ladění",
     "about": "O aplikaci",
     "notifications": "Oznámení",
-    "promptStudio": "Studio promptů"
+    "promptStudio": "Studio promptů",
+    "addonsGroup": "Rozšíření"
   },
   "onboarding": {
     "subtitle": "Pro začátek vyberte model pro přepis",
@@ -243,7 +243,7 @@
       "addFromHf": {
         "title": "Přidat model z Hugging Face",
         "description": "Vložte veřejnou URL repozitáře nebo vlastník/repozitář, například https://huggingface.co/vlastník/model.",
-        "placeholder": "owner/repo",
+        "placeholder": "https://huggingface.co/vlastník/model nebo vlastník/model",
         "add": "Přidat",
         "cancel": "Zrušit",
         "pickFile": "Vyberte soubor z {{repo}}:",
@@ -369,7 +369,6 @@
       "searchPlaceholder": "Hledat příkazy",
       "resetAll": "Obnovit všechny příkazy",
       "resetRow": "Obnovit výchozí",
-      "defaultPhrasesNote": "Výchozí fráze jsou anglická slova, která rozpoznávač poslouchá, plusvestavěné aliasy v hindštině a čínštině. Vlastní frázi přidáte v libovolnémjazyce na libovolném řádku.",
       "addPhrase": "Přidat",
       "removePhrase": "Odebrat {{phrase}}",
       "placeholder": "Přidat frázi",
@@ -429,7 +428,8 @@
         "clearAll": "Smaže celý diktát",
         "undo": "Spustí akci zpět v aktivní aplikaci",
         "paste": "Vloží schránku do aktivní aplikace"
-      }
+      },
+      "defaultPhrasesNote": "Výchozí fráze jsou anglická slova, která rozpoznávač poslouchá, plusvestavěné aliasy v hindštině a čínštině. Vlastní frázi přidáte v libovolnémjazyce na libovolném řádku."
     },
     "search": {
       "placeholder": "Hledat v nastavení",
@@ -654,7 +654,7 @@
       },
       "voiceDeletion": {
         "title": "Hlasové příkazy pro mazání",
-        "description": "\"scratch that\", \"delete that\" a \"remove that\" smažou předchozí slovo, \"delete last three words\" smaže více slov a \"delete everything\" nebo \"start over\" vymaže celý přepis. Vypněte, aby zůstaly běžnými slovy."
+        "description": "\"scratch that\", \"delete that\" a \"remove that\" smažou předchozí slovo, \"delete last three words\" smaže více slov a \"delete everything\" nebo \"scratch everything\" vymaže celý přepis. Vypněte, aby zůstaly běžnými slovy."
       },
       "previewBeforePaste": {
         "title": "Náhled před vložením",
@@ -671,7 +671,7 @@
       },
       "numberFormat": {
         "title": "Mluvená čísla",
-        "description": "Zapisuje mluvená čísla jako číslice, takže \"one eight zero one\" se vloží jako 1801. \"Jak přepsáno\" ponechá čísla tak, jak byla řečena; Smart navíc převádí složené řadové číslovky a samostatná čísla od jedenácti výš.",
+        "description": "Zapisuje mluvená čísla jako číslice, takže \"one eight zero one\" se vloží jako 1801. Převod zná mluvené číslovky v angličtině a hindštině (včetně hingliše); v jiných jazycích zůstanou čísla tak, jak byla vyslovena. \"Jak přepsáno\" ponechá čísla tak, jak byla řečena; Smart navíc převádí složené řadové číslovky a samostatná čísla od jedenácti výš.",
         "options": {
           "asTranscribed": "Jak bylo přepsáno",
           "digits": "Číslice",
@@ -690,7 +690,6 @@
         "noDevices": "Zatím žádná připojená zařízení",
         "resetPairing": "Resetovat párování",
         "fingerprintLabel": "Otisk certifikátu (SHA-256)",
-        "fingerprintCopied": "Zkopírováno",
         "firewallNote": "macOS může při prvním zapnutí požádat o povolení příchozích spojení. Povolte je, jinak telefony tohoto Maca nenajdou.",
         "unavailable": "Doprovodná zařízení v tomto cyklu vyžadují macOS.",
         "serverError": "Server selhal: {{error}}",
@@ -720,7 +719,8 @@
         "restartButton": "Restartovat server",
         "restartPending": "Změny se projeví po restartu",
         "qrPreviewNote": "Náhled: tato adresa URL se zveřejní při příštím spuštění serveru.",
-        "sharedNetworkNote": "Telefon a tento Mac musí sdílet síť: stejnou Wi-Fi nebo LAN, nebo stejný tailnet (například oba v Tailscale)."
+        "sharedNetworkNote": "Telefon a tento Mac musí sdílet síť: stejnou Wi-Fi nebo LAN, nebo stejný tailnet (například oba v Tailscale).",
+        "fingerprintCopied": "Zkopírováno"
       }
     },
     "postProcessing": {
@@ -765,7 +765,6 @@
           "notFetched": "Zatím žádný seznam modelů.",
           "emptyTitle": "Žádné modely v seznamu",
           "emptyHint": "Obnovte, aby se načetly modely dostupné s tímto klíčem, nebo níže zadejte id modelu.",
-          "emptyNoKey": "Zadejte výše svůj klíč API a poté obnovte, aby se načetly modely.",
           "customSet": "Nastavit",
           "customHint": "Funguje jakékoli id modelu od vašeho poskytovatele, i když není v seznamu.",
           "filterPlaceholder": "Filtrovat modely",
@@ -773,7 +772,8 @@
           "showAll_few": "Zobrazit vše ({{count}})",
           "showAll_many": "Zobrazit vše ({{count}})",
           "showAll_other": "Zobrazit vše ({{count}})",
-          "showFewer": "Zobrazit méně"
+          "showFewer": "Zobrazit méně",
+          "emptyNoKey": "Zadejte výše svůj klíč API a poté obnovte, aby se načetly modely."
         },
         "timeout": {
           "title": "Časový limit požadavku",
@@ -809,7 +809,8 @@
         "providerLabel": "Místní (na zařízení)",
         "keepWarm": {
           "title": "Držet místní model v paměti",
-          "description": "Jak dlouho zůstává místní model následného zpracování v paměti po vyčištění, místo aby se hned uvolnil. Diktát si paměť vždy vezme zpátky jako první."
+          "description": "Jak dlouho zůstává místní model následného zpracování v paměti po vyčištění, místo aby se hned uvolnil. Diktát si paměť vždy vezme zpátky jako první.",
+          "off": "Vypnuto"
         }
       },
       "models": {
@@ -940,14 +941,12 @@
       "title": "Historie",
       "openFolder": "Otevřít složku nahrávek",
       "loading": "Načítám historii...",
-      "emptyTitle": "Zatím žádné přepisy",
-      "emptyHint": "Stiskněte klávesovou zkratku nahrávání a pořiďte svůj první diktát.",
+      "empty": "Zatím žádné přepisy. Začněte nahrávat a vytvořte si historii!",
       "copyToClipboard": "Kopírovat přepis do schránky",
       "copyError": "Přepis se nepodařilo zkopírovat do schránky.",
       "save": "Uložit přepis",
       "unsave": "Odebrat z uložených",
       "delete": "Smazat záznam",
-      "deleteConfirm": "Odstranit tuto položku? Nahrávka i její přepis budou trvale odstraněny.",
       "deleteError": "Nepodařilo se smazat záznam. Zkuste to prosím znovu.",
       "retranscribe": "Přepsat znovu",
       "retranscribeError": "Opětovný přepis se nezdařil. Zkuste to prosím znovu.",
@@ -964,8 +963,13 @@
       "viaPostProcess": "přes {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Zobrazit změny",
       "hideChanges": "Skrýt změny",
+      "emptyTitle": "Zatím žádné přepisy",
+      "emptyHint": "Stiskněte klávesovou zkratku nahrávání a pořiďte svůj první diktát.",
+      "deleteConfirm": "Odstranit tuto položku? Nahrávka i její přepis budou trvale odstraněny.",
       "today": "Dnes",
-      "yesterday": "Včera"
+      "yesterday": "Včera",
+      "savedToggleError": "Nepodařilo se aktualizovat stav uložení.",
+      "dbRecoveredNotice": "Databáze vaší historie přepisů byla nečitelná, proto byla spuštěna nová. Předchozí databáze byla zachována jako {{file}}."
     },
     "debug": {
       "title": "Ladění",
@@ -985,9 +989,9 @@
         "pause": "Pozastavit",
         "resume": "Pokračovat",
         "copied": "Zkopírováno",
-        "clearConfirm": "Vymazat zachycené řádky z tohoto zobrazení? Soubor protokolu na disku zůstane zachován.",
         "lineCount": "Řádků: {{count}}",
         "empty": "Čekání na logy… Záznamy se zde zobrazí, jakmile je aplikace vygeneruje.",
+        "clearConfirm": "Vymazat zachycené řádky z tohoto zobrazení? Soubor protokolu na disku zůstane zachován.",
         "clearConfirmTitle": "Vymazat zachycené řádky?"
       },
       "updateChecks": {
@@ -1177,7 +1181,7 @@
       },
       "log": {
         "title": "Protokol oznámení",
-        "description": "Posledních 50 upozornění na chyby a výsledky.",
+        "description": "Posledních 50 upozornění na chyby a výsledky. Nové záznamy se ukládají pouze při zapnutých systémových oznámeních.",
         "empty": "Zatím žádná oznámení.",
         "clear": "Vymazat vše"
       }
@@ -1211,7 +1215,6 @@
       "runHint_many": "{{count}} párů prompt-engin. Nic se nepíše ani neukládá.",
       "runHint_other": "{{count}} párů prompt-engin. Nic se nepíše ani neukládá.",
       "running": "Běží...",
-      "appliedLabel": "Úspěch",
       "rerun": "Spustit znovu",
       "latency": "{{ms}} ms",
       "rawKept": "Engin selhal nebo byl přeskočen, proto by zůstal původní přepis.",
@@ -1226,6 +1229,11 @@
         "emptyBatch": "Vyberte alespoň jeden prompt a jeden engin."
       },
       "diff": {
+        "lines": "řádků",
+        "charsChanged_one": "Změněn 1 znak",
+        "charsChanged_few": "Změněny {{count}} znaky",
+        "charsChanged_many": "Změněno {{count}} znaků",
+        "charsChanged_other": "Změněno znaků: {{count}}",
         "identical": "Žádné změny.",
         "added_few": "+{{count}} přidáno",
         "added_many": "+{{count}} přidáno",
@@ -1234,14 +1242,13 @@
         "removed_few": "{{count}} odebráno",
         "removed_many": "{{count}} odebráno",
         "removed_one": "1 odebráno",
-        "removed_other": "Odebráno: {{count}}",
-        "charsChanged_one": "Změněn 1 znak",
-        "charsChanged_few": "Změněny {{count}} znaky",
-        "charsChanged_many": "Změněno {{count}} znaků",
-        "charsChanged_other": "Změněno znaků: {{count}}"
+        "removed_other": "Odebráno: {{count}}"
       },
       "resultsEmptyTitle": "Výsledky se zobrazí zde",
-      "resultsEmptyHint": "Vyberte výše zdroj, prompty a enginy a spusťte. Každá karta ukazuje upravený text, změny a rychlost."
+      "resultsEmptyHint": "Vyberte výše zdroj, prompty a enginy a spusťte. Každá karta ukazuje upravený text, změny a rychlost.",
+      "appliedLabel": "Úspěch",
+      "cancel": "Zrušit",
+      "cancelledCard": "Zrušeno před zahájením tohoto spuštění."
     }
   },
   "footer": {
@@ -1285,11 +1292,11 @@
     "loading": "Načítání...",
     "delete": "Smazat",
     "close": "Zavřít",
-    "cancel": "Zrušit",
     "open": "Otevřít",
     "copy": "Kopírovat",
     "clear": "Vymazat",
-    "noOptionsFound": "Nenalezeny žádné možnosti"
+    "noOptionsFound": "Nenalezeny žádné možnosti",
+    "cancel": "Zrušit"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar potřebuje oprávnění usnadnění přístupu, aby mohlo psát přepsaný text.",
@@ -1317,7 +1324,9 @@
     "transcriptionFailedTitle": "Přepis selhal",
     "noModelSelectedTitle": "Není vybrán žádný model",
     "noModelSelected": "Před diktováním vyberte v Nastavení model přepisu.",
-    "openDirectory": "Složku nelze otevřít: {{error}}"
+    "openDirectory": "Složku nelze otevřít: {{error}}",
+    "modelLoadFailedMemoryGate": "Není dost volné paměti pro načtení {{model}}: je potřeba asi {{needed}}, volných je asi {{free}}.",
+    "modelLoadFailedDetail": "Model nebyl změněn. Technický důvod je v souboru protokolu."
   },
   "appLanguage": {
     "title": "Jazyk aplikace",
@@ -1461,6 +1470,15 @@
     "historyTitle": "Nedávné",
     "historyEmpty": "Diktáty z tohoto telefonu se zobrazí zde.",
     "stateMicBlocked": "Mikrofon zablokován",
-    "micBlockedRetry": "Mikrofon zablokován. Klepnutím zkuste znovu."
+    "micBlockedRetry": "Mikrofon zablokován. Klepnutím zkuste znovu.",
+    "zeroAudioHold": "K Macu se nedostal žádný zvuk. Podržte tlačítko a mluvte.",
+    "zeroAudioHoldOrToggle": "K Macu se nedostal žádný zvuk. Podržte nebo klepněte na tlačítko a mluvte.",
+    "zeroAudioTap": "K Macu se nedostal žádný zvuk. Klepněte na tlačítko a mluvte.",
+    "holdOrToggleToTalk": "Držte pro mluvení, klepněte pro uzamčení"
+  },
+  "trayCopyOutcome": {
+    "copied": "Přepis byl zkopírován do schránky.",
+    "empty": "Zatím není co kopírovat.",
+    "failed": "Přepis se nepodařilo zkopírovat do schránky."
   }
 }

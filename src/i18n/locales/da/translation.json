@@ -36,13 +36,13 @@
     "output": "Output",
     "advanced": "Avanceret",
     "postProcessing": "Efterbehandling",
-    "addonsGroup": "Udvidelser",
     "enableInAdvancedHint": "Aktivér under Avanceret",
     "history": "Historik",
     "debug": "Fejlfinding",
     "about": "Om",
     "notifications": "Underretninger",
-    "promptStudio": "Prompt-studio"
+    "promptStudio": "Prompt-studio",
+    "addonsGroup": "Udvidelser"
   },
   "onboarding": {
     "subtitle": "For at komme i gang skal du vælge en transskriptionsmodel",
@@ -316,7 +316,6 @@
       "searchPlaceholder": "Søg i kommandoer",
       "resetAll": "Nulstil alle kommandoer",
       "resetRow": "Nulstil",
-      "defaultPhrasesNote": "Standardfraserne er de engelske ord, genkenderen lytter efter, plust_indsatte hindi- og kinesiske aliaser. Tilføj din egen frase på ethvert sprog på enhver række.",
       "addPhrase": "Tilføj",
       "removePhrase": "Fjern {{phrase}}",
       "placeholder": "Tilføj en frase",
@@ -376,7 +375,8 @@
         "clearAll": "Sletter hele diktatet",
         "undo": "Kører fortryd i appen i fokus",
         "paste": "Indsætter udklipsholderen i appen i fokus"
-      }
+      },
+      "defaultPhrasesNote": "Standardfraserne er de engelske ord, genkenderen lytter efter, plust_indsatte hindi- og kinesiske aliaser. Tilføj din egen frase på ethvert sprog på enhver række."
     },
     "search": {
       "placeholder": "Søg i indstillinger",
@@ -405,7 +405,7 @@
       "addFromHf": {
         "title": "Tilføj model fra Hugging Face",
         "description": "Indsæt en offentlig repo-URL eller ejer/repo, for eksempel https://huggingface.co/ejer/model.",
-        "placeholder": "owner/repo",
+        "placeholder": "https://huggingface.co/ejer/model eller ejer/model",
         "add": "Tilføj",
         "cancel": "Annuller",
         "pickFile": "Vælg en fil fra {{repo}}:",
@@ -654,7 +654,7 @@
       },
       "voiceDeletion": {
         "title": "Talekommandoer til sletning",
-        "description": "\"scratch that\", \"delete that\" og \"remove that\" sletter det forrige ord, \"delete last three words\" sletter flere, og \"delete everything\" eller \"start over\" rydder dikteringen. Slå fra for at beholde dem som almindelige ord."
+        "description": "\"scratch that\", \"delete that\" og \"remove that\" sletter det forrige ord, \"delete last three words\" sletter flere, og \"delete everything\" eller \"scratch everything\" rydder dikteringen. Slå fra for at beholde dem som almindelige ord."
       },
       "previewBeforePaste": {
         "title": "Forhåndsvisning før indsættelse",
@@ -671,7 +671,7 @@
       },
       "numberFormat": {
         "title": "Dikterede tal",
-        "description": "Skriver talte talord som cifre, så \"one eight zero one\" indsættes som 1801. \"Som transkriberet\" bevarer tal som sagt; Smart konverterer også sammensatte ordenstal og enkelttal fra elleve og opefter.",
+        "description": "Skriver talte talord som cifre, så \"one eight zero one\" indsættes som 1801. Konverteringen kender talte talord på engelsk og hindi (inklusive hinglish); på andre sprog bevares tallene som sagt. \"Som transkriberet\" bevarer tal som sagt; Smart konverterer også sammensatte ordenstal og enkelttal fra elleve og opefter.",
         "options": {
           "asTranscribed": "Som transskriberet",
           "digits": "Cifre",
@@ -690,7 +690,6 @@
         "noDevices": "Ingen enheder tilsluttet endnu",
         "resetPairing": "Nulstil parring",
         "fingerprintLabel": "Certifikatfingeraftryk (SHA-256)",
-        "fingerprintCopied": "Kopieret",
         "firewallNote": "macOS kan ved første aktivering spørge om indgående forbindelser skal tillades. Tillad det, ellers kan telefoner ikke nå denne Mac.",
         "unavailable": "Følgeenheder kræver macOS i denne cyklus.",
         "serverError": "Serveren fejlede: {{error}}",
@@ -720,7 +719,8 @@
         "restartButton": "Genstart serveren",
         "restartPending": "Ændringerne træder i kraft efter en genstart",
         "qrPreviewNote": "Forhåndsvisning: Denne URL anvendes, næste gang serveren starter.",
-        "sharedNetworkNote": "Telefonen og denne Mac skal dele et netværk: det samme Wi-Fi eller LAN, eller det samme tailnet (f.eks. begge på Tailscale)."
+        "sharedNetworkNote": "Telefonen og denne Mac skal dele et netværk: det samme Wi-Fi eller LAN, eller det samme tailnet (f.eks. begge på Tailscale).",
+        "fingerprintCopied": "Kopieret"
       }
     },
     "postProcessing": {
@@ -763,13 +763,13 @@
           "notFetched": "Endnu ingen modelliste.",
           "emptyTitle": "Ingen modeller på listen",
           "emptyHint": "Opdater for at indlæse de modeller, denne nøgle kan se, eller skriv et model-id herunder.",
-          "emptyNoKey": "Indtast din API-nøgle ovenfor, og opdater derefter for at indlæse modeller.",
           "customSet": "Angiv",
           "customHint": "Ethvert model-id fra din udbyder virker, også hvis det ikke er på listen.",
           "filterPlaceholder": "Filtrér modeller",
           "showAll_one": "Vis alle ({{count}})",
           "showAll_other": "Vis alle ({{count}})",
-          "showFewer": "Vis færre"
+          "showFewer": "Vis færre",
+          "emptyNoKey": "Indtast din API-nøgle ovenfor, og opdater derefter for at indlæse modeller."
         },
         "timeout": {
           "title": "Anmodningstimeout",
@@ -805,7 +805,8 @@
         "providerLabel": "Lokalt (på enheden)",
         "keepWarm": {
           "title": "Hold den lokale model varm",
-          "description": "Hvor længe den lokale efterbehandlingsmodel bliver i hukommelsen efter en oprydning i stedet for at blive lukket ned med det samme. En diktering henter altid hukommelsen først."
+          "description": "Hvor længe den lokale efterbehandlingsmodel bliver i hukommelsen efter en oprydning i stedet for at blive lukket ned med det samme. En diktering henter altid hukommelsen først.",
+          "off": "Fra"
         }
       },
       "models": {
@@ -936,14 +937,12 @@
       "title": "Historik",
       "openFolder": "Åbn optagelsesmappe",
       "loading": "Indlæser historik...",
-      "emptyTitle": "Ingen transskriptioner endnu",
-      "emptyHint": "Tryk på din optagegenvej for at lave din første diktering.",
+      "empty": "Ingen transskriptioner endnu. Start optagelse for at opbygge din historik!",
       "copyToClipboard": "Kopiér transskription til udklipsholder",
       "copyError": "Kunne ikke kopiere transskriptionen til udklipsholderen.",
       "save": "Gem transskription",
       "unsave": "Fjern fra gemte",
       "delete": "Slet post",
-      "deleteConfirm": "Slet denne post? Optagelsen og dens transskription fjernes permanent.",
       "deleteError": "Kunne ikke slette posten. Prøv igen.",
       "retranscribe": "Transskribér igen",
       "retranscribeError": "Kunne ikke transskribere igen. Prøv igen.",
@@ -960,8 +959,13 @@
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Vis ændringer",
       "hideChanges": "Skjul ændringer",
+      "emptyTitle": "Ingen transskriptioner endnu",
+      "emptyHint": "Tryk på din optagegenvej for at lave din første diktering.",
+      "deleteConfirm": "Slet denne post? Optagelsen og dens transskription fjernes permanent.",
       "today": "I dag",
-      "yesterday": "I går"
+      "yesterday": "I går",
+      "savedToggleError": "Kunne ikke opdatere den gemte status.",
+      "dbRecoveredNotice": "Din transskriptionshistorik-database kunne ikke læses, så en ny blev startet. Den tidligere database blev gemt som {{file}}."
     },
     "debug": {
       "title": "Fejlfinding",
@@ -981,9 +985,9 @@
         "pause": "Pause",
         "resume": "Genoptag",
         "copied": "Kopieret",
-        "clearConfirm": "Ryd de opsamlede linjer i denne visning? Logfilen på disken bevares.",
         "lineCount": "{{count}} linjer",
         "empty": "Venter på logs… Poster vises her, når appen udsender dem.",
+        "clearConfirm": "Ryd de opsamlede linjer i denne visning? Logfilen på disken bevares.",
         "clearConfirmTitle": "Ryd opsamlede linjer?"
       },
       "updateChecks": {
@@ -1173,7 +1177,7 @@
       },
       "log": {
         "title": "Underretningslog",
-        "description": "De seneste 50 fejl- og resultatmeddelelser.",
+        "description": "De seneste 50 fejl- og resultatmeddelelser. Nye poster registreres kun, mens systemunderretninger er slået til.",
         "empty": "Ingen underretninger endnu.",
         "clear": "Ryd alle"
       }
@@ -1203,7 +1207,6 @@
       "runHint_one": "1 prompt på 1 motor. Der tastes eller gemmes intet.",
       "runHint_other": "{{count}} prompt-motor-par. Der tastes eller gemmes intet.",
       "running": "Kører...",
-      "appliedLabel": "Lykkedes",
       "rerun": "Kør igen",
       "latency": "{{ms}} ms",
       "rawKept": "Motoren fejlede eller blev sprunget over, så råtransskriptionen ville blive beholdt.",
@@ -1216,16 +1219,20 @@
         "emptyBatch": "Vælg mindst én prompt og én motor."
       },
       "diff": {
+        "lines": "linjer",
+        "charsChanged_one": "1 tegn ændret",
+        "charsChanged_other": "{{count}} tegn ændret",
         "identical": "Ingen ændringer.",
         "added_one": "+{{count}} tilføjet",
         "added_other": "+{{count}} tilføjet",
         "removed_one": "{{count}} fjernet",
-        "removed_other": "{{count}} fjernet",
-        "charsChanged_one": "1 tegn ændret",
-        "charsChanged_other": "{{count}} tegn ændret"
+        "removed_other": "{{count}} fjernet"
       },
       "resultsEmptyTitle": "Resultater vises her",
-      "resultsEmptyHint": "Vælg kilde, prompts og motorer ovenfor og kør. Hvert kort viser den polerede tekst, ændringerne og hastigheden."
+      "resultsEmptyHint": "Vælg kilde, prompts og motorer ovenfor og kør. Hvert kort viser den polerede tekst, ændringerne og hastigheden.",
+      "appliedLabel": "Lykkedes",
+      "cancel": "Annullér",
+      "cancelledCard": "Annulleret, før denne kørsel startede."
     }
   },
   "footer": {
@@ -1273,11 +1280,11 @@
     "loading": "Indlæser...",
     "delete": "Slet",
     "close": "Luk",
-    "cancel": "Annuller",
     "open": "Åbn",
     "copy": "Kopiér",
     "clear": "Ryd",
-    "noOptionsFound": "Ingen muligheder fundet"
+    "noOptionsFound": "Ingen muligheder fundet",
+    "cancel": "Annuller"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar har brug for tilgængelighedstilladelser for at skrive den transskriberede tekst.",
@@ -1305,7 +1312,9 @@
     "transcriptionFailedTitle": "Transskription mislykkedes",
     "noModelSelectedTitle": "Ingen model valgt",
     "noModelSelected": "Vælg en transkriptionsmodel i Indstillinger, før du dikterer.",
-    "openDirectory": "Mappen kunne ikke åbnes: {{error}}"
+    "openDirectory": "Mappen kunne ikke åbnes: {{error}}",
+    "modelLoadFailedMemoryGate": "Ikke nok ledig hukommelse til at indlæse {{model}}: kræver ca. {{needed}}, ca. {{free}} ledigt.",
+    "modelLoadFailedDetail": "Modellen blev ikke ændret. Den tekniske årsag findes i logfilen."
   },
   "appLanguage": {
     "title": "Applikationssprog",
@@ -1445,6 +1454,15 @@
     "historyTitle": "Seneste",
     "historyEmpty": "Diktater fra denne telefon vises her.",
     "stateMicBlocked": "Mikrofon blokeret",
-    "micBlockedRetry": "Mikrofon blokeret. Tryk for at prøve igen."
+    "micBlockedRetry": "Mikrofon blokeret. Tryk for at prøve igen.",
+    "zeroAudioHold": "Ingen lyd nåede Mac'en. Hold knappen nede, og tal.",
+    "zeroAudioHoldOrToggle": "Ingen lyd nåede Mac'en. Hold eller tryk på knappen, og tal.",
+    "zeroAudioTap": "Ingen lyd nåede Mac'en. Tryk på knappen, og tal.",
+    "holdOrToggleToTalk": "Hold nede for at tale, tryk for at låse"
+  },
+  "trayCopyOutcome": {
+    "copied": "Dikteringen er kopieret til udklipsholderen.",
+    "empty": "Der er endnu intet at kopiere.",
+    "failed": "Kunne ikke kopiere dikteringen til udklipsholderen."
   }
 }

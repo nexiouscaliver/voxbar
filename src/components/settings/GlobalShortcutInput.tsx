@@ -147,8 +147,9 @@ export const GlobalShortcutInput: React.FC<GlobalShortcutInputProps> = ({
             }
           }
 
-          // Re-register all bindings (the one just committed is already
-          // registered; re-registering it fails cleanly and is ignored)
+          // Re-register all bindings. The one just committed is already
+          // registered; resume unmounts before re-arming, so that
+          // duplicate is a no-op and never aborts the rest of the loop.
           await commands.resumeAllBindings().catch(console.error);
 
           // Exit editing mode and reset states

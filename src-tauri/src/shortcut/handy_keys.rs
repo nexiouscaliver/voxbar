@@ -788,11 +788,17 @@ pub fn start_handy_keys_recording(app: AppHandle, binding_id: String) -> Result<
 
     // Suspend every registered shortcut so a combo that overlaps an existing
     // binding can't fire it (or have its keys swallowed) mid-capture.
-    super::suspend_all_shortcuts(&app);
+    // KB-242: a failed suspend aborts the capture instead of arming it
+    // with shortcuts still live.
+    super::suspend_all_shortcuts(&app)?;
 
     let result = state.start_recording(&app, binding_id);
     if result.is_err() {
-        super::resume_all_shortcuts(&app);
+        // The rollback's failure must not mask why the capture failed, but
+        // it is still reported to the log (KB-242).
+        if let Err(resume_err) = super::resume_all_shortcuts(&app) {
+            error!("start_handy_keys_recording rollback: {}", resume_err);
+        }
     }
     result
 }
@@ -812,9 +818,11 @@ pub fn stop_handy_keys_recording(app: AppHandle) -> Result<(), String> {
 
     // Restore shortcuts from settings regardless of how recording ended.
     // A commit has already registered the new binding via change_binding;
-    // re-registering it here fails cleanly and is ignored.
+    // re-registering it here fails cleanly and is ignored. KB-242: a
+    // failed resume is returned - hotkeys left suspended after the
+    // recorder closed would read as dead while the command said Ok.
     let result = state.stop_recording();
-    super::resume_all_shortcuts(&app);
+    super::resume_all_shortcuts(&app)?;
     result
 }
 

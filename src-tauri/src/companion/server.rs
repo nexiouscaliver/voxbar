@@ -261,19 +261,38 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
 
     // ---- hello handshake ----
     let device_name: String;
-    // This connection's targeted frame lane: a SERVER-assigned id (never
-    // the client-controlled device name), claimed once the hello
-    // authenticates and passed on every Ptt edge so the session freezes
-    // exactly this connection as its delivery target.
+    // This connection's identity: a SERVER-assigned lane id (never the
+    // client-controlled device name) plus its KB-255 registration
+    // generation. Claimed once the hello authenticates; the lane rides
+    // every Ptt edge so the session freezes exactly this connection as its
+    // owner, and the (lane, generation) pair keys the registration so a
+    // stale socket's late death cannot erase a fresh same-name
+    // registration.
     let device_lane: u64;
+    let device_generation: u64;
     let mut device_lane_rx: tokio::sync::mpsc::UnboundedReceiver<String>;
-    let mut tracker = protocol::SessionTracker::new();
+    let mut admission = protocol::SessionAdmission::new();
     let mut rate_cap = protocol::InputRateCap::new(Instant::now());
     let mut last_rx = Instant::now();
-    // Audio frames that arrived while this connection's edge tracker said
-    // not-recording (dropped by design; counted for the disconnect log line
-    // so an edge-desynced phone is diagnosable from the log alone).
+    // v1.6.2 W1-L0: audio frames that arrived while the Mac's session
+    // state said no live session for this connection's lane (dropped by
+    // design; counted for the disconnect log line so a state-desynced
+    // phone is diagnosable from the log alone). Healthy tap sessions stay
+    // at zero: their speech is all inside the session their press locked
+    // on, release edges notwithstanding).
     let mut out_of_session_audio_chunks: u64 = 0;
+    // KB-272 (v1.6.3): chunks admission ACCEPTED whose push into the lane's
+    // ring still failed (no live lane recorder). Before this counter the
+    // only call site ignored push_remote_chunk's bool, so this exact class
+    // of silent drop had to be ruled out by hand in the v1.6.3 forensic
+    // pass; now it is counted for the disconnect log line and warned about
+    // at its first occurrence.
+    let mut admitted_dropped_chunks: u64 = 0;
+    // v1.6.3 defense in depth: non-finite samples the decode boundary
+    // scrubbed to silence (a hostile or buggy client), surfaced the same
+    // way so a poisoned stream is diagnosable from the log alone.
+    let mut scrubbed_non_finite_samples: u64 = 0;
+    let mut non_finite_audio_warned = false;
 
     let hello = tokio::select! {
         _ = tokio::time::sleep(HELLO_TIMEOUT) => None,
@@ -287,6 +306,7 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
         Some(ClientFrame::Hello {
             token: provided,
             device,
+            device_id,
             ..
         }) => {
             let blocked = {
@@ -326,22 +346,23 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             }
             manager.failure_limiter_pin().lock().unwrap().clear(peer);
 
-            device_name = device;
-            manager.remember_device(&app, &device_name);
-            // KB-197: claim the session slot only while no session is live
-            // (see claim_session_device) - a second phone connecting
-            // mid-dictation is a spectator, not the session's device.
-            manager.claim_session_device(&device_name);
-            // v1.6.0: claim this connection's targeted frame lane.
-            // Phone-target transcripts ride it (never the broadcast every
-            // paired phone sees), so a bystander phone cannot render or
-            // clipboard-write a dictation it did not make. The lane is
-            // keyed by a server-assigned id, not the hello name: a paired
-            // phone repeating another phone's name cannot seize the lane,
-            // and same-named connections coexist.
-            let (lane, rx) = manager.register_device_lane();
+            // v1.6.2 fleet pass 1: the connection's identity is the human
+            // name disambiguated by the phone's persistent device id (the
+            // name alone is a platform token every same-platform phone
+            // shares, which collapsed two iPhones into one Recent list -
+            // private phone-destined dictations included). Everything
+            // name-keyed downstream (the registration, the frozen session,
+            // history's capture_device, the per-phone recents filter) uses
+            // this composite, so same-platform phones never share it.
+            device_name = protocol::device_identity_name(&device, device_id.as_deref());
+            // v1.6.2 W1-L2: the registration IS the paired-device
+            // bookkeeping (KB-255: keyed on lane + generation, never the
+            // name), and the lane is the connection's session identity.
+            let (lane, generation, rx) = manager.register_connection(&device_name);
             device_lane = lane;
+            device_generation = generation;
             device_lane_rx = rx;
+            manager.note_device_connected(&app, &device_name);
 
             let settings = crate::settings::get_settings(&app);
             let activation = match settings.shortcut_activation {
@@ -352,18 +373,29 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             let welcome = ServerFrame::Welcome {
                 activation,
                 hold_threshold_ms: settings.hold_threshold_ms,
-                recording: manager.session_live(),
+                // Per-lane truth (W1-L2): the fresh connection owns no
+                // session yet - a reconnecting phone's orphaned session was
+                // force-finalized at its disconnect - so this is false
+                // exactly when THIS phone has nothing live.
+                recording: manager.lane_owns_live_session(device_lane),
             };
             if sink.send(Message::text(welcome.to_json())).await.is_err() {
                 return;
             }
-            // v1.6.0: the phone's recent companion history rides along with
-            // the welcome, so the client can render its recent list right
-            // away (and a reconnecting phone catches up on sessions it
-            // missed). Broadcast: every paired phone shares the same Mac
-            // history, and this connection's subscription predates the
-            // handshake.
-            crate::companion::broadcast_recent_history(&app);
+            // v1.6.2 W1-L2: the phone's OWN recent list rides the welcome
+            // (filtered to this phone's sessions), and its lane's recorder
+            // is the one pre-warmed (the RAM rule: pre-warm keeps only the
+            // most recent connection's recorder).
+            crate::companion::send_recent_history_to_lane(&app, device_lane, &device_name);
+            if let Some(rm) = app.try_state::<Arc<crate::managers::audio::AudioRecordingManager>>()
+            {
+                let rm = Arc::clone(&rm);
+                std::thread::spawn(move || {
+                    if let Err(e) = rm.prewarm_remote_lane(device_lane) {
+                        log::debug!("companion: lane {device_lane} recorder pre-warm failed: {e}");
+                    }
+                });
+            }
         }
         _ => {
             // No valid hello in the window: drop without revealing why.
@@ -442,15 +474,25 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                 if sink.send(Message::Ping(Vec::new().into())).await.is_err() {
                     break;
                 }
-                // Hard session cap: auto-finalize exactly once.
-                if tracker.cap_exceeded(Instant::now()) {
+                // Hard session cap: auto-finalize exactly once per cap
+                // interval. The truth observation keeps the clock honest for
+                // a silent-but-live session (chunks refresh it too, but the
+                // cap must never depend on audio arriving).
+                admission.observe(
+                    Instant::now(),
+                    lane_owns_live_session(&manager, device_lane),
+                );
+                if admission.cap_exceeded(Instant::now()) {
                     log::info!("companion: session cap reached for {device_name}; finalizing");
                     if let Some(coordinator) = app.try_state::<crate::TranscriptionCoordinator>() {
                         // Forced finalize: the cap must end the session even
-                        // when it is locked (toggle mode), where a synthesized
-                        // release edge is ignored and the session would run on
-                        // with its audio blocked by the tracker.
-                        coordinator.finalize_companion_session();
+                        // when it is locked (toggle mode or a tap-locked
+                        // hold-or-toggle session), where a synthesized
+                        // release edge is ignored and the session would run
+                        // on with its audio still admitted. v1.6.2 W1-L2:
+                        // per-lane - THIS connection's session ends, every
+                        // other phone's keeps recording.
+                        coordinator.finalize_companion_lane(device_lane);
                     }
                     // KB-016: the cap notice used to reach the phone only -
                     // the Mac had no NoticeCode variant and no emit, so a
@@ -495,18 +537,32 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                                 // arm-to-freeze window.
                                 manager.set_pending_session_prefs(prefs);
                             }
+                            // v1.6.2 W1-L0: refresh the admission truth
+                            // BEFORE forwarding the edge. This frame is what
+                            // carries the lane into the coordinator, so the
+                            // truth read here necessarily predates any start
+                            // this edge may commit: the observation closes
+                            // any stale live window from an earlier session
+                            // of this same phone instead of mistaking the
+                            // about-to-commit start for its continuation.
+                            // The release edge deliberately does NOT close
+                            // admission: a hold-or-toggle tap locks the
+                            // session ON at the finger-lift, and the Mac's
+                            // session state (not the finger) decides when
+                            // audio stops flowing.
+                            admission.observe(
+                                Instant::now(),
+                                lane_owns_live_session(&manager, device_lane),
+                            );
                             if let Some(coordinator) =
                                 app.try_state::<crate::TranscriptionCoordinator>()
                             {
                                 coordinator.send_companion_edge(&app, pressed, prefs, device_lane);
                             }
                             if pressed {
-                                tracker.press(Instant::now());
                                 // Audio is only meaningful during a session;
                                 // reset the rate window with it.
                                 rate_cap = protocol::InputRateCap::new(Instant::now());
-                            } else {
-                                tracker.release();
                             }
                         }
                         Some(ClientFrame::Hello { .. }) => {
@@ -517,7 +573,21 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                         None => break,
                     },
                     Message::Binary(bytes) => {
-                        let samples = protocol::decode_f32_le(&bytes);
+                        // v1.6.3 defense in depth: the decode boundary
+                        // scrubs non-finite samples to silence (a single
+                        // NaN poisons Silero into reading the whole stream
+                        // unvoiced) and reports how many it scrubbed.
+                        let (samples, non_finite) = protocol::decode_f32_le(&bytes);
+                        if non_finite > 0 {
+                            scrubbed_non_finite_samples += non_finite as u64;
+                            if !non_finite_audio_warned {
+                                non_finite_audio_warned = true;
+                                log::warn!(
+                                    "companion: {device_name} sent non-finite audio samples; \
+                                     scrubbing them to silence"
+                                );
+                            }
+                        }
                         if samples.is_empty() {
                             continue;
                         }
@@ -534,12 +604,36 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                             // healthy reconnect or a manual stop.
                             break;
                         }
-                        if tracker.recording() {
-                            if let Some(rm) = app
+                        // v1.6.2 W1-L0: sample the session truth at the
+                        // chunk itself. This is the same state the State
+                        // frames broadcast (and the disconnect-finalize
+                        // path consults), read live: no broadcast lag, no
+                        // edge-desync window between a tap's release and
+                        // the locked session it left behind.
+                        admission.observe(
+                            Instant::now(),
+                            lane_owns_live_session(&manager, device_lane),
+                        );
+                        if admission.admits() {
+                            // v1.6.2 W1-L2: the chunk lands in THIS
+                            // connection's own ring; no other phone's
+                            // session can receive it and no shared recorder
+                            // exists to cross-contaminate.
+                            // KB-272 (v1.6.3): a false return means the
+                            // chunk was admitted but the lane's recorder is
+                            // gone (never pre-warmed, or its session already
+                            // closed it) - count it, never swallow it.
+                            let delivered = app
                                 .try_state::<Arc<crate::managers::audio::AudioRecordingManager>>()
-                            {
-                                if let Some(source) = rm.remote_source() {
-                                    source.push_chunk(&samples);
+                                .map(|rm| rm.push_remote_chunk(device_lane, &samples))
+                                .unwrap_or(false);
+                            if !delivered {
+                                admitted_dropped_chunks += 1;
+                                if admitted_dropped_chunks == 1 {
+                                    log::warn!(
+                                        "companion: {device_name} audio admitted but the lane \
+                                         recorder is closed; dropping it"
+                                    );
                                 }
                             }
                         } else {
@@ -561,33 +655,36 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
 
     // ---- disconnect: graceful finalize ----
     let _ = sink.close().await;
-    manager.forget_device(&app, &device_name);
-    // Release the targeted lane this connection claimed. Ids are never
-    // reused, so a session still pointing at it reads the miss as the
-    // documented dropped-phone no-op.
-    manager.unregister_device_lane(device_lane);
+    // KB-255: release the registration by BOTH keys (lane + generation).
+    // A stale socket whose keepalive death lagged behind a same-name
+    // reconnect carries the old pair, matches nothing, and the fresh
+    // registration survives with the tray's paired count intact.
+    manager.unregister_connection(device_lane, device_generation);
+    manager.note_device_disconnected(&app);
 
-    // Acknowledge the recorder's stop-pause handshake so Stop never waits
-    // the 2 s timeout on a vanished phone.
+    // Acknowledge THIS lane's stop-pause handshake so its Stop never waits
+    // the 2 s timeout on a vanished phone, and retire the lane's idle
+    // recorder (the RAM rule: no idle lane recorder outlives its
+    // connection once a newer pre-warm or this teardown claims the slot).
     if let Some(rm) = app.try_state::<Arc<crate::managers::audio::AudioRecordingManager>>() {
-        if let Some(source) = rm.remote_source() {
-            source.ack_pause();
-        }
+        rm.ack_remote_pause(device_lane);
+        rm.close_remote_lane(device_lane);
     }
 
     // The server stopping mid-session already synthesized the release edge
     // (CompanionManager::stop); only a genuine phone drop runs the
     // disconnect-finalize here.
     if !server_stopping {
-        let companion_recording_live = app
+        // v1.6.2 W1-L2 (KB-111): the decision is scoped to THIS lane's
+        // session. Another phone still recording reads false here and its
+        // session is untouched - either phone dropping used to finalize
+        // the ONE shared session while the other kept streaming.
+        let lane_recording_live = app
             .try_state::<Arc<crate::managers::audio::AudioRecordingManager>>()
-            .map(|rm| {
-                rm.is_recording()
-                    && rm.active_source() == crate::managers::audio::CaptureSource::Remote
-            })
+            .map(|rm| rm.lane_is_recording(device_lane))
             .unwrap_or(false);
 
-        if companion_recording_live {
+        if lane_recording_live {
             log::info!(
                 "companion: {device_name} dropped mid-dictation; finalizing what was captured"
             );
@@ -602,18 +699,467 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                 // and it works against locked (toggle) sessions too, which a
                 // synthesized release edge would silently drop, stranding the
                 // recording the notice above just claimed was finalized.
-                coordinator.finalize_companion_session();
+                coordinator.finalize_companion_lane(device_lane);
             }
         }
     }
     log::info!("companion: {device_name} disconnected");
+    if admitted_dropped_chunks > 0 {
+        // KB-272: admitted audio that never reached the ring. This is the
+        // recorder-lifecycle failure mode the v1.6.3 forensic pass had to
+        // rule out with no signal at all; it must never hide again.
+        log::warn!(
+            "companion: {device_name} had {admitted_dropped_chunks} admitted audio chunk(s) \
+             dropped: no live lane recorder; they never reached the ring"
+        );
+    }
+    if scrubbed_non_finite_samples > 0 {
+        log::warn!(
+            "companion: {device_name} sent {scrubbed_non_finite_samples} non-finite audio \
+             sample(s); they were scrubbed to silence"
+        );
+    }
     if out_of_session_audio_chunks > 0 {
         // Not an error by itself (spectator audio is refused the same way),
-        // but a live symptom of edge desync: speech kept arriving after this
-        // connection's session edge ended.
+        // but a live symptom of state desync: speech kept arriving while the
+        // Mac's session state said no live session for this connection's
+        // lane.
         log::info!(
             "companion: {device_name} sent {out_of_session_audio_chunks} audio chunk(s) \
              outside a recording session; they were dropped"
+        );
+    }
+}
+
+/// v1.6.2 W1-L0/W1-L2: the Mac's session truth for one connection's lane.
+/// The session record was frozen from this connection's own starting press
+/// at the instant the coordinator committed the start (begin_session), so
+/// this is true exactly while the session THIS connection owns is live: a
+/// spectator phone, a reconnecting phone that has not pressed, and a
+/// keyboard dictation (whose sessions never touch the companion session
+/// state) all read false, and their audio stays out-of-session. With
+/// per-lane sessions, another phone's live session reads false here too -
+/// each connection sees only its own.
+fn lane_owns_live_session(manager: &CompanionManager, lane: u64) -> bool {
+    manager.lane_owns_live_session(lane)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::lane_owns_live_session;
+    use crate::companion::protocol::SessionAdmission;
+    use crate::companion::CompanionManager;
+    use std::sync::Arc;
+    use std::time::{Duration, Instant};
+    use tauri::Manager;
+
+    /// One connection's admission rig: the same two seams the connection
+    /// loop drives (the lane-scoped session truth and the admission it
+    /// feeds) plus the counters the loop maintains. Frames are simulated
+    /// by calling the same methods the loop's handlers call, in wire
+    /// order; time is an explicit parameter because the cap contract runs
+    /// to fifteen minutes.
+    struct Rig {
+        admission: SessionAdmission,
+        lane: u64,
+        admitted_samples: usize,
+        out_of_session_chunks: u64,
+        /// KB-272: admitted chunks whose push into the lane's ring failed
+        /// (no live lane recorder) - the counter the disconnect log line
+        /// surfaces.
+        admitted_dropped_chunks: u64,
+    }
+
+    impl Rig {
+        fn new(lane: u64) -> Self {
+            Rig {
+                admission: SessionAdmission::new(),
+                lane,
+                admitted_samples: 0,
+                out_of_session_chunks: 0,
+                admitted_dropped_chunks: 0,
+            }
+        }
+
+        /// A Ptt frame, exactly as the loop's text handler processes it:
+        /// observe the truth BEFORE the edge is forwarded (the frame is
+        /// what carries the lane into the coordinator). The edge itself
+        /// goes to the coordinator and mutates nothing here.
+        fn ptt(&mut self, manager: &CompanionManager, pressed: bool, now: Instant) {
+            self.admission
+                .observe(now, lane_owns_live_session(manager, self.lane));
+            let _ = pressed;
+        }
+
+        /// A binary audio chunk, exactly as the loop's binary handler
+        /// processes it: observe the truth, then admit (push into the
+        /// remote source, counted as samples here) or count it
+        /// out-of-session. The healthy path (a live lane recorder).
+        fn chunk(&mut self, manager: &CompanionManager, samples: usize, now: Instant) {
+            self.chunk_delivery(manager, samples, now, true);
+        }
+
+        /// The same chunk with an explicit push outcome, mirroring the
+        /// KB-272 seam: `delivered` is push_remote_chunk's bool at the
+        /// call site (false when the lane's recorder is gone).
+        fn chunk_delivery(
+            &mut self,
+            manager: &CompanionManager,
+            samples: usize,
+            now: Instant,
+            delivered: bool,
+        ) {
+            self.admission
+                .observe(now, lane_owns_live_session(manager, self.lane));
+            if self.admission.admits() {
+                if delivered {
+                    self.admitted_samples += samples;
+                } else {
+                    self.admitted_dropped_chunks += 1;
+                }
+            } else {
+                self.out_of_session_chunks += 1;
+            }
+        }
+
+        /// The keepalive tick, exactly as the loop's Tick arm processes
+        /// the cap: observe the truth (the clock must never depend on
+        /// audio arriving), then check the cap. True means the loop would
+        /// run the forced finalize plus the cap notice.
+        fn tick(&mut self, manager: &CompanionManager, now: Instant) -> bool {
+            self.admission
+                .observe(now, lane_owns_live_session(manager, self.lane));
+            self.admission.cap_exceeded(now)
+        }
+    }
+
+    /// The coordinator's Start-effect commit, as the connection observes
+    /// it: the per-lane session record freezes from the starting press's
+    /// own edge (begin_session, live from the instant of the commit) and
+    /// the shared action's start lands before the State frame tells the
+    /// phone to stream. on_lane_session_changed is Wry-typed, so the
+    /// mock-app tests drive the same record its true branch writes (the
+    /// mod.rs test pattern).
+    fn commit_session_start<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lane: u64) {
+        crate::companion::begin_session(app, lane, Default::default());
+    }
+
+    /// The stop pipeline's landing, as the connection observes it: the
+    /// session record flips not-live (the State frame the phone stops
+    /// streaming on).
+    fn commit_session_end<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lane: u64) {
+        crate::companion::on_lane_session_changed(app, lane, false);
+    }
+
+    /// v1.6.2 W1-L0 pin: reproduces the operator's exact sequence from
+    /// the live log (06:19:03 through 06:19:10). A quick tap locks a
+    /// hold-or-toggle session on (~62 ms press-hold), the finger-lift
+    /// release edge arrives while the session is still live, and every
+    /// chunk after it must be captured. The pre-v1.6.2 edge tracker ended
+    /// its admission window at that release edge, so all speech after
+    /// the first ~100 ms was silently dropped as out-of-session audio
+    /// (VAD saw one 40-50 ms leading-silence chunk, finish collected
+    /// zero samples, the zero-audio notice fired on every tap). Asserted:
+    /// the FULL audio is captured, not just the pre-release sliver, and
+    /// the out-of-session counter stays at zero for the healthy tap
+    /// session (task 4).
+    #[test]
+    fn tap_locked_session_captures_the_full_audio_after_the_release_edge() {
+        let app = tauri::test::mock_app();
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+        let (lane, _, _) = manager.register_connection("Pixel 8");
+        let mut rig = Rig::new(lane);
+        let t0 = Instant::now();
+
+        // The tap's press edge is forwarded; its start has not committed.
+        rig.ptt(&manager, true, t0);
+        // The coordinator commits the start (lane frozen, state live,
+        // State broadcast out; the phone begins streaming on it).
+        commit_session_start(app.handle(), lane);
+        // The finger-lift release edge lands 62 ms later: below the hold
+        // threshold, so the session LOCKED ON. The coordinator ignores
+        // the release for stopping purposes; the server no longer lets
+        // it close admission either.
+        rig.ptt(&manager, false, t0 + Duration::from_millis(62));
+
+        // The whole dictation streams after the release edge.
+        let chunk_samples = 320; // 20 ms at 16 kHz
+        let speech_chunks = 250usize; // ~5 s of speech, all post-release
+        for i in 0..speech_chunks {
+            rig.chunk(
+                &manager,
+                chunk_samples,
+                t0 + Duration::from_millis(100 + 20 * (i as u64)),
+            );
+        }
+        let spoken = chunk_samples * speech_chunks;
+        assert_eq!(
+            rig.admitted_samples, spoken,
+            "the FULL post-release audio must be captured, not a pre-release sliver"
+        );
+        assert_eq!(
+            rig.out_of_session_chunks, 0,
+            "a healthy tap session sends zero out-of-session chunks"
+        );
+
+        // The second tap stops it: the press edge (a press, never a
+        // release, is the stop edge for a locked session) observes the
+        // session still live, then the stop pipeline lands.
+        rig.ptt(&manager, true, t0 + Duration::from_secs(6));
+        commit_session_end(app.handle(), lane);
+        // The phone stops streaming once the State broadcast reaches it;
+        // nothing further is admitted after the state flip.
+        rig.chunk(
+            &manager,
+            chunk_samples,
+            t0 + Duration::from_secs(6) + Duration::from_millis(50),
+        );
+        assert_eq!(
+            rig.admitted_samples, spoken,
+            "audio after the session state ends is not admitted"
+        );
+        assert_eq!(rig.out_of_session_chunks, 1);
+    }
+
+    /// v1.6.2 W1-L0 pin: push-to-talk holds keep working end to end.
+    /// Audio during the hold is admitted, a chunk racing the release
+    /// still lands (the recorder consumes until the stop pipeline flips
+    /// the state), and admission closes exactly when the session ends,
+    /// never at the release edge itself.
+    #[test]
+    fn push_to_talk_hold_admits_until_the_session_actually_ends() {
+        let app = tauri::test::mock_app();
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+        let (lane, _, _) = manager.register_connection("Pixel 8");
+        let mut rig = Rig::new(lane);
+        let t0 = Instant::now();
+
+        // Press and hold: the session starts and speech streams through.
+        rig.ptt(&manager, true, t0);
+        commit_session_start(app.handle(), lane);
+        for i in 0..100 {
+            rig.chunk(&manager, 320, t0 + Duration::from_millis(20 * i));
+        }
+
+        // The release edge (a 2 s hold, above every threshold). The
+        // coordinator classifies it as a hold and stops the session; a
+        // chunk that raced the stop pipeline still lands, because the
+        // recorder is consuming until the state actually flips.
+        rig.ptt(&manager, false, t0 + Duration::from_secs(2));
+        rig.chunk(
+            &manager,
+            320,
+            t0 + Duration::from_secs(2) + Duration::from_millis(5),
+        );
+        assert_eq!(rig.admitted_samples, 101 * 320);
+
+        // The stop pipeline lands: later chunks are out-of-session.
+        commit_session_end(app.handle(), lane);
+        rig.chunk(
+            &manager,
+            320,
+            t0 + Duration::from_secs(2) + Duration::from_millis(80),
+        );
+        assert_eq!(rig.admitted_samples, 101 * 320);
+        assert_eq!(rig.out_of_session_chunks, 1);
+    }
+
+    /// v1.6.2 W1-L0 pin, exhaustive over the truth inputs a connection
+    /// can face: audio is admitted only while THIS connection's lane
+    /// owns the live session. No session at all, another phone's live
+    /// session, and this phone's own ended session (stale lane) all
+    /// refuse and count, so a spectator phone can never feed another
+    /// phone's dictation and a press that never started a session never
+    /// contaminates the pre-warmed ring.
+    #[test]
+    fn audio_is_refused_whenever_this_lanes_session_is_not_live() {
+        let app = tauri::test::mock_app();
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+        let (mine, _, _) = manager.register_connection("iPhone 15");
+        let (other, _, _) = manager.register_connection("iPad");
+        let mut rig = Rig::new(mine);
+        let t0 = Instant::now();
+
+        // No session has ever been live.
+        rig.chunk(&manager, 320, t0);
+        assert_eq!(rig.admitted_samples, 0);
+        assert_eq!(rig.out_of_session_chunks, 1);
+
+        // Another phone's session is live: spectator audio stays out.
+        commit_session_start(app.handle(), other);
+        rig.chunk(&manager, 320, t0 + Duration::from_millis(50));
+        assert_eq!(
+            rig.admitted_samples, 0,
+            "a spectator must not feed another phone's dictation"
+        );
+        assert_eq!(rig.out_of_session_chunks, 2);
+
+        // That session ends (and a keyboard dictation in between changes
+        // nothing: companion session state stays false throughout, which
+        // is exactly what this lane reads).
+        commit_session_end(app.handle(), other);
+        rig.chunk(&manager, 320, t0 + Duration::from_millis(100));
+        assert_eq!(rig.admitted_samples, 0);
+        assert_eq!(rig.out_of_session_chunks, 3);
+
+        // Our own session opens admission...
+        commit_session_start(app.handle(), mine);
+        rig.chunk(&manager, 320, t0 + Duration::from_millis(150));
+        assert_eq!(rig.admitted_samples, 320);
+
+        // ...and the stale lane of our ended session never re-opens it.
+        commit_session_end(app.handle(), mine);
+        rig.chunk(&manager, 320, t0 + Duration::from_millis(200));
+        assert_eq!(rig.admitted_samples, 320);
+        assert_eq!(rig.out_of_session_chunks, 4);
+    }
+
+    /// v1.6.2 W1-L0 pin: a tap-locked session still force-finalizes at
+    /// the 15-minute cap. The pre-v1.6.2 tracker cleared its clock at the
+    /// tap's release edge together with admission, so locked tap sessions
+    /// had no cap at all; now the Tick's truth observation keeps the
+    /// clock armed for as long as the session stays live (silent or
+    /// not), and the forced finalize (which works against locked
+    /// sessions) fires exactly once per cap interval.
+    #[test]
+    fn tap_locked_session_still_hits_the_cap_from_the_tick_path() {
+        let app = tauri::test::mock_app();
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+        let (lane, _, _) = manager.register_connection("Pixel 8");
+        let mut rig = Rig::new(lane);
+        let t0 = Instant::now();
+
+        // The tap that locks on, then fifteen minutes of live session.
+        rig.ptt(&manager, true, t0);
+        commit_session_start(app.handle(), lane);
+        rig.ptt(&manager, false, t0 + Duration::from_millis(62));
+
+        let cap = Duration::from_secs(15 * 60);
+        // The release edge's observation is the first LIVE one, so that
+        // is where the cap clock arms; fifteen minutes of live session
+        // follow, with the phone streaming and the keepalive ticking.
+        let armed = t0 + Duration::from_millis(62);
+        let mut now = armed;
+        while now < armed + cap {
+            rig.chunk(&manager, 320, now);
+            if (now - armed).as_secs() % 10 == 0 {
+                assert!(
+                    !rig.tick(&manager, now),
+                    "the cap must not fire before fifteen minutes (at {})",
+                    (now - armed).as_secs()
+                );
+            }
+            now += Duration::from_secs(1);
+        }
+
+        // At the threshold the tick fires the forced finalize exactly
+        // once; the next tick does not refire while the stop lands.
+        assert!(rig.tick(&manager, armed + cap));
+        assert!(!rig.tick(&manager, armed + cap + Duration::from_secs(10)));
+    }
+
+    /// KB-272 pin (v1.6.3): an admitted chunk whose push into the lane's
+    /// ring fails is COUNTED, never silently swallowed. Before this, the
+    /// only call site ignored push_remote_chunk's bool, so a recorder-
+    /// lifecycle drop of admitted audio produced no signal at all - the
+    /// exact failure class the v1.6.3 forensic pass had to rule out by
+    /// hand. Asserted at the connection loop's own seam: the dropped
+    /// chunks are separated from delivered samples AND from out-of-session
+    /// chunks, so the disconnect log line can name them.
+    #[test]
+    fn admitted_chunks_the_lane_recorder_refuses_are_counted_not_swallowed() {
+        let app = tauri::test::mock_app();
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+        let (lane, _, _) = manager.register_connection("Pixel 8");
+        let mut rig = Rig::new(lane);
+        let t0 = Instant::now();
+
+        // A healthy hold session: press, start commits, speech flows.
+        rig.ptt(&manager, true, t0);
+        commit_session_start(app.handle(), lane);
+        rig.chunk(&manager, 640, t0 + Duration::from_millis(50));
+        assert_eq!(rig.admitted_samples, 640);
+        assert_eq!(rig.admitted_dropped_chunks, 0);
+
+        // The lane's recorder dies mid-session (never pre-warmed back, or
+        // its session already closed it): push_remote_chunk returns false
+        // for every further chunk. Admission still says live (the Mac's
+        // session state has not flipped), so these chunks are ADMITTED
+        // yet undeliverable - the KB-272 class. They must land in their
+        // own counter, not in the delivered samples, not in the
+        // out-of-session count.
+        for i in 0..5 {
+            rig.chunk_delivery(
+                &manager,
+                640,
+                t0 + Duration::from_millis(100 + 40 * i),
+                false,
+            );
+        }
+        assert_eq!(
+            rig.admitted_samples, 640,
+            "undeliverable chunks never count as delivered samples"
+        );
+        assert_eq!(rig.admitted_dropped_chunks, 5);
+        assert_eq!(
+            rig.out_of_session_chunks, 0,
+            "an admitted-but-dropped chunk is NOT an out-of-session chunk"
+        );
+
+        // The session ends; post-session audio keeps its own bucket.
+        commit_session_end(app.handle(), lane);
+        rig.chunk(&manager, 640, t0 + Duration::from_secs(2));
+        assert_eq!(rig.admitted_dropped_chunks, 5);
+        assert_eq!(rig.out_of_session_chunks, 1);
+    }
+
+    /// KB-272 source pin (the interleave needs real recorders, so the call
+    /// site is pinned against this committed source, the audio.rs
+    /// convention): the binary handler must CONSUME push_remote_chunk's
+    /// return into the admitted-dropped counter and warn at the first
+    /// drop, and the disconnect path must surface the counter - the exact
+    /// regression (an ignored bool) may never come back unnoticed.
+    #[test]
+    fn binary_handler_consumes_push_remote_chunks_return_and_disconnect_surfaces_it() {
+        // Production source only: include_str! would otherwise also read
+        // this test module, whose own literals would self-match.
+        let source = include_str!("server.rs");
+        let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
+        // The call site: admitted branch pushes and handles the bool.
+        let push_at = production
+            .find(".map(|rm| rm.push_remote_chunk(device_lane, &samples))")
+            .expect("the push_remote_chunk call site");
+        let admitted_arm = &production[push_at..push_at + 600];
+        assert!(
+            admitted_arm.contains(".unwrap_or(false)"),
+            "the push outcome must be a bool, not ()"
+        );
+        assert!(
+            admitted_arm.contains("if !delivered {"),
+            "the false arm must be explicit"
+        );
+        assert!(
+            admitted_arm.contains("admitted_dropped_chunks += 1"),
+            "a refused admitted chunk must be counted"
+        );
+        // No silent `rm.push_remote_chunk(` discard remains in production.
+        assert!(
+            !production.contains("rm.push_remote_chunk(device_lane, &samples);"),
+            "the bare statement form (return value dropped) may not remain"
+        );
+        // The disconnect path surfaces the counter.
+        let disconnect_at = production
+            .find("if admitted_dropped_chunks > 0 {")
+            .expect("the disconnect surfacing");
+        let disconnect_arm = &production[disconnect_at..disconnect_at + 500];
+        assert!(
+            disconnect_arm.contains("admitted_dropped_chunks} admitted audio chunk(s)"),
+            "the disconnect log line names the count"
         );
     }
 }

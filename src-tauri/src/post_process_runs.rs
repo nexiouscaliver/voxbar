@@ -875,6 +875,119 @@ pub(crate) fn fails_script_guard(
     }
 }
 
+/// The digit scripts the consistency check can tell apart (KB-076/KB-135/
+/// KB-178): which block a digit glyph was drawn from. `Latin` is ASCII
+/// 0-9, the app's universal digit convention.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum DigitScript {
+    Latin,
+    Devanagari,
+    Arabic,
+    Bengali,
+    Thai,
+    Fullwidth,
+}
+
+impl DigitScript {
+    fn name(self) -> &'static str {
+        match self {
+            DigitScript::Latin => "latin",
+            DigitScript::Devanagari => "devanagari",
+            DigitScript::Arabic => "arabic",
+            DigitScript::Bengali => "bengali",
+            DigitScript::Thai => "thai",
+            DigitScript::Fullwidth => "fullwidth",
+        }
+    }
+
+    fn from_char(c: char) -> Option<DigitScript> {
+        Some(match c as u32 {
+            0x30..=0x39 => DigitScript::Latin,
+            0x0966..=0x096F => DigitScript::Devanagari,
+            0x0660..=0x0669 | 0x06F0..=0x06F9 => DigitScript::Arabic,
+            0x09E6..=0x09EF => DigitScript::Bengali,
+            0x0E50..=0x0E59 => DigitScript::Thai,
+            0xFF10..=0xFF19 => DigitScript::Fullwidth,
+            _ => return None,
+        })
+    }
+}
+
+/// The digit script native to a letter script: the glyphs that script's
+/// own typography writes numbers in. None for scripts with no strict
+/// native digit set (Han/Kana/Hangul happily mix ASCII and fullwidth;
+/// Cyrillic, Greek, and Hebrew use ASCII).
+fn native_digit_script(script: TextScript) -> Option<DigitScript> {
+    match script {
+        TextScript::Latin => Some(DigitScript::Latin),
+        TextScript::Devanagari => Some(DigitScript::Devanagari),
+        TextScript::Arabic => Some(DigitScript::Arabic),
+        TextScript::Bengali => Some(DigitScript::Bengali),
+        TextScript::Thai => Some(DigitScript::Thai),
+        _ => None,
+    }
+}
+
+/// A text's dominant digit script: the most frequent digit-classified
+/// character. Digits are dense signals (a rewritten number is a run of
+/// them), so no minimum count is imposed; text without digits reads None.
+pub(crate) fn dominant_digit_script(text: &str) -> Option<DigitScript> {
+    let mut counts = std::collections::BTreeMap::<DigitScript, usize>::new();
+    for digit in text.chars().filter_map(DigitScript::from_char) {
+        *counts.entry(digit).or_default() += 1;
+    }
+    counts.into_iter().max_by_key(|(_, n)| *n).map(|(d, _)| d)
+}
+
+/// The digit-script consistency rule, the script guard's neighbor: the
+/// output may not render numbers in a digit script nobody sanctioned. The
+/// failing shape is a cleanup that keeps the text's letters but rewrites
+/// the NUMBER GLYPHS into another script ("buy 25 apples" -> "buy २५
+/// apples") - the letter-level script guard passes because digits carry
+/// no script classification. Sanctioned sources, in order: ASCII digits
+/// (the app's universal output convention, never a defect), the output
+/// letter script's own native digits, the template language's declared
+/// script's native digits, and the transcript's own digits (carried
+/// over, not rewritten). Letter scripts with no strict native digit set
+/// (Han/Kana/Hangul, and Cyrillic/Greek/Hebrew with their ASCII digits)
+/// never trip: their typography legitimately mixes digit forms.
+pub(crate) fn fails_digit_script_guard(
+    transcript: &str,
+    output: &str,
+    template_language: Option<&str>,
+) -> bool {
+    let Some(output_digits) = dominant_digit_script(output) else {
+        return false;
+    };
+    if output_digits == DigitScript::Latin {
+        return false;
+    }
+    // Only a letter script with a strict native digit set can be
+    // contradicted. Han/Kana/Hangul (and Cyrillic, Greek, Hebrew) mix
+    // ASCII and fullwidth digits by convention, so their outputs never
+    // trip here.
+    let Some(output_letters) = dominant_script(output) else {
+        return false;
+    };
+    let Some(native) = native_digit_script(output_letters) else {
+        return false;
+    };
+    if output_digits == native {
+        return false;
+    }
+    if template_language
+        .and_then(declared_script)
+        .and_then(native_digit_script)
+        == Some(output_digits)
+    {
+        return false;
+    }
+    if dominant_digit_script(transcript) == Some(output_digits) {
+        return false;
+    }
+    true
+}
+
 /// The upper fidelity bound, the mirror of forecast::fails_fidelity_guard
 /// (which catches COLLAPSE): a cleanup that EXPANDED the text more than
 /// 10x is not a cleanup (the model answered the transcript, or padded it).
@@ -924,7 +1037,10 @@ pub(crate) fn is_no_op_output(transcript: &str, extracted: &str) -> bool {
 ///    restructuring job legitimately condenses a rambling dictation below
 ///    the cleanup templates' 40% floor,
 /// 3. language sanity (the dominant script must match unless the
-///    template's language tag sanctions the change).
+/// template's language tag sanctions the change),
+/// 4. digit-script consistency (the output may not rewrite number glyphs
+/// into an unsanctioned script while keeping the letters - see
+/// [`fails_digit_script_guard`]).
 ///
 /// Every failure means the caller must fall back to the raw transcript.
 pub(crate) fn validate_post_process_output(
@@ -982,6 +1098,14 @@ pub(crate) fn validate_post_process_output(
                 "the output switched script from {} to {}",
                 transcript_script.name(),
                 output_script.name()
+            )));
+        }
+    }
+    if let Some(output_digits) = dominant_digit_script(&extracted) {
+        if fails_digit_script_guard(transcript, &extracted, template_language) {
+            return Err(engine_invalid(&format!(
+                "the output rewrote digits into the {} script",
+                output_digits.name()
             )));
         }
     }
@@ -1273,6 +1397,107 @@ mod tests {
         // The declared script must be the OUTPUT's: hi-Latn does not
         // sanction a Han answer.
         assert!(fails_script_guard(Devanagari, Han, Some("hi-Latn")));
+    }
+
+    /// KB-076/KB-135/KB-178: the digit-script guard, the script guard's
+    /// neighbor. The failing shape keeps the letters but rewrites the
+    /// NUMBER GLYPHS into another script; sanctioned shapes (ASCII digits
+    /// anywhere, the output script's own native digits, the template's
+    /// declared digits, digits carried over from the transcript) pass.
+    #[test]
+    fn digit_script_guard_trips_only_on_unsanctioned_digit_rewrites() {
+        // The headline failure: English in, Devanagari digits out.
+        assert!(fails_digit_script_guard(
+            "buy twenty five apples at the store please",
+            "buy २५ apples at the store please",
+            None,
+        ));
+        // Arabic digits rewritten into Latin text.
+        assert!(fails_digit_script_guard(
+            "chapter twenty five begins here",
+            "chapter ٤٢ begins here",
+            None,
+        ));
+        // ASCII digits never trip, whatever the letters around them.
+        assert!(!fails_digit_script_guard(
+            "नमस्ते दुनिया यह पच्चीस है",
+            "नमस्ते दुनिया यह 25 है",
+            None,
+        ));
+        // The output's own native digits are its typography, not a rewrite.
+        assert!(!fails_digit_script_guard(
+            "नमस्ते दुनिया यह पच्चीस है",
+            "नमस्ते दुनिया यह २५ है",
+            None,
+        ));
+        // Digits carried over from the transcript (Thai in, Thai out).
+        assert!(!fails_digit_script_guard(
+            "หนังสือ ๒๕ เล่มอยู่บนโต๊ะ",
+            "หนังสือ ๒๕ เล่มวางอยู่บนโต๊ะ",
+            None,
+        ));
+        // The template's declared script sanctions its native digits even
+        // when the transcript did not carry them.
+        assert!(!fails_digit_script_guard(
+            "hello world this is a test transcript with words",
+            "नमस्ते दुनिया २५ यह एक परीक्षण है",
+            Some("hi"),
+        ));
+        // Fullwidth digits in Han text: no native digit demand, so no trip.
+        assert!(!fails_digit_script_guard(
+            "你好世界这是一个测试转写",
+            "你好世界这是４２个测试转写",
+            None,
+        ));
+        // No digits at all: nothing to check.
+        assert!(!fails_digit_script_guard("hello world", "नमस्ते दुनिया", None,));
+        // The dominant digit script decides when outputs mix.
+        assert!(fails_digit_script_guard(
+            "call me at five five five",
+            "call me at २५५ or 25",
+            None,
+        ));
+    }
+
+    /// The shared validator wiring: a digit rewrite fails the whole output
+    /// with the digit-script detail (the letter-level script guard cannot
+    /// see it because digits carry no script classification).
+    #[test]
+    fn validator_rejects_unsanctioned_digit_rewrites() {
+        let transcript = "buy um twenty five apples at the store will you please";
+        let rewritten = "buy २५ apples at the store will you please";
+        let failure = validate_post_process_output(
+            transcript,
+            &format!("{{\"transcription\":\"{rewritten}\"}}"),
+            PostProcessOutputMode::StructuredJson,
+            None,
+            None,
+        )
+        .unwrap_err();
+        assert!(
+            failure.detail.contains("rewrote digits"),
+            "detail: {}",
+            failure.detail
+        );
+        assert_eq!(
+            failure.skip_reason,
+            crate::local_llm::SkipReason::EngineFailed
+        );
+        // The same rewrite under a Devanagari-output template is the
+        // template's own typography and passes (output kept near the
+        // input's length so the fidelity floor stays out of the way;
+        // "hi-Deva" is the explicit script-declaring form).
+        assert!(validate_post_process_output(
+            transcript,
+            &format!(
+                "{{\"transcription\":\"{}\"}}",
+                "कृपया पच्चीस सेब खरीदो २५ दुकान से लाओ"
+            ),
+            PostProcessOutputMode::StructuredJson,
+            Some("hi-Deva"),
+            None,
+        )
+        .is_ok());
     }
 
     /// The expansion guard: a cleanup that grew the text more than 10x

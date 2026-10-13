@@ -36,13 +36,13 @@
     "output": "Ausgabe",
     "advanced": "Erweitert",
     "postProcessing": "Nachbearbeitung",
-    "addonsGroup": "Add-ons",
     "enableInAdvancedHint": "Unter Erweitert aktivieren",
     "history": "Verlauf",
     "debug": "Debug",
     "about": "Info",
     "notifications": "Benachrichtigungen",
-    "promptStudio": "Prompt-Studio"
+    "promptStudio": "Prompt-Studio",
+    "addonsGroup": "Add-ons"
   },
   "onboarding": {
     "subtitle": "Wähle ein Transkriptionsmodell, um loszulegen",
@@ -243,7 +243,7 @@
       "addFromHf": {
         "title": "Modell von Hugging Face hinzufügen",
         "description": "Füge eine öffentliche Repo-URL oder owner/repo ein, zum Beispiel https://huggingface.co/owner/repo.",
-        "placeholder": "owner/repo",
+        "placeholder": "https://huggingface.co/owner/repo oder owner/repo",
         "add": "Hinzufügen",
         "cancel": "Abbrechen",
         "pickFile": "Wähle eine Datei aus {{repo}}:",
@@ -369,7 +369,6 @@
       "searchPlaceholder": "Befehle suchen",
       "resetAll": "Alle Befehle zurücksetzen",
       "resetRow": "Auf Standard zurücksetzen",
-      "defaultPhrasesNote": "Die Standardphrasen sind die englischen Wörter, auf die die Erkennunghört, plus eingebaute Hindi- und chinesische Aliase. Eigene Phrasen können inbeliebiger Sprache in jeder Zeile hinzugefügt werden.",
       "addPhrase": "Hinzufügen",
       "removePhrase": "{{phrase}} entfernen",
       "placeholder": "Phrase hinzufügen",
@@ -429,7 +428,8 @@
         "clearAll": "Löscht das komplette Diktat",
         "undo": "Führt Rückgängig in der fokussierten App aus",
         "paste": "Fügt die Zwischenablage in der fokussierten App ein"
-      }
+      },
+      "defaultPhrasesNote": "Die Standardphrasen sind die englischen Wörter, auf die die Erkennunghört, plus eingebaute Hindi- und chinesische Aliase. Eigene Phrasen können inbeliebiger Sprache in jeder Zeile hinzugefügt werden."
     },
     "search": {
       "placeholder": "Einstellungen durchsuchen",
@@ -654,7 +654,7 @@
       },
       "voiceDeletion": {
         "title": "Sprachlöschbefehle",
-        "description": "\"scratch that\", \"delete that\" und \"remove that\" löschen das vorherige Wort, \"delete last three words\" löscht mehrere, und \"delete everything\" oder \"start over\" löscht das gesamte Diktat. Ausschalten, um sie als normale Wörter zu behalten."
+        "description": "\"scratch that\", \"delete that\" und \"remove that\" löschen das vorherige Wort, \"delete last three words\" löscht mehrere, und \"delete everything\" oder \"scratch everything\" löscht das gesamte Diktat. Ausschalten, um sie als normale Wörter zu behalten."
       },
       "previewBeforePaste": {
         "title": "Vorschau vor dem Einfügen",
@@ -671,7 +671,7 @@
       },
       "numberFormat": {
         "title": "Gesprochene Zahlen",
-        "description": "Schreibt gesprochene Zahlwörter als Ziffern, sodass \"one eight zero one\" als 1801 eingefügt wird. \"Wie transkribiert\" behält Zahlen wie gesprochen; Smart wandelt zusätzlich zusammengesetzte Ordinalzahlen und Einzelzahlen ab elf um.",
+        "description": "Schreibt gesprochene Zahlwörter als Ziffern, sodass \"one eight zero one\" als 1801 eingefügt wird. Die Umwandlung kennt englische und hindische Zahlwörter (einschließlich Hinglish); in anderen Sprachen bleiben Zahlen wie gesprochen. \"Wie transkribiert\" behält Zahlen wie gesprochen; Smart wandelt zusätzlich zusammengesetzte Ordinalzahlen und Einzelzahlen ab elf um.",
         "options": {
           "asTranscribed": "Wie transkribiert",
           "digits": "Ziffern",
@@ -690,7 +690,6 @@
         "noDevices": "Noch keine Geräte verbunden",
         "resetPairing": "Kopplung zurücksetzen",
         "fingerprintLabel": "Zertifikat-Fingerprint (SHA-256)",
-        "fingerprintCopied": "Kopiert",
         "firewallNote": "macOS fragt beim ersten Aktivieren möglicherweise nach eingehenden Verbindungen. Erlaube sie, sonst erreichen Telefone diesen Mac nicht.",
         "unavailable": "Begleitgeräte brauchen in diesem Zyklus macOS.",
         "serverError": "Server fehlgeschlagen: {{error}}",
@@ -720,7 +719,8 @@
         "restartButton": "Server neu starten",
         "restartPending": "Änderungen greifen nach einem Neustart",
         "qrPreviewNote": "Vorschau: Diese URL gilt, sobald der Server das nächste Mal startet.",
-        "sharedNetworkNote": "Das Telefon und dieser Mac müssen ein Netzwerk teilen: dasselbe WLAN oder LAN oder dasselbe Tailnet (zum Beispiel beide in Tailscale)."
+        "sharedNetworkNote": "Das Telefon und dieser Mac müssen ein Netzwerk teilen: dasselbe WLAN oder LAN oder dasselbe Tailnet (zum Beispiel beide in Tailscale).",
+        "fingerprintCopied": "Kopiert"
       }
     },
     "postProcessing": {
@@ -763,13 +763,13 @@
           "notFetched": "Noch keine Modellliste.",
           "emptyTitle": "Keine Modelle gelistet",
           "emptyHint": "Lade die Modelle neu, die dieser Schlüssel sieht, oder tippe unten eine Modell-ID ein.",
-          "emptyNoKey": "Gib oben deinen API-Schlüssel ein und lade dann neu, um die Modelle zu laden.",
           "customSet": "Setzen",
           "customHint": "Jede Modell-ID deines Anbieters funktioniert, auch wenn sie nicht gelistet ist.",
           "filterPlaceholder": "Modelle filteren",
           "showAll_one": "Alle anzeigen ({{count}})",
           "showAll_other": "Alle anzeigen ({{count}})",
-          "showFewer": "Weniger anzeigen"
+          "showFewer": "Weniger anzeigen",
+          "emptyNoKey": "Gib oben deinen API-Schlüssel ein und lade dann neu, um die Modelle zu laden."
         },
         "timeout": {
           "title": "Anfrage-Timeout",
@@ -805,7 +805,8 @@
         "providerLabel": "Lokal (auf dem Gerät)",
         "keepWarm": {
           "title": "Lokales Modell warm halten",
-          "description": "Wie lange das lokale Post-Processing-Modell nach einem Polieren im Speicher bleibt, statt sofort entladen zu werden. Ein Diktat holt sich den Speicher immer zuerst zurück."
+          "description": "Wie lange das lokale Post-Processing-Modell nach einem Polieren im Speicher bleibt, statt sofort entladen zu werden. Ein Diktat holt sich den Speicher immer zuerst zurück.",
+          "off": "Aus"
         }
       },
       "models": {
@@ -936,14 +937,12 @@
       "title": "Verlauf",
       "openFolder": "Aufnahmeordner öffnen",
       "loading": "Verlauf wird geladen...",
-      "emptyTitle": "Noch keine Transkriptionen",
-      "emptyHint": "Drücke deine Aufnahme-Tastenkombination, um dein erstes Diktat aufzunehmen.",
+      "empty": "Noch keine Transkriptionen. Starte eine Aufnahme, um deinen Verlauf aufzubauen!",
       "copyToClipboard": "Transkription in Zwischenablage kopieren",
       "copyError": "Transkription konnte nicht in die Zwischenablage kopiert werden.",
       "save": "Transkription speichern",
       "unsave": "Aus Gespeicherten entfernen",
       "delete": "Eintrag löschen",
-      "deleteConfirm": "Diesen Eintrag löschen? Die Aufnahme und ihr Transkript werden dauerhaft entfernt.",
       "deleteError": "Eintrag konnte nicht gelöscht werden. Bitte versuche es erneut.",
       "retranscribe": "Erneut transkribieren",
       "retranscribeError": "Erneute Transkription fehlgeschlagen. Bitte versuche es erneut.",
@@ -960,8 +959,13 @@
       "viaPostProcess": "über {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Änderungen anzeigen",
       "hideChanges": "Änderungen ausblenden",
+      "emptyTitle": "Noch keine Transkriptionen",
+      "emptyHint": "Drücke deine Aufnahme-Tastenkombination, um dein erstes Diktat aufzunehmen.",
+      "deleteConfirm": "Diesen Eintrag löschen? Die Aufnahme und ihr Transkript werden dauerhaft entfernt.",
       "today": "Heute",
-      "yesterday": "Gestern"
+      "yesterday": "Gestern",
+      "savedToggleError": "Gespeichert-Status konnte nicht aktualisiert werden.",
+      "dbRecoveredNotice": "Die Datenbank Ihres Transkriptionsverlaufs war unlesbar, daher wurde eine neue gestartet. Die vorherige Datenbank wurde als {{file}} aufbewahrt."
     },
     "debug": {
       "title": "Debug",
@@ -981,9 +985,9 @@
         "pause": "Pausieren",
         "resume": "Fortsetzen",
         "copied": "Kopiert",
-        "clearConfirm": "Die erfassten Zeilen aus dieser Ansicht löschen? Die Protokolldatei auf der Festplatte bleibt erhalten.",
         "lineCount": "{{count}} Zeilen",
         "empty": "Warte auf Logs … Einträge erscheinen hier, sobald die App sie ausgibt.",
+        "clearConfirm": "Die erfassten Zeilen aus dieser Ansicht löschen? Die Protokolldatei auf der Festplatte bleibt erhalten.",
         "clearConfirmTitle": "Erfasste Zeilen löschen?"
       },
       "updateChecks": {
@@ -1173,7 +1177,7 @@
       },
       "log": {
         "title": "Benachrichtigungsprotokoll",
-        "description": "Die letzten 50 Fehler- und Ergebnismeldungen.",
+        "description": "Die letzten 50 Fehler- und Ergebnismeldungen. Neue Einträge werden nur erfasst, solange Systembenachrichtigungen aktiviert sind.",
         "empty": "Noch keine Benachrichtigungen.",
         "clear": "Alle leeren"
       }
@@ -1203,7 +1207,6 @@
       "runHint_one": "1 Prompt auf 1 Engine. Es wird nichts eingetippt oder gespeichert.",
       "runHint_other": "{{count}} Prompt-Engine-Paare. Es wird nichts eingetippt oder gespeichert.",
       "running": "Wird ausgeführt...",
-      "appliedLabel": "Erfolg",
       "rerun": "Erneut ausführen",
       "latency": "{{ms}} ms",
       "rawKept": "Die Engine ist fehlgeschlagen oder wurde übersprungen, daher würde das rohe Transkript behalten.",
@@ -1216,16 +1219,20 @@
         "emptyBatch": "Wähle mindestens einen Prompt und eine Engine."
       },
       "diff": {
+        "lines": "Zeilen",
+        "charsChanged_one": "1 Zeichen geändert",
+        "charsChanged_other": "{{count}} Zeichen geändert",
         "identical": "Keine Änderungen.",
         "added_one": "+{{count}} hinzugefügt",
         "added_other": "+{{count}} hinzugefügt",
         "removed_one": "{{count}} entfernt",
-        "removed_other": "{{count}} entfernt",
-        "charsChanged_one": "1 Zeichen geändert",
-        "charsChanged_other": "{{count}} Zeichen geändert"
+        "removed_other": "{{count}} entfernt"
       },
       "resultsEmptyTitle": "Ergebnisse erscheinen hier",
-      "resultsEmptyHint": "Wähle oben Quelle, Prompts und Engines und führe sie aus. Jede Karte zeigt den bearbeiteten Text, seine Änderungen und wie schnell er lief."
+      "resultsEmptyHint": "Wähle oben Quelle, Prompts und Engines und führe sie aus. Jede Karte zeigt den bearbeiteten Text, seine Änderungen und wie schnell er lief.",
+      "appliedLabel": "Erfolg",
+      "cancel": "Abbrechen",
+      "cancelledCard": "Abgebrochen, bevor dieser Lauf startete."
     }
   },
   "footer": {
@@ -1269,11 +1276,11 @@
     "loading": "Wird geladen...",
     "delete": "Löschen",
     "close": "Schließen",
-    "cancel": "Abbrechen",
     "open": "Öffnen",
     "copy": "Kopieren",
     "clear": "Leeren",
-    "noOptionsFound": "Keine Optionen gefunden"
+    "noOptionsFound": "Keine Optionen gefunden",
+    "cancel": "Abbrechen"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar benötigt Bedienungshilfen-Berechtigungen, um transkribierten Text einzugeben.",
@@ -1301,7 +1308,9 @@
     "transcriptionFailedTitle": "Transkription fehlgeschlagen",
     "noModelSelectedTitle": "Kein Modell ausgewählt",
     "noModelSelected": "Wählen Sie vor dem Diktieren ein Transkriptionsmodell in den Einstellungen.",
-    "openDirectory": "Ordner konnte nicht geöffnet werden: {{error}}"
+    "openDirectory": "Ordner konnte nicht geöffnet werden: {{error}}",
+    "modelLoadFailedMemoryGate": "Nicht genug freier Speicher, um {{model}} zu laden: benötigt etwa {{needed}}, etwa {{free}} frei.",
+    "modelLoadFailedDetail": "Das Modell wurde nicht geändert. Der technische Grund steht in der Protokolldatei."
   },
   "appLanguage": {
     "title": "Anwendungssprache",
@@ -1445,6 +1454,15 @@
     "historyTitle": "Zuletzt",
     "historyEmpty": "Diktate von diesem Telefon erscheinen hier.",
     "stateMicBlocked": "Mikrofon blockiert",
-    "micBlockedRetry": "Mikrofon blockiert. Zum Wiederholen tippen."
+    "micBlockedRetry": "Mikrofon blockiert. Zum Wiederholen tippen.",
+    "zeroAudioHold": "Kein Audio erreichte den Mac. Halte die Taste gedrückt und sprich dann.",
+    "zeroAudioHoldOrToggle": "Kein Audio erreichte den Mac. Halte die Taste gedrückt oder tippe darauf und sprich dann.",
+    "zeroAudioTap": "Kein Audio erreichte den Mac. Tippe auf die Taste und sprich dann.",
+    "holdOrToggleToTalk": "Zum Sprechen halten, zum Sperren tippen"
+  },
+  "trayCopyOutcome": {
+    "copied": "Das Diktat wurde in die Zwischenablage kopiert.",
+    "empty": "Es gibt noch nichts zu kopieren.",
+    "failed": "Das Diktat konnte nicht in die Zwischenablage kopiert werden."
   }
 }

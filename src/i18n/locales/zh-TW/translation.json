@@ -36,13 +36,13 @@
     "output": "輸出",
     "advanced": "進階",
     "postProcessing": "後處理",
-    "addonsGroup": "附加元件",
     "enableInAdvancedHint": "在進階設定中啟用",
     "history": "歷史紀錄",
     "debug": "偵錯",
     "about": "關於",
     "notifications": "通知",
-    "promptStudio": "提示詞工作室"
+    "promptStudio": "提示詞工作室",
+    "addonsGroup": "附加元件"
   },
   "onboarding": {
     "subtitle": "首先，請選擇一種模型",
@@ -316,7 +316,6 @@
       "searchPlaceholder": "搜尋命令",
       "resetAll": "重設所有命令",
       "resetRow": "還原預設",
-      "defaultPhrasesNote": "預設短語是辨識器監聽的英文單字，外加內建的印地語和中文別名。你可以在任意行用任意語言新增自己的短語。",
       "addPhrase": "新增",
       "removePhrase": "移除 {{phrase}}",
       "placeholder": "新增片語",
@@ -376,7 +375,8 @@
         "clearAll": "刪除全部聽寫內容",
         "undo": "在使用中的 App 執行復原",
         "paste": "將剪貼簿貼到使用中的 App"
-      }
+      },
+      "defaultPhrasesNote": "預設短語是辨識器監聽的英文單字，外加內建的印地語和中文別名。你可以在任意行用任意語言新增自己的短語。"
     },
     "search": {
       "placeholder": "搜尋設定",
@@ -405,7 +405,7 @@
       "addFromHf": {
         "title": "從 Hugging Face 新增模型",
         "description": "貼上公開儲存庫連結或 owner/repo，例如 https://huggingface.co/owner/model。",
-        "placeholder": "owner/repo",
+        "placeholder": "https://huggingface.co/owner/repo 或 owner/repo",
         "add": "新增",
         "cancel": "取消",
         "pickFile": "從 {{repo}} 中選擇一個檔案:",
@@ -654,7 +654,7 @@
       },
       "voiceDeletion": {
         "title": "語音刪除命令",
-        "description": "\"scratch that\"、\"delete that\"、\"remove that\" 刪除上一個詞，\"delete last three words\" 刪除多個詞，\"delete everything\" 或 \"start over\" 清空整段聽寫。關閉後保留為一般文字。"
+        "description": "\"scratch that\"、\"delete that\"、\"remove that\" 刪除上一個詞，\"delete last three words\" 刪除多個詞，\"delete everything\" 或 \"scratch everything\" 清空整段聽寫。關閉後保留為一般文字。"
       },
       "previewBeforePaste": {
         "title": "貼上前預覽",
@@ -671,7 +671,7 @@
       },
       "numberFormat": {
         "title": "語音數字",
-        "description": "將口述的數字詞寫成數字，\"one eight zero one\" 會以 1801 貼上。「保持原樣」讓數字保持口述原詞；Smart 還會轉換複合序數詞以及十一以上的單一數字。",
+        "description": "將口述的數字詞寫成數字，\"one eight zero one\" 會以 1801 貼上。該轉換支援英語和印地語（包括印地式英語）的口語數字；其他語言的數字保持口述原樣。「保持原樣」讓數字保持口述原詞；Smart 還會轉換複合序數詞以及十一以上的單一數字。",
         "options": {
           "asTranscribed": "保持原樣",
           "digits": "數字",
@@ -690,7 +690,6 @@
         "noDevices": "還沒有裝置連線",
         "resetPairing": "重設配對",
         "fingerprintLabel": "憑證指紋（SHA-256）",
-        "fingerprintCopied": "已複製",
         "firewallNote": "首次開啟時 macOS 可能請求允許傳入連線。請允許，否則手機無法連到這台 Mac。",
         "unavailable": "伴侶裝置在本週期需要 macOS。",
         "serverError": "伺服器失敗：{{error}}",
@@ -720,7 +719,8 @@
         "restartButton": "重新啟動伺服器",
         "restartPending": "變更會在重新啟動後生效",
         "qrPreviewNote": "預覽：伺服器下次啟動後會公布此 URL。",
-        "sharedNetworkNote": "手機和這台 Mac 必須處於同一網路：同一 Wi-Fi 或區域網路，或同一 tailnet（例如都加入 Tailscale）。"
+        "sharedNetworkNote": "手機和這台 Mac 必須處於同一網路：同一 Wi-Fi 或區域網路，或同一 tailnet（例如都加入 Tailscale）。",
+        "fingerprintCopied": "已複製"
       }
     },
     "postProcessing": {
@@ -763,13 +763,13 @@
           "notFetched": "尚未取得模型清單。",
           "emptyTitle": "清單中沒有模型",
           "emptyHint": "重新整理以載入此金鑰可見的模型，或在下方輸入模型 ID。",
-          "emptyNoKey": "請先在上方輸入你的 API 金鑰，然後重新整理以載入模型列表。",
           "customSet": "設定",
           "customHint": "只要服務商支援，未列出的模型 ID 也可以使用。",
           "filterPlaceholder": "篩選模型",
           "showAll_one": "顯示全部（{{count}}）",
           "showAll_other": "顯示全部（{{count}}）",
-          "showFewer": "收合"
+          "showFewer": "收合",
+          "emptyNoKey": "請先在上方輸入你的 API 金鑰，然後重新整理以載入模型列表。"
         },
         "timeout": {
           "title": "請求逾時",
@@ -805,7 +805,8 @@
         "providerLabel": "本機（裝置上）",
         "keepWarm": {
           "title": "本機模型駐留記憶體",
-          "description": "潤飾完成後，本機後處理模型在記憶體中保留多久，而不是立即卸載。聽寫一律優先收回記憶體。"
+          "description": "潤飾完成後，本機後處理模型在記憶體中保留多久，而不是立即卸載。聽寫一律優先收回記憶體。",
+          "off": "關"
         }
       },
       "models": {
@@ -936,14 +937,12 @@
       "title": "歷史紀錄",
       "openFolder": "開啟錄音資料夾",
       "loading": "載入歷史紀錄中...",
-      "emptyTitle": "還沒有聽寫記錄",
-      "emptyHint": "按下錄音快速鍵，開始你的第一次聽寫。",
+      "empty": "還沒有轉錄紀錄。開始錄製以建立您的歷史紀錄！",
       "copyToClipboard": "複製轉錄到剪貼簿",
       "copyError": "無法將轉錄複製到剪貼簿。",
       "save": "儲存轉錄",
       "unsave": "從已儲存中移除",
       "delete": "刪除條目",
-      "deleteConfirm": "刪除此項目？錄音及其逐字稿將被永久刪除。",
       "deleteError": "刪除條目失敗，請重試",
       "retranscribe": "重新轉錄",
       "retranscribeError": "重新轉錄失敗，請重試。",
@@ -960,8 +959,13 @@
       "viaPostProcess": "經 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒處理",
       "viewChanges": "檢視變更",
       "hideChanges": "收合變更",
+      "emptyTitle": "還沒有聽寫記錄",
+      "emptyHint": "按下錄音快速鍵，開始你的第一次聽寫。",
+      "deleteConfirm": "刪除此項目？錄音及其逐字稿將被永久刪除。",
       "today": "今天",
-      "yesterday": "昨天"
+      "yesterday": "昨天",
+      "savedToggleError": "無法更新儲存狀態。",
+      "dbRecoveredNotice": "轉錄歷史資料庫無法讀取，因此已啟動新的資料庫。原本的資料庫已保留為 {{file}}。"
     },
     "debug": {
       "title": "偵錯",
@@ -981,9 +985,9 @@
         "pause": "暫停",
         "resume": "繼續",
         "copied": "已複製",
-        "clearConfirm": "清除此檢視中擷取的行？磁碟上的日誌檔會保留。",
         "lineCount": "{{count}} 行",
         "empty": "正在等待日誌…… 應用程式產生日誌時會顯示於此。",
+        "clearConfirm": "清除此檢視中擷取的行？磁碟上的日誌檔會保留。",
         "clearConfirmTitle": "清除已擷取的行？"
       },
       "updateChecks": {
@@ -1173,7 +1177,7 @@
       },
       "log": {
         "title": "通知記錄",
-        "description": "最近 50 筆錯誤與結果通知。",
+        "description": "最近 50 筆錯誤與結果通知。僅在系統通知開啟時記錄新項目。",
         "empty": "目前沒有通知。",
         "clear": "全部清除"
       }
@@ -1203,7 +1207,6 @@
       "runHint_one": "1 個提示詞在 1 個引擎上執行。不會輸入或儲存任何內容。",
       "runHint_other": "{{count}} 組提示詞與引擎。不會輸入或儲存任何內容。",
       "running": "執行中...",
-      "appliedLabel": "成功",
       "rerun": "重新執行",
       "latency": "{{ms}} 毫秒",
       "rawKept": "引擎失敗或被略過，因此將保留原始轉錄。",
@@ -1216,16 +1219,20 @@
         "emptyBatch": "請至少選擇一個提示詞和一個引擎。"
       },
       "diff": {
+        "lines": "行",
+        "charsChanged_one": "1 個字元變更",
+        "charsChanged_other": "{{count}} 個字元變更",
         "identical": "無變更。",
         "added_one": "新增 {{count}} 行",
         "added_other": "新增 {{count}} 行",
         "removed_one": "刪除 {{count}} 行",
-        "removed_other": "刪除 {{count}} 行",
-        "charsChanged_one": "1 個字元變更",
-        "charsChanged_other": "{{count}} 個字元變更"
+        "removed_other": "刪除 {{count}} 行"
       },
       "resultsEmptyTitle": "結果會顯示在這裡",
-      "resultsEmptyHint": "在上方選擇來源、提示詞與引擎後執行。每張卡片會顯示潤飾後的文字、變更內容與執行速度。"
+      "resultsEmptyHint": "在上方選擇來源、提示詞與引擎後執行。每張卡片會顯示潤飾後的文字、變更內容與執行速度。",
+      "appliedLabel": "成功",
+      "cancel": "取消",
+      "cancelledCard": "此執行啟動前已取消。"
     }
   },
   "footer": {
@@ -1269,11 +1276,11 @@
     "loading": "載入中...",
     "delete": "刪除",
     "close": "關閉",
-    "cancel": "取消",
     "open": "開啟",
     "copy": "複製",
     "clear": "清除",
-    "noOptionsFound": "未找到選項"
+    "noOptionsFound": "未找到選項",
+    "cancel": "取消"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar 需要輔助使用權限才能輸入轉錄的文字",
@@ -1301,7 +1308,9 @@
     "transcriptionFailedTitle": "轉錄失敗",
     "noModelSelectedTitle": "未選擇模型",
     "noModelSelected": "聽寫前請先在設定中選擇一個轉寫模型。",
-    "openDirectory": "無法開啟資料夾：{{error}}"
+    "openDirectory": "無法開啟資料夾：{{error}}",
+    "modelLoadFailedMemoryGate": "記憶體不足，無法載入 {{model}}：需要約 {{needed}}，僅約 {{free}} 可用。",
+    "modelLoadFailedDetail": "模型未變更。技術原因請查看日誌檔案。"
   },
   "appLanguage": {
     "title": "應用程式語言",
@@ -1445,6 +1454,15 @@
     "historyTitle": "最近",
     "historyEmpty": "來自這支手機的聽寫會顯示在這裡。",
     "stateMicBlocked": "麥克風已被封鎖",
-    "micBlockedRetry": "麥克風已被封鎖。點按以重試。"
+    "micBlockedRetry": "麥克風已被封鎖。點按以重試。",
+    "zeroAudioHold": "沒有聲音傳到 Mac。請按住按鈕再說話。",
+    "zeroAudioHoldOrToggle": "沒有聲音傳到 Mac。請按住或點按按鈕再說話。",
+    "zeroAudioTap": "沒有聲音傳到 Mac。請點按按鈕再說話。",
+    "holdOrToggleToTalk": "按住說話，點按鎖定"
+  },
+  "trayCopyOutcome": {
+    "copied": "已將聽寫文字複製到剪貼板。",
+    "empty": "還沒有可複製的內容。",
+    "failed": "無法將聽寫文字複製到剪貼板。"
   }
 }

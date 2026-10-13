@@ -223,6 +223,11 @@ enum Effect {
     Stop {
         binding_id: String,
         hotkey_string: String,
+        /// v1.6.2 W1-L2: the lane of the companion session this Stop ends
+        /// (None for keyboard/signal sessions). Set by the thread when a
+        /// lane machine produces the effect, so the executor can hand the
+        /// stopping session's identity to the shared pipeline.
+        companion_lane: Option<u64>,
     },
     /// The command-mode binding was pressed with no live dictation session.
     /// Surfaced as a toast so the press is not a silent no-op (the binding
@@ -260,18 +265,36 @@ enum Command {
     Input(InputEvent),
     Cancel {
         recording_was_active: bool,
+        /// Fleet pass: the machine teardown follows the SAME resolution the
+        /// audio side's `cancel_recording` made. `Some(lane)` cancels
+        /// exactly that lane's machine; `None` belongs to the keyboard
+        /// machine (a local resolution, or the nothing-recording abort).
+        /// The audio teardown removes exactly one target's recorder, so a
+        /// cancel may never reset machines whose recorders still record.
+        lane: Option<u64>,
     },
-    ProcessingFinished,
+    /// One stop pipeline drained. v1.6.2 W1-L2: `lane` says whose - a
+    /// companion lane's machine resumes from ITS remembered press, the
+    /// keyboard machine (None) from its own.
+    ProcessingFinished {
+        lane: Option<u64>,
+    },
     /// Press/release of the command-mode binding (a during-dictation
     /// modifier, never a recording trigger).
     CommandModifier {
         is_pressed: bool,
     },
-    /// The companion trigger source is over (phone disconnected, the
-    /// 15-minute session cap fired, the companion server is stopping):
-    /// end the companion's session now, regardless of activation-mode
-    /// locks. Unlike a key release, this edge is deliberate and terminal.
-    FinalizeCompanion,
+    /// The companion trigger source for ONE connection is over or done
+    /// (that phone disconnected, ITS 15-minute session cap fired) or every
+    /// connection is going away (the companion server is stopping): end
+    /// that lane's session now, regardless of activation-mode locks.
+    /// Unlike a key release, these edges are deliberate and terminal.
+    /// `lane: None` means all lanes (server stop, app shutdown).
+    /// v1.6.2 W1-L2: per-lane - one phone's finalize never ends another
+    /// phone's session (KB-111).
+    FinalizeCompanion {
+        lane: Option<u64>,
+    },
 }
 
 /// Decide whether a key-up should be deferred (so auto-repeat can cancel it)
@@ -863,6 +886,7 @@ impl CoordinatorState {
         Effect::Stop {
             binding_id,
             hotkey_string,
+            companion_lane: None,
         }
     }
 
@@ -961,7 +985,15 @@ pub struct TranscriptionCoordinator {
     /// for the stop pipeline. TranscribeAction::stop runs INSIDE the Stop
     /// effect on the coordinator thread, before this mirror republishes,
     /// so it always reads the final mode of the session that just ended.
+    /// v1.6.2 W1-L2: this slot holds the KEYBOARD machine's mode; each
+    /// companion lane's mode lives in the per-lane map below, read by the
+    /// lane's own stop pipeline.
     session_post_process: Arc<Mutex<Option<bool>>>,
+    /// v1.6.2 W1-L2: per-lane mirrors of each lane machine's
+    /// `session_post_process`, republished at the same points the keyboard
+    /// slot is. A companion lane's stop pipeline resolves ITS session's
+    /// final mode here.
+    lane_session_post_process: Arc<Mutex<std::collections::HashMap<u64, Option<bool>>>>,
     /// v1.6.0 W1-L7: mirror of `CoordinatorState::pp_badge` for the
     /// cycle-prompt path: true while a live post-process session's badge is
     /// lit, so cycling templates refreshes the name the badge shows only
@@ -996,42 +1028,158 @@ impl TranscriptionCoordinator {
         let missed_hold_mirror = Arc::clone(&missed_hold);
         let session_post_process: Arc<Mutex<Option<bool>>> = Arc::new(Mutex::new(None));
         let session_post_process_mirror = Arc::clone(&session_post_process);
+        let lane_session_post_process: Arc<Mutex<std::collections::HashMap<u64, Option<bool>>>> =
+            Arc::new(Mutex::new(std::collections::HashMap::new()));
+        let lane_session_post_process_mirror = Arc::clone(&lane_session_post_process);
         let pp_badge = Arc::new(AtomicBool::new(false));
         let pp_badge_mirror = Arc::clone(&pp_badge);
 
         thread::spawn(move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let mut state = CoordinatorState::new();
-                // Publish the stage mirror after every state change, so a
+                // v1.6.2 W1-L2: one battle-tested CoordinatorState per
+                // lifecycle owner. The keyboard machine is exactly the
+                // pre-v1.6.2 single machine (keyboard/signal bindings,
+                // command modifier, missed holds); every companion
+                // connection lane gets its OWN instance of the same pure
+                // machine, created on the lane's first edge. Two phones
+                // pressing at once each drive their own machine - two live
+                // sessions, independent holds and taps, independent
+                // remembered presses - and no machine's state can name
+                // another's binding (KB-110 dies by construction).
+                let mut keyboard = CoordinatorState::new();
+                let mut lanes: std::collections::HashMap<u64, CoordinatorState> =
+                    std::collections::HashMap::new();
+                // The lane that most recently entered Recording (the pp
+                // hotkey's target when it upgrades a live companion
+                // session instead of the keyboard's own).
+                let mut most_recent_live_lane: Option<u64> = None;
+
+                // Publish the folded mirrors after every state change, so a
                 // reader can never observe a stale Recording long after the
                 // stage moved on (worst case: one command of lag while a
-                // transition is in flight). The command-modifier mirror
-                // rides the same publication point.
-                let publish_state = |state: &CoordinatorState| {
-                    recording_mirror.store(
-                        matches!(state.stage, Stage::Recording(_)),
-                        Ordering::Release,
-                    );
-                    processing_mirror
-                        .store(matches!(state.stage, Stage::Processing), Ordering::Release);
-                    command_modifier_mirror.store(state.command_modifier, Ordering::Release);
-                    pending_press_mirror.store(state.pending_press.is_some(), Ordering::Release);
-                    *session_post_process_mirror
-                        .lock()
-                        .unwrap_or_else(|e| e.into_inner()) = state.session_post_process;
-                    pp_badge_mirror.store(state.pp_badge, Ordering::Release);
+                // transition is in flight). The command-modifier and
+                // missed-hold mirrors ride the KEYBOARD machine alone
+                // (phones send only Ptt edges; their machines can never
+                // engage the modifier); the stage mirrors fold every
+                // machine.
+                let publish_state =
+                    |keyboard: &CoordinatorState,
+                     lanes: &std::collections::HashMap<u64, CoordinatorState>,
+                     most_recent_live_lane: &Option<u64>| {
+                        let any_machine = |pred: &dyn Fn(&CoordinatorState) -> bool| {
+                            pred(keyboard) || lanes.values().any(pred)
+                        };
+                        recording_mirror.store(
+                            any_machine(&|m| matches!(m.stage, Stage::Recording(_))),
+                            Ordering::Release,
+                        );
+                        processing_mirror.store(
+                            any_machine(&|m| matches!(m.stage, Stage::Processing)),
+                            Ordering::Release,
+                        );
+                        pending_press_mirror.store(
+                            any_machine(&|m| m.pending_press.is_some()),
+                            Ordering::Release,
+                        );
+                        command_modifier_mirror.store(keyboard.command_modifier, Ordering::Release);
+                        *session_post_process_mirror
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner()) = keyboard.session_post_process;
+                        {
+                            let mut lane_modes = lane_session_post_process_mirror
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner());
+                            lane_modes.clear();
+                            for (lane, machine) in lanes {
+                                lane_modes.insert(*lane, machine.session_post_process);
+                            }
+                        }
+                        pp_badge_mirror.store(any_machine(&|m| m.pp_badge), Ordering::Release);
+                        let _ = most_recent_live_lane;
+                    };
+                publish_state(&keyboard, &lanes, &most_recent_live_lane);
+
+                // The earliest release-grace deadline across every machine
+                // (each machine's grace is resolved only at its own
+                // deadline; a timeout fires exactly the machines that are
+                // due).
+                let next_grace_deadline =
+                    |keyboard: &CoordinatorState,
+                     lanes: &std::collections::HashMap<u64, CoordinatorState>|
+                     -> Option<Instant> {
+                        std::iter::once(keyboard)
+                            .chain(lanes.values())
+                            .filter_map(CoordinatorState::grace_deadline)
+                            .min()
+                    };
+                let expire_due_graces = |app: &AppHandle,
+                                         keyboard: &mut CoordinatorState,
+                                         lanes: &mut std::collections::HashMap<
+                    u64,
+                    CoordinatorState,
+                >| {
+                    let now = Instant::now();
+                    if keyboard.grace_deadline().is_some_and(|d| d <= now) {
+                        if let Some(effect) = keyboard.on_grace_expired() {
+                            run_effect(app, keyboard, effect);
+                        }
+                    }
+                    for (lane, machine) in lanes.iter_mut() {
+                        if machine.grace_deadline().is_some_and(|d| d <= now) {
+                            if let Some(mut effect) = machine.on_grace_expired() {
+                                // v1.6.2 W1-L2: the grace path produces the
+                                // lane's Stop effect with the same untagged
+                                // shape begin_processing emits; every other
+                                // lane-machine run_effect site stamps the
+                                // producing lane, and an untagged Stop would
+                                // skip note_stopping_session, wedge this
+                                // machine in Processing, and strand the lane's
+                                // recorder. Tag it here exactly as the direct
+                                // input paths do.
+                                tag_stop_effect_lane(&mut effect, *lane);
+                                run_effect(app, machine, effect);
+                            }
+                        }
+                    }
                 };
-                publish_state(&state);
+                // Track the most-recent-live-lane after every command: the
+                // newest lane whose machine is Recording, preferring the
+                // one that just transitioned (insertion into a HashMap is
+                // unordered, so recency is tracked by observation: a lane
+                // that ENTERS Recording becomes the target).
+                let refresh_most_recent_live_lane =
+                    |lanes: &std::collections::HashMap<u64, CoordinatorState>,
+                     prev: Option<u64>|
+                     -> Option<u64> {
+                        // The previously-tracked lane stays the answer while
+                        // it still records; otherwise the newest Recording
+                        // lane by lane id (ids are monotonic per
+                        // registration, and a session outlives later
+                        // registrations only in stop pipelines, whose lanes
+                        // are not Recording).
+                        if prev.is_some_and(|lane| {
+                            lanes
+                                .get(&lane)
+                                .is_some_and(|m| matches!(m.stage, Stage::Recording(_)))
+                        }) {
+                            return prev;
+                        }
+                        lanes
+                            .iter()
+                            .filter(|(_, m)| matches!(m.stage, Stage::Recording(_)))
+                            .map(|(lane, _)| *lane)
+                            .max()
+                    };
 
                 loop {
-                    let cmd = if let Some(deadline) = state.grace_deadline() {
+                    let cmd = if let Some(deadline) = next_grace_deadline(&keyboard, &lanes) {
                         match rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
                             Ok(cmd) => cmd,
                             Err(mpsc::RecvTimeoutError::Timeout) => {
-                                if let Some(effect) = state.on_grace_expired() {
-                                    run_effect(&app, &mut state, effect);
-                                }
-                                publish_state(&state);
+                                expire_due_graces(&app, &mut keyboard, &mut lanes);
+                                most_recent_live_lane =
+                                    refresh_most_recent_live_lane(&lanes, most_recent_live_lane);
+                                publish_state(&keyboard, &lanes, &most_recent_live_lane);
                                 continue;
                             }
                             Err(mpsc::RecvTimeoutError::Disconnected) => break,
@@ -1045,37 +1193,138 @@ impl TranscriptionCoordinator {
 
                     match cmd {
                         Command::Input(input) => {
-                            if let Some(effect) = state.on_input(input, Instant::now()) {
-                                run_effect(&app, &mut state, effect);
+                            let was_keyboard_recording =
+                                matches!(keyboard.stage, Stage::Recording(_));
+                            let any_lane_recording = lanes
+                                .values()
+                                .any(|m| matches!(m.stage, Stage::Recording(_)));
+                            match route_input(
+                                &input,
+                                was_keyboard_recording,
+                                any_lane_recording,
+                                most_recent_live_lane,
+                            ) {
+                                InputRoute::Keyboard => {
+                                    if let Some(effect) = keyboard.on_input(input, Instant::now()) {
+                                        run_effect(&app, &mut keyboard, effect);
+                                    }
+                                }
+                                InputRoute::Lane(lane) => {
+                                    let machine =
+                                        lanes.entry(lane).or_insert_with(CoordinatorState::new);
+                                    if let Some(mut effect) =
+                                        machine.on_input(input, Instant::now())
+                                    {
+                                        tag_stop_effect_lane(&mut effect, lane);
+                                        run_effect(&app, machine, effect);
+                                    }
+                                }
+                                InputRoute::Busy => {
+                                    run_effect(
+                                        &app,
+                                        &mut keyboard,
+                                        Effect::NotifyRecordingBusy {
+                                            binding_id: input.binding_id.clone(),
+                                        },
+                                    );
+                                }
+                                InputRoute::ToggleLanePostProcess(lane) => {
+                                    // v1.6.0 W1-L7 preserved for multi-phone:
+                                    // the pp hotkey upgrades the live
+                                    // companion session instead of competing
+                                    // with it. Routed to the lane's own
+                                    // machine, whose Recording stage arm is
+                                    // the exact toggle of the single-machine
+                                    // era.
+                                    if let Some(machine) = lanes.get_mut(&lane) {
+                                        if let Some(mut effect) =
+                                            machine.on_input(input, Instant::now())
+                                        {
+                                            tag_stop_effect_lane(&mut effect, lane);
+                                            run_effect(&app, machine, effect);
+                                        }
+                                    }
+                                }
                             }
                         }
                         Command::Cancel {
                             recording_was_active,
+                            lane,
                         } => {
-                            state.on_cancel(recording_was_active);
+                            // Fleet pass: the machine teardown follows the
+                            // SAME resolution the audio side's cancel made -
+                            // exactly the cancelled lane's machine, or the
+                            // keyboard machine for a local / no-target
+                            // resolution. The unconditional fan-out below
+                            // reset EVERY lane machine while cancel_recording
+                            // tears down exactly one target: with two phones
+                            // recording, one Escape stranded the other
+                            // phone's machine at Idle while its recorder
+                            // kept recording and its session record stayed
+                            // live - the next stop-tap then discarded the
+                            // whole dictation and wedged the recording
+                            // surfaces until a second manual Escape.
+                            match lane {
+                                Some(lane) => {
+                                    if let Some(machine) = lanes.get_mut(&lane) {
+                                        machine.on_cancel(recording_was_active);
+                                    }
+                                }
+                                None => keyboard.on_cancel(recording_was_active),
+                            }
                             // KB-221: no finalize drain follows a cancel, so
                             // any published missed-hold pair dies with the
                             // session (the state side was already cleared by
                             // on_cancel).
                             *missed_hold_mirror.lock().unwrap_or_else(|e| e.into_inner()) = None;
                         }
-                        Command::ProcessingFinished => {
-                            if let Some(effect) = state.on_processing_finished() {
-                                run_effect(&app, &mut state, effect);
+                        Command::ProcessingFinished { lane } => match lane {
+                            None => {
+                                if let Some(effect) = keyboard.on_processing_finished() {
+                                    run_effect(&app, &mut keyboard, effect);
+                                }
                             }
-                        }
+                            Some(lane) => {
+                                if let Some(machine) = lanes.get_mut(&lane) {
+                                    if let Some(mut effect) = machine.on_processing_finished() {
+                                        tag_stop_effect_lane(&mut effect, lane);
+                                        run_effect(&app, machine, effect);
+                                    }
+                                }
+                            }
+                        },
                         Command::CommandModifier { is_pressed } => {
                             if let Some(effect) =
-                                state.on_command_modifier(is_pressed, Instant::now())
+                                keyboard.on_command_modifier(is_pressed, Instant::now())
                             {
-                                run_effect(&app, &mut state, effect);
+                                run_effect(&app, &mut keyboard, effect);
                             }
                         }
-                        Command::FinalizeCompanion => {
-                            if let Some(effect) = state.on_finalize_companion() {
-                                run_effect(&app, &mut state, effect);
+                        Command::FinalizeCompanion { lane } => match lane {
+                            Some(lane) => {
+                                // This lane's own source is gone (its phone
+                                // dropped, its cap fired): end exactly its
+                                // session and drop exactly its remembered
+                                // press.
+                                if let Some(machine) = lanes.get_mut(&lane) {
+                                    if let Some(mut effect) = machine.on_finalize_companion() {
+                                        tag_stop_effect_lane(&mut effect, lane);
+                                        run_effect(&app, machine, effect);
+                                    }
+                                }
                             }
-                        }
+                            None => {
+                                // The whole companion surface is going away
+                                // (server stop, app shutdown): every lane
+                                // finalizes.
+                                for (lane, machine) in lanes.iter_mut() {
+                                    if let Some(mut effect) = machine.on_finalize_companion() {
+                                        tag_stop_effect_lane(&mut effect, *lane);
+                                        run_effect(&app, machine, effect);
+                                    }
+                                }
+                            }
+                        },
                     }
                     // KB-221: publish a completed hold's edges to the
                     // mirror. Store-only-when-Some: the pair is consumed by
@@ -1083,19 +1332,28 @@ impl TranscriptionCoordinator {
                     // must never refresh the slot wholesale (a later pair
                     // legitimately overwrites an undrained one - the newest
                     // hold bounds the newest material).
-                    if let Some(edges) = state.take_command_hold_edges() {
+                    if let Some(edges) = keyboard.take_command_hold_edges() {
                         *missed_hold_mirror.lock().unwrap_or_else(|e| e.into_inner()) = Some(edges);
                     }
                     // Badge notifications the processed command enqueued
                     // (modifier engage/release, PP badge transitions, and
-                    // every session-end clear).
-                    for effect in state.drain_modifier_notifications() {
-                        run_effect(&app, &mut state, effect);
+                    // every session-end clear). The modifier notifications
+                    // ride the keyboard machine alone; PP badge edges from
+                    // lane machines drain there.
+                    for effect in keyboard.drain_modifier_notifications() {
+                        run_effect(&app, &mut keyboard, effect);
                     }
-                    for effect in state.drain_post_process_notifications() {
-                        run_effect(&app, &mut state, effect);
+                    for machine in lanes.values_mut() {
+                        for effect in machine.drain_post_process_notifications() {
+                            run_effect(&app, machine, effect);
+                        }
                     }
-                    publish_state(&state);
+                    for effect in keyboard.drain_post_process_notifications() {
+                        run_effect(&app, &mut keyboard, effect);
+                    }
+                    most_recent_live_lane =
+                        refresh_most_recent_live_lane(&lanes, most_recent_live_lane);
+                    publish_state(&keyboard, &lanes, &most_recent_live_lane);
                 }
                 // The coordinator thread is gone (app shutdown); stop
                 // advertising a live recording session, an engaged command
@@ -1109,6 +1367,10 @@ impl TranscriptionCoordinator {
                 *session_post_process_mirror
                     .lock()
                     .unwrap_or_else(|e| e.into_inner()) = None;
+                lane_session_post_process_mirror
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .clear();
                 pp_badge_mirror.store(false, Ordering::Release);
                 debug!("Transcription coordinator exited");
             }));
@@ -1125,6 +1387,7 @@ impl TranscriptionCoordinator {
             processing,
             missed_hold,
             session_post_process,
+            lane_session_post_process,
             pp_badge,
         }
     }
@@ -1224,6 +1487,20 @@ impl TranscriptionCoordinator {
             .unwrap_or_else(|e| e.into_inner())
     }
 
+    /// v1.6.2 W1-L2: the FINAL post-process decision of ONE companion
+    /// lane's session, as that lane's stop pipeline must honor it. None
+    /// when the lane has no resolved mode (no session ran, or a
+    /// manager-less test context), so the pipeline's legacy resolution
+    /// applies.
+    pub fn lane_session_post_process_override(&self, lane: u64) -> Option<bool> {
+        self.lane_session_post_process
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(&lane)
+            .copied()
+            .flatten()
+    }
+
     /// v1.6.0 W1-L7: whether the live session's PP badge is lit. The
     /// cycle-prompt path refreshes the badge's template name only while a
     /// post-process session is actually recording; a dark badge stays dark
@@ -1306,16 +1583,34 @@ impl TranscriptionCoordinator {
         );
     }
 
-    /// Force-finalize the companion's live session: the phone dropped
-    /// mid-dictation, the 15-minute cap fired, or the companion server is
-    /// stopping. Unlike [`Self::send_companion_edge`] with `pressed=false`,
-    /// this ends the session even when it is locked (toggle mode, or a
-    /// locked hold-or-toggle session) - a locked session ignores release
-    /// edges by design, so the ordinary synthesized release strands those
-    /// recordings with no incoming audio while the disconnect notice claims
-    /// they were finalized and pasted.
+    /// Force-finalize ONE connection's live session (v1.6.2 W1-L2): that
+    /// phone dropped mid-dictation, ITS 15-minute cap fired. Unlike
+    /// [`Self::send_companion_edge`] with `pressed=false`, this ends the
+    /// session even when it is locked (toggle mode, or a locked
+    /// hold-or-toggle session) - a locked session ignores release edges by
+    /// design, so the ordinary synthesized release strands those
+    /// recordings with no incoming audio while the disconnect notice
+    /// claims they were finalized. Scoped to the lane: every other
+    /// phone's session is untouched (KB-111).
+    pub fn finalize_companion_lane(&self, lane: u64) {
+        if self
+            .tx
+            .send(Command::FinalizeCompanion { lane: Some(lane) })
+            .is_err()
+        {
+            warn!("Transcription coordinator channel closed");
+        }
+    }
+
+    /// Force-finalize EVERY live companion session (the companion server
+    /// is stopping, the app is shutting down). See
+    /// [`Self::finalize_companion_lane`].
     pub fn finalize_companion_session(&self) {
-        if self.tx.send(Command::FinalizeCompanion).is_err() {
+        if self
+            .tx
+            .send(Command::FinalizeCompanion { lane: None })
+            .is_err()
+        {
             warn!("Transcription coordinator channel closed");
         }
     }
@@ -1364,11 +1659,18 @@ impl TranscriptionCoordinator {
         }
     }
 
-    pub fn notify_cancel(&self, recording_was_active: bool) {
+    /// Report a cancel. `lane` is the SAME resolution the audio side's
+    /// `cancel_recording` made: `Some(lane)` for a cancelled phone session
+    /// (exactly that lane's machine resets), `None` for the keyboard's own
+    /// resolution or the nothing-recording abort. The machine teardown must
+    /// never widen past the audio teardown - a lane whose recorder still
+    /// records keeps its machine Recording.
+    pub fn notify_cancel(&self, recording_was_active: bool, lane: Option<u64>) {
         if self
             .tx
             .send(Command::Cancel {
                 recording_was_active,
+                lane,
             })
             .is_err()
         {
@@ -1376,10 +1678,19 @@ impl TranscriptionCoordinator {
         }
     }
 
-    pub fn notify_processing_finished(&self) {
-        if self.tx.send(Command::ProcessingFinished).is_err() {
+    /// Report one stop pipeline's completion. v1.6.2 W1-L2: `lane` says
+    /// whose pipeline drained - a companion lane's machine resumes from
+    /// its own remembered press, the keyboard machine from its own. The
+    /// legacy lane-less call serves the keyboard machine (and pre-lane
+    /// callers).
+    pub fn notify_processing_finished_for(&self, lane: Option<u64>) {
+        if self.tx.send(Command::ProcessingFinished { lane }).is_err() {
             warn!("Transcription coordinator channel closed");
         }
+    }
+
+    pub fn notify_processing_finished(&self) {
+        self.notify_processing_finished_for(None);
     }
 }
 
@@ -1394,6 +1705,79 @@ impl TranscriptionCoordinator {
 /// badge can never get stuck on; the gate never blocks it.
 fn command_modifier_badge_publishable(active: bool, stream_live: bool) -> bool {
     !active || stream_live
+}
+
+/// v1.6.2 W1-L2: where one lifecycle input routes in the multi-session
+/// coordinator. The design decision this table encodes (operator decision
+/// D2, per-lane session records rather than per-lane binding ids):
+///
+/// * Every companion connection owns its session independently - a press
+///   from lane L routes to LANE L's machine whatever any other lane is
+///   doing, so two phones can record simultaneously and one phone's
+///   press/stop/finalize never touches another's session (KB-110).
+/// * The ONE surviving cross-source rule: a local recording and a
+///   companion recording never coexist. The Mac's paste surface, overlay,
+///   and tray are singletons, so a companion press while the KEYBOARD
+///   records is swallowed with the busy notice (exactly the pre-v1.6.2
+///   arbitration, now scoped to the local session only), and a keyboard
+///   press while ANY lane records is swallowed the same way.
+/// * The pp hotkey keeps its v1.6.0 W1-L7 semantics: pressed while a
+///   companion session is live (and no local session is), it upgrades that
+///   session's post-process mode instead of competing with it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum InputRoute {
+    /// The keyboard machine (keyboard/signal bindings, and every release).
+    Keyboard,
+    /// The lane's own machine.
+    Lane(u64),
+    /// Swallowed with the busy notice (cross-source protection).
+    Busy,
+    /// The pp hotkey upgrades the most recent live companion session.
+    ToggleLanePostProcess(u64),
+}
+
+/// The pure routing decision for one input, from the cross-session facts
+/// the thread observes before dispatching. Exhaustively classified by
+/// test (see `input_routing_is_exhaustively_classified`).
+fn route_input(
+    input: &InputEvent,
+    keyboard_recording: bool,
+    any_lane_recording: bool,
+    most_recent_live_lane: Option<u64>,
+) -> InputRoute {
+    // Companion edges (a lane is always present on real phone edges;
+    // lane-less companion bindings are the unit-test singles, which keep
+    // the pre-v1.6.2 single-machine behavior).
+    if let Some(lane) = input.companion_lane {
+        if input.is_pressed && keyboard_recording {
+            return InputRoute::Busy;
+        }
+        return InputRoute::Lane(lane);
+    }
+    // Keyboard/signal edges.
+    if input.is_pressed && any_lane_recording {
+        if input.binding_id == POST_PROCESS_BINDING_ID {
+            if keyboard_recording {
+                // The keyboard machine's own Recording arm toggles the
+                // LOCAL session (as it always has).
+                return InputRoute::Keyboard;
+            }
+            if let Some(lane) = most_recent_live_lane {
+                return InputRoute::ToggleLanePostProcess(lane);
+            }
+        }
+        return InputRoute::Busy;
+    }
+    InputRoute::Keyboard
+}
+
+/// v1.6.2 W1-L2: stamp the producing lane on a lane machine's Stop effect,
+/// so the executor can hand the stopping session's identity to the shared
+/// pipeline. Start effects already carry the lane from the input.
+fn tag_stop_effect_lane(effect: &mut Effect, lane: u64) {
+    if let Effect::Stop { companion_lane, .. } = effect {
+        *companion_lane = Some(lane);
+    }
 }
 
 /// v1.6.0 W1-L7: the mode an in-session pp-hotkey press flips the session
@@ -1448,20 +1832,19 @@ pub(crate) fn post_process_badge_payload(
 /// chip naming the selected template; the off edge carries no name. Shared
 /// by the coordinator's badge notifications and the selection-change
 /// refresh, so every emitter resolves the name from the same settings.
-pub(crate) fn emit_post_process_badge(app: &AppHandle, active: bool) {
+pub(crate) fn emit_post_process_badge(app: &AppHandle, active: bool) -> Result<(), String> {
     use tauri::Emitter;
     let template = if active {
         crate::settings::get_settings(app).selected_post_process_prompt_name()
     } else {
         None
     };
-    if let Err(e) = app.emit_to(
+    app.emit_to(
         "recording_overlay",
         POST_PROCESS_BADGE_EVENT,
         post_process_badge_payload(active, template.as_deref()),
-    ) {
-        warn!("Failed to emit {POST_PROCESS_BADGE_EVENT}: {e}");
-    }
+    )
+    .map_err(|e| format!("failed to emit {POST_PROCESS_BADGE_EVENT}: {e}"))
 }
 
 /// v1.6.0 W1-L7 review fix: refresh a LIT PP badge after anything changed
@@ -1473,13 +1856,17 @@ pub(crate) fn emit_post_process_badge(app: &AppHandle, active: bool) {
 /// the stop pipeline resolves the selection at run time, so a live
 /// post-process session must hear the change; a dark badge stays dark (no
 /// live session is consuming templates, and the next session's start arm
-/// lights it fresh).
-pub(crate) fn refresh_lit_post_process_badge(app: &AppHandle) {
+/// lights it fresh). KB-242: the emit's failure is returned so the
+/// settings commands that changed what the badge names can report it
+/// (Ok when no session is lit or no coordinator exists - nothing to
+/// refresh).
+pub(crate) fn refresh_lit_post_process_badge(app: &AppHandle) -> Result<(), String> {
     if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
         if coordinator.is_session_post_process_active() {
-            emit_post_process_badge(app, true);
+            return emit_post_process_badge(app, true);
         }
     }
+    Ok(())
 }
 
 fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
@@ -1490,44 +1877,51 @@ fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
             companion_prefs,
             companion_lane,
         } => {
-            // The session's prefs and lane are applied HERE, on the
-            // coordinator's single serialized thread, at the instant this
-            // start is committed and BEFORE start()'s multi-millisecond
-            // preamble - not read back from shared slots inside
-            // on_session_changed after the preamble. A concurrent press
-            // from another phone is queued behind this command, so it can
-            // only arm the NEXT session; the arm-to-freeze window is gone.
-            // The lane id (server-assigned per connection) is what the
-            // stop pipeline's phone-target delivery resolves minutes
-            // later, so a hello claiming the session-device name or a
-            // same-name connection during the transcription window cannot
-            // redirect the transcript to another phone.
-            if let Some(prefs) = companion_prefs {
-                crate::companion::begin_session_prefs(app, prefs);
-            }
+            // The session's identity is applied HERE, on the coordinator's
+            // single serialized thread, at the instant this start is
+            // committed and BEFORE start()'s multi-millisecond preamble -
+            // not read back from shared slots inside the action after the
+            // preamble. v1.6.2 W1-L2: the per-lane session record (device
+            // name + prefs) freezes under the lane the starting edge
+            // carried; a concurrent press from another phone is queued
+            // behind this command and starts its OWN session, so nothing
+            // can retarget this one's delivery or attribution later.
             if let Some(lane) = companion_lane {
-                crate::companion::begin_session_lane(app, lane);
+                crate::companion::begin_session(app, lane, companion_prefs.unwrap_or_default());
+            } else {
+                // Multi-phone review fix: the starting slot must be fresh
+                // for EVERY start. begin_session is the only other writer,
+                // so without this clear the slot held the last phone
+                // session's lane and a keyboard start read a stale lane
+                // (inert only because every consumer re-checks the source,
+                // and a lie against the accessor's documented contract).
+                crate::companion::clear_starting_session(app);
             }
-            let started = start(app, &binding_id, &hotkey_string);
+            let started = start(app, &binding_id, &hotkey_string, companion_lane);
             state.on_start_result(&binding_id, started);
+            // A lane whose start never began recording leaves no session
+            // record behind (a later session on the same lane starts
+            // clean, and the disconnect-finalize decision reads nothing).
+            if let Some(lane) = companion_lane {
+                if !started {
+                    crate::companion::discard_session(app, lane);
+                }
+            }
             // v1.6.0 W1-L7: a session that actually began recording gets
             // its post-process mode resolved HERE, at the single moment
             // every fact is known (the binding, the companion prefs the
-            // Start effect applied just above, the master toggle), and the
-            // resolved mode is
-            // what the stop pipeline's override reads - the master toggle
-            // is never re-read at stop, so flipping it mid-session cannot
-            // make the badge lie in either direction (a lit-badge session
-            // shipping after a global disable, or a dark-badge session
-            // silently post-processing). Some(false) for a session that
-            // will not post-process is the same no-badge state as the old
-            // None, but frozen. A failed start already cleared it through
-            // the rollback above.
+            // Start effect carried, the master toggle), and the resolved
+            // mode is what the stop pipeline's override reads - the master
+            // toggle is never re-read at stop, so flipping it mid-session
+            // cannot make the badge lie in either direction. Some(false)
+            // for a session that will not post-process is the same
+            // no-badge state as the old None, but frozen. A failed start
+            // already cleared it through the rollback above.
             if started {
                 state.set_session_post_process(Some(started_session_post_processes(
                     binding_id == POST_PROCESS_BINDING_ID,
                     binding_id == COMPANION_BINDING_ID,
-                    crate::companion::session_prefs(app).post_process,
+                    companion_prefs.is_some_and(|p| p.post_process),
                     crate::settings::get_settings(app).post_process_enabled,
                 )));
             }
@@ -1535,7 +1929,19 @@ fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
         Effect::Stop {
             binding_id,
             hotkey_string,
-        } => stop(app, &binding_id, &hotkey_string),
+            companion_lane,
+        } => {
+            // v1.6.2 W1-L2: hand the stopping session's identity to the
+            // shared pipeline BEFORE its first synchronous step reads it
+            // (the same serialized handoff-at-commit discipline as the
+            // Start arm above; keyboard stops carry no lane and clear the
+            // slot so a stale companion identity can never bleed into a
+            // keyboard pipeline).
+            if let Some(lane) = companion_lane {
+                crate::companion::note_stopping_session(app, lane);
+            }
+            stop(app, &binding_id, &hotkey_string)
+        }
         Effect::NotifyCommandIdle => {
             // KB-038: this used to be a bare "command-mode-no-session" emit
             // the main window alone listened for; it now rides the same
@@ -1608,13 +2014,30 @@ fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
                 detail,
             );
         }
-        Effect::PostProcessModeChanged { active } => emit_post_process_badge(app, active),
+        Effect::PostProcessModeChanged { active } => {
+            // KB-242: fallible emit, but the session lifecycle has no
+            // caller to hand the error to - it stays a warn like before.
+            if let Err(e) = emit_post_process_badge(app, active) {
+                warn!("{e}");
+            }
+        }
     }
 }
 
 /// Execute a start effect; returns whether recording actually began, so the
 /// state machine can roll back its optimistic transition on failure.
-fn start(app: &AppHandle, binding_id: &str, hotkey_string: &str) -> bool {
+/// v1.6.2 fleet pass 2: the success probe is scoped to THIS session - the
+/// lane's own recorder for a companion start, the local machine alone for
+/// a keyboard start. The folded is_recording() mirror stays true while any
+/// OTHER lane records, which reported a failed start as started and
+/// skipped the rollback (the machine then wedged in Recording with a dead
+/// session record, swallowing that phone's next edges).
+fn start(
+    app: &AppHandle,
+    binding_id: &str,
+    hotkey_string: &str,
+    companion_lane: Option<u64>,
+) -> bool {
     let Some(action) = ACTION_MAP.get(binding_id) else {
         warn!("No action in ACTION_MAP for '{binding_id}'");
         return false;
@@ -1622,7 +2045,10 @@ fn start(app: &AppHandle, binding_id: &str, hotkey_string: &str) -> bool {
     action.start(app, binding_id, hotkey_string);
     let recording = app
         .try_state::<Arc<AudioRecordingManager>>()
-        .is_some_and(|a| a.is_recording());
+        .is_some_and(|a| match companion_lane {
+            Some(lane) => a.lane_is_recording(lane),
+            None => a.local_is_recording(),
+        });
     if !recording {
         debug!("Start for '{binding_id}' did not begin recording; staying idle");
     }
@@ -1847,11 +2273,11 @@ mod tests {
     /// The executor half of the prefs handoff, pinned against this
     /// committed source (the emit arms need a Tauri AppHandle a unit test
     /// cannot mount, the same convention as the badge wiring pin): the
-    /// Start effect applies the carried prefs through the companion seam
-    /// BEFORE start()'s preamble runs, and never reads the shared pending
-    /// slot back.
+    /// Start effect applies the carried identity (lane + prefs, one
+    /// per-lane session record) through the companion seam BEFORE start()'s
+    /// preamble runs, and never reads the shared pending slot back.
     #[test]
-    fn start_effect_applies_carried_prefs_before_the_preamble() {
+    fn start_effect_applies_carried_identity_before_the_preamble() {
         let source = include_str!("transcription_coordinator.rs");
         let run_effect_at = source.find("fn run_effect").expect("run_effect");
         let start_arm_at = run_effect_at
@@ -1864,22 +2290,81 @@ mod tests {
                 .expect("the arm boundary");
         let start_arm = &source[start_arm_at..start_arm_end];
         let apply_at = start_arm
-            .find("begin_session_prefs(app, prefs);")
-            .expect("the Start arm applies carried prefs through the companion seam");
-        let lane_at = start_arm
-            .find("begin_session_lane(app, lane);")
-            .expect("the Start arm freezes the carried lane through the companion seam");
+            .find("crate::companion::begin_session(")
+            .expect("the Start arm freezes the carried lane+prefs through the companion seam");
         let preamble_at = start_arm
             .find("start(app, &binding_id")
             .expect("the start preamble call");
         assert!(
-            apply_at < preamble_at && lane_at < preamble_at,
-            "carried prefs and lane must be applied BEFORE the start preamble: applying them after reopens the arm-to-freeze window the fix closes"
+            apply_at < preamble_at,
+            "carried identity must be applied BEFORE the start preamble: applying it after reopens the arm-to-freeze window the fix closes"
         );
         assert!(
             !start_arm.contains("pending_session_prefs")
-                && !start_arm.contains("session_device_name"),
-            "the Start effect must never read the shared pending slot or the claimable session-device name back: another connection can write them concurrently"
+                && !start_arm.contains("set_pending_session_prefs"),
+            "the Start effect must never read the shared pending slot back: another connection can write it concurrently"
+        );
+    }
+
+    /// Fleet pass 2: the start-success probe is scoped to the STARTING
+    /// session. The folded is_recording() mirror stays true while any
+    /// OTHER lane records, which reported a failed lane start as started,
+    /// skipped the rollback, and wedged that phone's machine in Recording
+    /// with a dead session record (its next edges then swallowed as
+    /// key-held or a phantom zero-audio stop). Source pin: the probe needs
+    /// the audio manager's AppHandle.
+    #[test]
+    fn start_success_probe_is_scoped_to_the_starting_session() {
+        let source = include_str!("transcription_coordinator.rs");
+        // The definition (a leading newline so this pin's own text can
+        // never match itself), through the next executor fn.
+        let at = source.find("\nfn start(").expect("the start executor");
+        let end = at + source[at..].find("\nfn stop(").expect("fn end");
+        let body = &source[at..end];
+        assert!(
+            body.contains("companion_lane: Option<u64>"),
+            "the executor carries the starting session's lane"
+        );
+        assert!(
+            body.contains("a.lane_is_recording(lane)"),
+            "a companion start's success is ITS lane's recorder, not the process fold"
+        );
+        assert!(
+            body.contains("a.local_is_recording()"),
+            "a keyboard start's success is the local machine alone, not the process fold"
+        );
+        assert!(
+            !body.contains("a.is_recording()"),
+            "the folded mirror is true while any other lane records: it must never decide a start's rollback"
+        );
+        // And the Start arm hands the effect's lane to the probe.
+        let run_effect_at = source.find("fn run_effect").expect("run_effect");
+        let start_arm_at = run_effect_at
+            + source[run_effect_at..]
+                .find("Effect::Start {")
+                .expect("the Start arm");
+        assert!(
+            source[start_arm_at..]
+                .contains("start(app, &binding_id, &hotkey_string, companion_lane)"),
+            "the Start effect must pass its carried lane into the scoped probe"
+        );
+        // Multi-phone review pin: the starting slot is written for EVERY
+        // start. The companion arm freezes the lane (begin_session); the
+        // keyboard arm clears it, so the shared action's
+        // starting_session_lane read is never the LAST phone session's
+        // stale lane.
+        let start_arm_end = start_arm_at
+            + source[start_arm_at..]
+                .find("Effect::Stop {")
+                .expect("the Stop arm");
+        let start_arm = &source[start_arm_at..start_arm_end];
+        assert!(
+            start_arm.contains("crate::companion::begin_session("),
+            "a companion start freezes its lane into the starting slot"
+        );
+        assert!(
+            start_arm.contains("crate::companion::clear_starting_session(app);"),
+            "a keyboard start clears the starting slot; the accessor's None-for-keyboard contract must hold after any phone session"
         );
     }
 
@@ -2918,7 +3403,10 @@ mod tests {
             "started_session_post_processes(",
             "binding_id == POST_PROCESS_BINDING_ID",
             "binding_id == COMPANION_BINDING_ID",
-            "session_prefs(app).post_process",
+            // v1.6.2 W1-L2: the companion pref arrives ON the Start effect
+            // (the same prefs begin_session froze per lane), never read
+            // back from a shared slot.
+            "companion_prefs.is_some_and(|p| p.post_process)",
             "post_process_enabled",
             "state.set_session_post_process(Some(started_session_post_processes(",
         ] {
@@ -3538,6 +4026,470 @@ the badge lie (dark-badge session silently post-processing at stop)"
     }
 
     // ---------------------------------------------------------------------
+    // v1.6.2 W1-L2: true multi-phone sessions. One CoordinatorState per
+    // lane (plus the keyboard machine), the pure routing table that
+    // dispatches inputs to them, and the lane-stamping of lane machines'
+    // Stop effects - the seams the thread loop drives.
+    // ---------------------------------------------------------------------
+
+    /// The exhaustive classification of the input routing table (operator
+    /// decision D2): every combination of {companion edge with a lane,
+    /// keyboard press, pp-hotkey press, release} x {keyboard recording,
+    /// any lane recording, most-recent-live-lane present} lands on exactly
+    /// one deliberate arm. Two phones never arbitrate against each other
+    /// (each routes to its own lane machine - KB-110 dies by
+    /// construction); the one surviving cross-source rule protects the
+    /// local session in both directions; the pp hotkey keeps upgrading a
+    /// live companion session instead of competing with it.
+    #[test]
+    fn input_routing_is_exhaustively_classified() {
+        use InputRoute::*;
+        let lane_a = 7u64;
+        let lane_b = 9u64;
+
+        // (input, keyboard_recording, any_lane_recording, most_recent_live_lane)
+        let cases: Vec<(InputEvent, bool, bool, Option<u64>, InputRoute)> = vec![
+            // A companion press with no local session recording: the
+            // phone's OWN machine, whatever any other phone does. This is
+            // the multi-phone heart - a second phone's live session does
+            // not arbitrate the first's press (KB-110).
+            (
+                companion_edge_with_identity(true, ShortcutActivation::Toggle, None, Some(lane_a)),
+                false,
+                false,
+                None,
+                Lane(lane_a),
+            ),
+            (
+                companion_edge_with_identity(
+                    true,
+                    ShortcutActivation::PushToTalk,
+                    None,
+                    Some(lane_a),
+                ),
+                false,
+                true,
+                Some(lane_b),
+                Lane(lane_a),
+            ),
+            // A companion RELEASE always routes to its lane (a lane whose
+            // press was swallowed has no session; its machine no-ops the
+            // release - routing it elsewhere would strand the edge).
+            (
+                companion_edge_with_identity(false, ShortcutActivation::Toggle, None, Some(lane_a)),
+                false,
+                false,
+                None,
+                Lane(lane_a),
+            ),
+            // A companion press while the KEYBOARD records is the one
+            // cross-source rule: swallowed with the busy notice (the
+            // Mac's paste surface and overlay are singletons), exactly
+            // the pre-v1.6.2 arbitration, now scoped to the local session.
+            (
+                companion_edge_with_identity(true, ShortcutActivation::Toggle, None, Some(lane_a)),
+                true,
+                false,
+                None,
+                Busy,
+            ),
+            // A keyboard press while any lane records: swallowed with the
+            // busy notice (the symmetric half of the same rule).
+            (
+                keyboard_edge(BINDING, true),
+                false,
+                true,
+                Some(lane_a),
+                Busy,
+            ),
+            // The pp hotkey while a lane records (and no local session):
+            // it upgrades that session's post-process mode instead of
+            // competing - v1.6.0 W1-L7 preserved for multi-phone.
+            (
+                keyboard_edge(POST_PROCESS_BINDING_ID, true),
+                false,
+                true,
+                Some(lane_b),
+                ToggleLanePostProcess(lane_b),
+            ),
+            // The pp hotkey while the KEYBOARD itself records routes to
+            // the keyboard machine (whose own arm toggles it, as ever).
+            (
+                keyboard_edge(POST_PROCESS_BINDING_ID, true),
+                true,
+                true,
+                Some(lane_b),
+                Keyboard,
+            ),
+            // No lane recording: everything keyboard-side routes home,
+            // pp included (it starts its own session as always).
+            (keyboard_edge(BINDING, true), false, false, None, Keyboard),
+            (
+                keyboard_edge(POST_PROCESS_BINDING_ID, true),
+                false,
+                false,
+                None,
+                Keyboard,
+            ),
+            // Releases always route home (the machine resolves them).
+            (
+                keyboard_edge(BINDING, false),
+                false,
+                true,
+                Some(lane_a),
+                Keyboard,
+            ),
+        ];
+        for (input, kb_rec, any_lane, recent, expected) in cases {
+            assert_eq!(
+                route_input(&input, kb_rec, any_lane, recent),
+                expected,
+                "input for '{}' (pressed={}, lane={:?}) with keyboard_recording={} any_lane_recording={} recent={:?}",
+                input.binding_id,
+                input.is_pressed,
+                input.companion_lane,
+                kb_rec,
+                any_lane,
+                recent,
+            );
+        }
+
+        // Exhaustive over the FULL cross-product of the routing inputs (a
+        // hand-picked case list can drift; the cross-product cannot): every
+        // combination of {lane present, pressed, binding, keyboard
+        // recording, any lane recording, most-recent-live-lane} lands on
+        // one of the four arms, every arm stays reachable, and the
+        // structural invariants hold for every combination.
+        let mut seen_routes: std::collections::HashSet<InputRoute> =
+            std::collections::HashSet::new();
+        for lane_present in [false, true] {
+            for pressed in [false, true] {
+                for binding in [BINDING, POST_PROCESS_BINDING_ID, COMPANION_BINDING] {
+                    for kb_rec in [false, true] {
+                        for any_lane in [false, true] {
+                            for recent in [None, Some(lane_a), Some(lane_b)] {
+                                // A real companion edge ALWAYS carries the
+                                // companion binding (send_companion_edge is
+                                // its only producer); the binding loop
+                                // matters for the keyboard half of the
+                                // cross-product.
+                                let effective_binding = if lane_present {
+                                    COMPANION_BINDING
+                                } else {
+                                    binding
+                                };
+                                let input = InputEvent {
+                                    binding_id: effective_binding.to_string(),
+                                    hotkey_string: "test".to_string(),
+                                    is_pressed: pressed,
+                                    mode: ShortcutActivation::Toggle,
+                                    hold_threshold: Duration::from_millis(300),
+                                    external: false,
+                                    companion_prefs: None,
+                                    companion_lane: lane_present.then_some(lane_a),
+                                };
+                                let route = route_input(&input, kb_rec, any_lane, recent);
+                                seen_routes.insert(route);
+                                match route {
+                                    InputRoute::Lane(routed) => {
+                                        assert_eq!(
+                                            routed, lane_a,
+                                            "a companion edge routes to ITS OWN lane"
+                                        );
+                                        assert!(
+                                            lane_present,
+                                            "a lane route requires a lane on the edge"
+                                        );
+                                        assert!(
+                                            !pressed || !kb_rec,
+                                            "a press while the keyboard records is swallowed, never routed to the lane"
+                                        );
+                                    }
+                                    InputRoute::Busy => {
+                                        assert!(pressed, "releases are never swallowed");
+                                        assert!(
+                                            kb_rec || any_lane,
+                                            "Busy protects a live session; with nothing recording there is nothing to protect"
+                                        );
+                                        // A companion-lane busy press still
+                                        // names the companion binding so the
+                                        // notice can be forwarded to THAT
+                                        // phone.
+                                        if lane_present {
+                                            assert_eq!(effective_binding, COMPANION_BINDING);
+                                        }
+                                    }
+                                    InputRoute::ToggleLanePostProcess(routed) => {
+                                        assert_eq!(routed, recent.unwrap());
+                                        assert_eq!(binding, POST_PROCESS_BINDING_ID);
+                                        assert!(pressed);
+                                        assert!(!kb_rec && any_lane);
+                                    }
+                                    InputRoute::Keyboard => {
+                                        if pressed && any_lane {
+                                            // The only press that reaches the
+                                            // keyboard machine while a lane
+                                            // records is the pp hotkey
+                                            // toggling the LOCAL session.
+                                            assert!(binding == POST_PROCESS_BINDING_ID && kb_rec);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Every arm is reachable (a dead arm means the table and the tests
+        // have drifted apart).
+        for arm in [
+            InputRoute::Keyboard,
+            InputRoute::Lane(lane_a),
+            InputRoute::Busy,
+            InputRoute::ToggleLanePostProcess(lane_b),
+        ] {
+            assert!(
+                seen_routes.contains(&arm),
+                "the routing arm {arm:?} must stay reachable"
+            );
+        }
+    }
+
+    fn keyboard_edge(binding: &str, pressed: bool) -> InputEvent {
+        InputEvent {
+            binding_id: binding.to_string(),
+            hotkey_string: binding.to_string(),
+            is_pressed: pressed,
+            mode: ShortcutActivation::Toggle,
+            hold_threshold: Duration::from_millis(300),
+            external: false,
+            companion_prefs: None,
+            companion_lane: None,
+        }
+    }
+
+    /// The multi-session seam the thread loop implements, driven here as
+    /// two lane machines plus the keyboard machine (the exact structures
+    /// the loop owns): two connections each with a LIVE session, an
+    /// independent stop for one, and one phone's finalize (its socket
+    /// died) not affecting the other (KB-110/KB-111 die by construction -
+    /// no shared binding, no shared machine state).
+    #[test]
+    fn two_lanes_each_hold_a_live_session_with_independent_stops() {
+        let t0 = Instant::now();
+        let keyboard = CoordinatorState::new();
+        let mut lane_a = CoordinatorState::new();
+        let mut lane_b = CoordinatorState::new();
+
+        // Both phones press; the thread routes each edge to its own
+        // machine, and BOTH machines hold live Recording sessions at once.
+        assert!(matches!(
+            lane_a.on_input(
+                companion_edge_with_identity(true, ShortcutActivation::Toggle, None, Some(7)),
+                t0
+            ),
+            Some(Effect::Start {
+                companion_lane: Some(7),
+                ..
+            })
+        ));
+        assert!(matches!(
+            lane_b.on_input(
+                companion_edge_with_identity(true, ShortcutActivation::Toggle, None, Some(9)),
+                t0 + Duration::from_millis(50)
+            ),
+            Some(Effect::Start {
+                companion_lane: Some(9),
+                ..
+            })
+        ));
+        assert!(matches!(lane_a.stage, Stage::Recording(_)));
+        assert!(matches!(lane_b.stage, Stage::Recording(_)));
+
+        // Phone A's second tap stops exactly A's session; the thread tags
+        // the Stop effect with A's lane for the pipeline handoff.
+        let mut stop_effect = lane_a
+            .on_input(
+                companion_edge_with_identity(true, ShortcutActivation::Toggle, None, Some(7)),
+                t0 + Duration::from_secs(2),
+            )
+            .expect("A's locked session ends on the next press");
+        tag_stop_effect_lane(&mut stop_effect, 7);
+        assert!(matches!(
+            stop_effect,
+            Effect::Stop {
+                companion_lane: Some(7),
+                ..
+            }
+        ));
+        assert!(matches!(lane_a.stage, Stage::Processing));
+        // B's session never noticed.
+        assert!(
+            matches!(lane_b.stage, Stage::Recording(_)),
+            "one phone's stop must not end the other's session (KB-110)"
+        );
+
+        // Phone B's socket dies: the thread finalizes B's machine. A's
+        // (already drained) machine and the keyboard machine are untouched.
+        assert!(matches!(
+            lane_b.on_finalize_companion(),
+            Some(Effect::Stop { .. })
+        ));
+        assert!(matches!(lane_b.stage, Stage::Processing));
+        assert!(matches!(lane_a.stage, Stage::Processing));
+        assert!(matches!(keyboard.stage, Stage::Idle));
+
+        // The per-lane drains: A's pipeline finishing starts A's remembered
+        // press (not B's); B's finishing starts nothing.
+        assert!(matches!(
+            lane_a.on_input(
+                companion_edge_with_identity(true, ShortcutActivation::Toggle, None, Some(7)),
+                t0 + Duration::from_secs(4)
+            ),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
+        assert!(matches!(
+            lane_a.on_processing_finished(),
+            Some(Effect::Start {
+                companion_lane: Some(7),
+                ..
+            })
+        ));
+        assert!(lane_b.on_processing_finished().is_none());
+    }
+
+    /// Fleet pass 1, grace-path twin of the tagging pinned above: a hold
+    /// mode's FIRST release is deferred (classify_ptt_event), and the
+    /// coordinator loop resolves it 50 ms later in expire_due_graces - the
+    /// ONE lane-machine run_effect site that is not a direct input path.
+    /// Its Stop effect must leave that arm carrying the producing lane,
+    /// exactly like every direct input path: untagged, the executor skips
+    /// note_stopping_session, the lane's session record stays live, the
+    /// recorder is never stopped, and the machine wedges in Processing.
+    #[test]
+    fn a_lane_grace_expired_release_stops_with_the_lane_tagged() {
+        let t0 = Instant::now();
+        let mut lane = CoordinatorState::new();
+
+        // Push-to-talk press starts the lane's session...
+        assert!(matches!(
+            lane.on_input(
+                companion_edge_with_identity(true, ShortcutActivation::PushToTalk, None, Some(7)),
+                t0
+            ),
+            Some(Effect::Start {
+                companion_lane: Some(7),
+                ..
+            })
+        ));
+        // ...and the hold-to-stop release is DEFERRED (auto-repeat guard),
+        // not resolved inline.
+        assert!(lane
+            .on_input(
+                companion_edge_with_identity(false, ShortcutActivation::PushToTalk, None, Some(7)),
+                t0 + Duration::from_secs(2)
+            )
+            .is_none());
+        assert!(lane.grace_deadline().is_some(), "the release is pending");
+
+        // The loop's timeout arm resolves it. The raw effect is untagged
+        // (begin_processing cannot know the lane); the loop's expire arm
+        // stamps it, so what reaches run_effect carries companion_lane.
+        let mut effect = lane
+            .on_grace_expired()
+            .expect("the grace-expired hold stops the session");
+        tag_stop_effect_lane(&mut effect, 7);
+        assert!(matches!(
+            effect,
+            Effect::Stop {
+                companion_lane: Some(7),
+                ..
+            }
+        ));
+        assert!(matches!(lane.stage, Stage::Processing));
+    }
+
+    /// The source-level pin for the same fix: the expire_due_graces lane
+    /// loop (the only lane-machine run_effect site outside the direct
+    /// input paths) must call tag_stop_effect_lane on the effect before
+    /// run_effect. The behavioral test above proves the raw effect is
+    /// untagged; this pin holds the production loop to the tagging the
+    /// behavioral test models (same convention as the Start-arm pin).
+    #[test]
+    fn expire_due_graces_tags_lane_stop_effects_before_run_effect() {
+        let source = include_str!("transcription_coordinator.rs");
+        let expire_at = source
+            .find("let expire_due_graces =")
+            .expect("the expire_due_graces closure");
+        let expire_end = expire_at
+            + source[expire_at..]
+                .find("// Track the most-recent-live-lane")
+                .expect("the closure boundary");
+        let expire_arm = &source[expire_at..expire_end];
+        let lane_loop_at = expire_arm
+            .find("lanes.iter_mut()")
+            .expect("the lane loop carries its keys so it can tag");
+        let run_effect_at = expire_arm[lane_loop_at..]
+            .find("run_effect(")
+            .expect("the lane loop runs the expired effect");
+        let tag_at = expire_arm[lane_loop_at..]
+            .find("tag_stop_effect_lane(&mut effect")
+            .expect("the lane loop tags the expired Stop effect");
+        assert!(
+            tag_at < run_effect_at,
+            "expire_due_graces must tag a lane's grace-expired effect with its lane BEFORE run_effect: an untagged Stop skips note_stopping_session and wedges the lane machine in Processing"
+        );
+    }
+
+    /// The cross-source rule through the real machines: a companion press
+    /// while the KEYBOARD records is swallowed by the ROUTER (the busy
+    /// notice), never reaching the lane machine - so the lane's own state
+    /// stays clean for the press that comes after the keyboard session
+    /// ends (no phantom remembered press, no stranded recording).
+    #[test]
+    fn a_companion_press_while_the_keyboard_records_never_reaches_the_lane_machine() {
+        let t0 = Instant::now();
+        let mut keyboard = CoordinatorState::new();
+        let mut lane = CoordinatorState::new();
+
+        assert!(matches!(
+            keyboard.on_input(keyboard_edge(BINDING, true), t0),
+            Some(Effect::Start { .. })
+        ));
+
+        // The router's decision for the phone's press: Busy (the thread
+        // runs the notice on the keyboard machine and drops the edge).
+        let phone_press =
+            companion_edge_with_identity(true, ShortcutActivation::PushToTalk, None, Some(4));
+        assert_eq!(
+            route_input(&phone_press, true, false, None),
+            InputRoute::Busy
+        );
+        // The lane machine never saw the edge: no session, no remembered
+        // press, no hold bookkeeping.
+        assert!(matches!(lane.stage, Stage::Idle));
+        assert!(lane.pending_press.is_none());
+
+        // The keyboard session ends, and the phone's NEXT press starts its
+        // own session cleanly (the thread now routes it to the lane).
+        assert!(matches!(
+            keyboard.on_input(keyboard_edge(BINDING, true), t0 + Duration::from_secs(1)),
+            Some(Effect::Stop { .. })
+        ));
+        assert!(matches!(
+            lane.on_input(
+                companion_edge_with_identity(true, ShortcutActivation::PushToTalk, None, Some(4)),
+                t0 + Duration::from_secs(2)
+            ),
+            Some(Effect::Start {
+                companion_lane: Some(4),
+                ..
+            })
+        ));
+    }
+
+    // ---------------------------------------------------------------------
     // Hold-or-toggle (the combined mode from #147) and the two legacy modes,
     // driven through the real machine on a synthetic clock. Recording starts
     // on key-down in every mode; the tests pin how each mode ends it.
@@ -4087,5 +5039,67 @@ the badge lie (dark-badge session silently post-processing at stop)"
             "nothing remembered: the drain must land on idle"
         );
         assert_eq!(state.stage, Stage::Idle);
+    }
+
+    /// Fleet pass, source pin: Command::Cancel's machine teardown is scoped
+    /// to the SAME target the audio side's cancel_recording resolved -
+    /// exactly the cancelled lane's machine, or the keyboard machine for a
+    /// local / no-target resolution. The arm's old shape fanned
+    /// `for machine in lanes.values_mut() { machine.on_cancel(...) }` over
+    /// EVERY lane while the audio teardown removes exactly one target's
+    /// recorder: with two phones recording, one Escape stranded the other
+    /// phone's machine at Idle while its recorder kept recording and its
+    /// session record stayed live - the next stop-tap then hit "Already
+    /// recording", rolled back through discard_session, and silently threw
+    /// away the whole dictation while the recording surfaces stayed wedged
+    /// until a second manual Escape. The coordinator thread needs a channel
+    /// and an AppHandle, so the arm is pinned against this committed source
+    /// (the convention above).
+    #[test]
+    fn cancel_command_teardown_follows_the_resolved_target() {
+        let source = include_str!("transcription_coordinator.rs");
+        let arm_at = source
+            .find("Command::Cancel {")
+            .expect("the Cancel command arm");
+        let arm_end = arm_at
+            + source[arm_at..]
+                .find("Command::ProcessingFinished")
+                .expect("the next arm");
+        let arm = &source[arm_at..arm_end];
+        assert!(
+            !arm.contains("for machine in lanes.values_mut()"),
+            "a cancel must never reset every lane machine: the audio teardown resolves exactly one target"
+        );
+        assert!(
+            arm.contains("Some(lane) =>")
+                && arm.contains("if let Some(machine) = lanes.get_mut(&lane)"),
+            "a lane-resolved cancel resets exactly that lane's machine"
+        );
+        assert!(
+            arm.contains("None => keyboard.on_cancel(recording_was_active)"),
+            "a local or no-target resolution resets the keyboard machine only"
+        );
+
+        // Both production callers must forward the resolution they made.
+        let utils = include_str!("utils.rs");
+        let fn_at = utils
+            .find("pub fn cancel_current_operation")
+            .expect("cancel_current_operation");
+        let body_end = fn_at + utils[fn_at..].find("\n}\n").expect("fn end");
+        assert!(
+            utils[fn_at..body_end]
+                .contains("coordinator.notify_cancel(recording_was_active, cancel_session_key);"),
+            "the Escape route must pass the resolved lane to the coordinator"
+        );
+        let tm = include_str!("managers/transcription.rs");
+        let teardown_at = tm
+            .find("fn handle_hotkey_load_failure")
+            .expect("the model-load-failure teardown");
+        let teardown_end = teardown_at + tm[teardown_at..].find("\n    }\n").expect("fn end");
+        assert!(
+            tm[teardown_at..teardown_end]
+                .contains("coordinator.notify_cancel(recording_was_active, cancel_session_key);"),
+            "the model-load-failure teardown must pass the resolved lane too"
+        );
     }
 }

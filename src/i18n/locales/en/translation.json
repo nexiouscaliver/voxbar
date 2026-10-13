@@ -36,13 +36,13 @@
     "output": "Output",
     "advanced": "Advanced",
     "postProcessing": "Post Process",
-    "addonsGroup": "Add-ons",
     "enableInAdvancedHint": "Enable in Advanced",
     "history": "History",
     "debug": "Debug",
     "about": "About",
     "notifications": "Notifications",
-    "promptStudio": "Prompt Studio"
+    "promptStudio": "Prompt Studio",
+    "addonsGroup": "Add-ons"
   },
   "onboarding": {
     "subtitle": "To get started, choose a transcription model",
@@ -316,7 +316,6 @@
       "searchPlaceholder": "Search commands",
       "resetAll": "Reset all commands",
       "resetRow": "Reset to default",
-      "defaultPhrasesNote": "Default phrases are the English words the recognizer listens for, plus built-in Hindi and Chinese aliases. Add your own phrase in any language on any row.",
       "addPhrase": "Add",
       "removePhrase": "Remove {{phrase}}",
       "placeholder": "Add a phrase",
@@ -376,7 +375,8 @@
         "clearAll": "Clears the whole dictation",
         "undo": "Runs undo in the focused app",
         "paste": "Pastes the clipboard in the focused app"
-      }
+      },
+      "defaultPhrasesNote": "Default phrases are the English words the recognizer listens for, plus built-in Hindi and Chinese aliases. Add your own phrase in any language on any row."
     },
     "search": {
       "placeholder": "Search settings",
@@ -406,7 +406,7 @@
       "addFromHf": {
         "title": "Add model from Hugging Face",
         "description": "Paste a public repo URL or owner/repo, for example https://huggingface.co/owner/repo.",
-        "placeholder": "owner/repo",
+        "placeholder": "https://huggingface.co/owner/repo or owner/repo",
         "add": "Add",
         "cancel": "Cancel",
         "pickFile": "Choose a file from {{repo}}:",
@@ -654,7 +654,7 @@
       },
       "voiceDeletion": {
         "title": "Voice Deletion Commands",
-        "description": "\"scratch that\", \"delete that\" and \"remove that\" delete the previous word, \"delete last three words\" deletes several, and \"delete everything\" or \"start over\" clears the dictation. Turn off to keep these as plain words."
+        "description": "\"scratch that\", \"delete that\" and \"remove that\" delete the previous word, \"delete last three words\" deletes several, and \"delete everything\" or \"scratch everything\" clears the dictation. Turn off to keep these as plain words."
       },
       "previewBeforePaste": {
         "title": "Preview Before Paste",
@@ -671,7 +671,7 @@
       },
       "numberFormat": {
         "title": "Spoken Numbers",
-        "description": "Writes spoken number words as digits, so \"one eight zero one\" pastes as 1801. As Transcribed keeps numbers as spoken; Smart also converts compound ordinals and lone numbers from eleven up.",
+        "description": "Writes spoken number words as digits, so \"one eight zero one\" pastes as 1801. The conversion knows English and Hindi (including Hinglish) number words; other languages keep numbers as spoken. As Transcribed keeps numbers as spoken; Smart also converts compound ordinals and lone numbers from eleven up.",
         "options": {
           "asTranscribed": "As Transcribed",
           "digits": "Digits",
@@ -690,7 +690,6 @@
         "noDevices": "No devices connected yet",
         "resetPairing": "Reset pairing",
         "fingerprintLabel": "Certificate fingerprint (SHA-256)",
-        "fingerprintCopied": "Copied",
         "firewallNote": "macOS may ask to allow incoming connections the first time you enable this. Allow it, or phones cannot reach this Mac.",
         "unavailable": "Companion devices need macOS this cycle.",
         "serverError": "Server failed: {{error}}",
@@ -720,7 +719,8 @@
         "restartButton": "Restart server",
         "restartPending": "Changes apply after a restart",
         "qrPreviewNote": "Preview: this URL is advertised when the server next starts.",
-        "sharedNetworkNote": "The phone and this Mac must share a network: the same Wi-Fi or LAN, or the same tailnet (for example both on Tailscale)."
+        "sharedNetworkNote": "The phone and this Mac must share a network: the same Wi-Fi or LAN, or the same tailnet (for example both on Tailscale).",
+        "fingerprintCopied": "Copied"
       }
     },
     "postProcessing": {
@@ -763,13 +763,13 @@
           "notFetched": "No model list yet.",
           "emptyTitle": "No models listed",
           "emptyHint": "Refresh to load the models this key can see, or type a model id below.",
-          "emptyNoKey": "Enter your API key above, then refresh to load models.",
           "customSet": "Set",
           "customHint": "Any model id your provider offers works, even if it is not listed.",
           "filterPlaceholder": "Filter models",
           "showAll_one": "Show all ({{count}})",
           "showAll_other": "Show all ({{count}})",
-          "showFewer": "Show fewer"
+          "showFewer": "Show fewer",
+          "emptyNoKey": "Enter your API key above, then refresh to load models."
         },
         "timeout": {
           "title": "Request timeout",
@@ -805,7 +805,8 @@
         "providerLabel": "Local (on-device)",
         "keepWarm": {
           "title": "Keep local model warm",
-          "description": "How long the local post-processing model stays in memory after a polish instead of unloading right away. A dictation always takes the memory back first."
+          "description": "How long the local post-processing model stays in memory after a polish instead of unloading right away. A dictation always takes the memory back first.",
+          "off": "Off"
         }
       },
       "models": {
@@ -936,14 +937,12 @@
       "title": "History",
       "openFolder": "Open Recordings Folder",
       "loading": "Loading history...",
-      "emptyTitle": "No transcriptions yet",
-      "emptyHint": "Press your record shortcut to capture your first dictation.",
+      "empty": "No transcriptions yet. Start recording to build your history!",
       "copyToClipboard": "Copy transcription to clipboard",
       "copyError": "Failed to copy transcription to clipboard.",
       "save": "Save transcription",
       "unsave": "Remove from saved",
       "delete": "Delete entry",
-      "deleteConfirm": "Delete this entry? The recording and its transcript will be removed permanently.",
       "deleteError": "Failed to delete entry. Please try again.",
       "retranscribe": "Re-transcribe",
       "retranscribeError": "Failed to re-transcribe. Please try again.",
@@ -960,8 +959,13 @@
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "View changes",
       "hideChanges": "Hide changes",
+      "emptyTitle": "No transcriptions yet",
+      "emptyHint": "Press your record shortcut to capture your first dictation.",
+      "deleteConfirm": "Delete this entry? The recording and its transcript will be removed permanently.",
       "today": "Today",
-      "yesterday": "Yesterday"
+      "yesterday": "Yesterday",
+      "savedToggleError": "Could not update the saved status.",
+      "dbRecoveredNotice": "Your transcription history database was unreadable, so a fresh one was started. The previous database was kept as {{file}}."
     },
     "debug": {
       "title": "Debug",
@@ -981,9 +985,9 @@
         "pause": "Pause",
         "resume": "Resume",
         "copied": "Copied",
-        "clearConfirm": "Clear the captured lines from this view? The log file on disk is kept.",
         "lineCount": "{{count}} lines",
         "empty": "Waiting for logs… Entries appear here as the app emits them.",
+        "clearConfirm": "Clear the captured lines from this view? The log file on disk is kept.",
         "clearConfirmTitle": "Clear captured lines?"
       },
       "updateChecks": {
@@ -1173,7 +1177,7 @@
       },
       "log": {
         "title": "Notification log",
-        "description": "The last 50 error and outcome notices.",
+        "description": "The last 50 error and outcome notices. New entries are recorded only while system notifications are on.",
         "empty": "No notifications yet.",
         "clear": "Clear all"
       }
@@ -1203,7 +1207,6 @@
       "runHint_one": "1 prompt on 1 engine. Nothing is typed or saved.",
       "runHint_other": "{{count}} prompt-engine pairs. Nothing is typed or saved.",
       "running": "Running...",
-      "appliedLabel": "Success",
       "rerun": "Re-run",
       "latency": "{{ms}} ms",
       "rawKept": "The engine failed or skipped, so the raw transcript would be kept.",
@@ -1216,16 +1219,20 @@
         "emptyBatch": "Pick at least one prompt and one engine."
       },
       "diff": {
+        "lines": "lines",
+        "charsChanged_one": "1 char changed",
+        "charsChanged_other": "{{count}} chars changed",
         "identical": "No changes.",
         "added_one": "+{{count}} added",
         "added_other": "+{{count}} added",
         "removed_one": "{{count}} removed",
-        "removed_other": "{{count}} removed",
-        "charsChanged_one": "1 char changed",
-        "charsChanged_other": "{{count}} chars changed"
+        "removed_other": "{{count}} removed"
       },
       "resultsEmptyTitle": "Results will appear here",
-      "resultsEmptyHint": "Pick a source, prompts, and engines above, then run. Each card shows the polished text, its changes, and how fast it ran."
+      "resultsEmptyHint": "Pick a source, prompts, and engines above, then run. Each card shows the polished text, its changes, and how fast it ran.",
+      "appliedLabel": "Success",
+      "cancel": "Cancel",
+      "cancelledCard": "Cancelled before this run started."
     }
   },
   "footer": {
@@ -1273,11 +1280,11 @@
     "loading": "Loading...",
     "delete": "Delete",
     "close": "Close",
-    "cancel": "Cancel",
     "open": "Open",
     "copy": "Copy",
     "clear": "Clear",
-    "noOptionsFound": "No options found"
+    "noOptionsFound": "No options found",
+    "cancel": "Cancel"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar needs accessibility permissions to type transcribed text.",
@@ -1305,7 +1312,9 @@
     "transcriptionFailedTitle": "Transcription Failed",
     "noModelSelectedTitle": "No model selected",
     "noModelSelected": "Pick a transcription model in Settings before dictating.",
-    "openDirectory": "Could not open the folder: {{error}}"
+    "openDirectory": "Could not open the folder: {{error}}",
+    "modelLoadFailedMemoryGate": "Not enough free memory to load {{model}}: it needs about {{needed}}, with about {{free}} free.",
+    "modelLoadFailedDetail": "The model was not changed. The technical reason is in the log file."
   },
   "appLanguage": {
     "title": "Application Language",
@@ -1445,6 +1454,15 @@
     "historyTitle": "Recent",
     "historyEmpty": "Dictations from this phone appear here.",
     "stateMicBlocked": "Mic blocked",
-    "micBlockedRetry": "Mic blocked. Tap to retry"
+    "micBlockedRetry": "Mic blocked. Tap to retry",
+    "zeroAudioHold": "No audio reached the Mac. Hold the button, then speak.",
+    "zeroAudioHoldOrToggle": "No audio reached the Mac. Hold or tap the button, then speak.",
+    "zeroAudioTap": "No audio reached the Mac. Tap the button, then speak.",
+    "holdOrToggleToTalk": "Hold to talk, tap to lock"
+  },
+  "trayCopyOutcome": {
+    "copied": "Copied the transcript to the clipboard.",
+    "empty": "Nothing to copy yet.",
+    "failed": "Could not copy the transcript to the clipboard."
   }
 }

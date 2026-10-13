@@ -23,6 +23,7 @@ import "./App.css";
 import AccessibilityPermissions from "./components/AccessibilityPermissions";
 import SecureInputWarning from "./components/SecureInputWarning";
 import Footer from "./components/footer";
+import { formatMemoryAmount } from "./components/onboarding/modelRefusal";
 import Onboarding, { AccessibilityOnboarding } from "./components/onboarding";
 import {
   DebugSettings,
@@ -51,6 +52,7 @@ import {
   noticeClickSection,
   noticeClickTarget,
   planNoticeDispatch,
+  trayCopyOutcomeDispatch,
 } from "@/lib/noticeRouting";
 import {
   attachNativeNoticeClickSource,
@@ -64,6 +66,7 @@ import {
   initNotificationLog,
   pushNotificationLogEntry,
 } from "@/lib/notificationLog";
+import { postHistoryDbRecoveryNoticeOnce } from "@/lib/historyDbRecovery";
 import {
   getOsNotificationPrefs,
   initNotificationPrefs,
@@ -265,6 +268,11 @@ function App() {
   // Handle keyboard shortcuts for debug mode toggle
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // KB-088: a held chord auto-repeats in some environments (terminal
+      // focus, remote-desktop keyboards); every repeat re-toggled debug
+      // mode, so holding the keys flickered the whole Debug section on and
+      // off. Only the initial press toggles.
+      if (event.repeat) return;
       // Check for Ctrl+Shift+D (Windows/Linux) or Cmd+Shift+D (macOS)
       const isDebugShortcut =
         event.shiftKey &&
@@ -337,11 +345,14 @@ function App() {
   }, [t]);
 
   // Listen for transcription failures and show a toast.
-  // The payload is the backend error message (also logged to voxbar.log).
+  // KB-015/KB-122: the payload is a raw backend sentence (English prose,
+  // also logged to voxbar.log on the Rust side); the toast shows the
+  // localized line the overlay notice channel already ships for this
+  // failure instead of pasting it into every locale.
   useEffect(() => {
-    const unlisten = listen<string>("transcription-error", (event) => {
+    const unlisten = listen<string>("transcription-error", () => {
       toast.error(t("errors.transcriptionFailedTitle"), {
-        description: event.payload,
+        description: t("overlay.notice.transcriptionFailed"),
       });
     });
     return () => {
@@ -349,19 +360,74 @@ function App() {
     };
   }, [t]);
 
-  // Listen for model loading failures and show a toast
+  // KB-087: tray copy outcomes (Copy Last Transcript and the Recent
+  // Dictations rows) report through this event because the tray menu gives
+  // no feedback of its own - the menu closes and nothing else happens on
+  // any surface. The outcome becomes an OS notification, gated on the
+  // notifications master toggle (trayCopyOutcomeDispatch); notifyDesktop's
+  // own live-visibility query then keeps a frontmost main window quiet,
+  // which is right: the banner earns its place exactly when the window is
+  // hidden and the tray was the reachable surface.
+  useEffect(() => {
+    const unlisten = listen<{
+      ok: boolean;
+      reason?: "copied" | "empty" | "failed";
+    }>("tray-copy-outcome", (event) => {
+      // Fleet pass: the outcome names WHAT happened. The old single bool
+      // conflated "nothing to copy" with "the clipboard write failed", so
+      // a machine that had never dictated read "Could not copy the
+      // transcript to the clipboard."
+      const reason = event.payload?.reason;
+      const message =
+        reason === "empty"
+          ? t("trayCopyOutcome.empty")
+          : event.payload?.ok
+            ? t("trayCopyOutcome.copied")
+            : t("trayCopyOutcome.failed");
+      // Fleet pass: the failure legs also write the in-app notification
+      // log row while the master toggle is on - the backstop that
+      // survives a denied macOS notification permission or a hidden
+      // window (the historyDbRecovery discipline), so the operator's
+      // denied-notifications machine still gets feedback on a surface.
+      // The off path adds no durable state, exactly like every other
+      // log leg.
+      const prefs = getOsNotificationPrefs();
+      const failure = reason === "empty" || event.payload?.ok === false;
+      if (failure && prefs.enabled) {
+        pushNotificationLogEntry({
+          code: reason === "empty" ? "tray_copy_empty" : "tray_copy_failed",
+          kind: reason === "empty" ? "info" : "error",
+          receivedAt: Date.now(),
+        });
+      }
+      if (!trayCopyOutcomeDispatch(prefs).notify) return;
+      void notifyDesktop(message);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [t]);
+
+  // Listen for model loading failures and show a toast.
+  // KB-015/KB-122: the structured memory_gate payload (present only on the
+  // gate's Refuse path) drives the localized memory-gate line with its
+  // formatted numbers; every other failure shows the localized detail-free
+  // description. The raw backend sentence stays in voxbar.log, never on a
+  // localized surface.
   useEffect(() => {
     const unlisten = listen<ModelStateEvent>("model-state-changed", (event) => {
       if (event.payload.event_type === "loading_failed") {
-        toast.error(
-          t("errors.modelLoadFailed", {
-            model:
-              event.payload.model_name || t("errors.modelLoadFailedUnknown"),
-          }),
-          {
-            description: event.payload.error,
-          },
-        );
+        const model =
+          event.payload.model_name || t("errors.modelLoadFailedUnknown");
+        const gate = event.payload.memory_gate;
+        const description = gate
+          ? t("errors.modelLoadFailedMemoryGate", {
+              model,
+              needed: formatMemoryAmount(gate.forecast_bytes),
+              free: formatMemoryAmount(gate.free_bytes),
+            })
+          : t("errors.modelLoadFailedDetail");
+        toast.error(t("errors.modelLoadFailed", { model }), { description });
       }
     });
     return () => {
@@ -652,6 +718,14 @@ function App() {
     initNotificationPrefs();
     initNotificationLog();
   }, []);
+
+  // KB-179 boot: pull the history-database recovery record once (the
+  // backend quarantined an unreadable history.db before any webview
+  // existed) and post the persistent notice naming the quarantined file.
+  // The helper's session flag keeps a remount from re-posting.
+  useEffect(() => {
+    void postHistoryDbRecoveryNoticeOnce(t);
+  }, [t]);
 
   // v1.6.0 W1-L4 click-through: activating a posted notification focuses
   // the app and navigates via the pure noticeClickSection seam: errors go

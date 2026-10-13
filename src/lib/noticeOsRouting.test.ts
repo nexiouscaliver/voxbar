@@ -116,6 +116,7 @@ const ALL_NOTICE_CODES = [
   "transcription_failed",
   "paste_failed",
   "model_load_failed",
+  "model_load_failed_memory_gate",
   "model_fallback",
   "post_process_memory_gate",
   "post_process_download_missing",
@@ -142,6 +143,9 @@ const ALL_NOTICE_CODES = [
   "companion_session_capped",
   "companion_zero_audio",
   "command_mode_no_session",
+  // Fleet pass 2: the frontend-only boot code (KB-179), classified with
+  // the same exhaustiveness discipline as the Rust universe.
+  "history_db_recovered",
 ] as const;
 
 // Error group: notify whenever the master toggle is on; clicks land on the
@@ -156,6 +160,7 @@ const ERROR_GROUP = [
   "transcription_failed",
   "paste_failed",
   "model_load_failed",
+  "model_load_failed_memory_gate",
   "post_process_download_missing",
   "post_process_memory_gate",
   "post_process_engine_failed",
@@ -168,6 +173,10 @@ const ERROR_GROUP = [
   "post_process_not_configured",
   "companion_server_failed",
   "companion_zero_audio",
+  // Fleet pass 2: the KB-179 history-database recovery is an error-group
+  // code (dictation history was lost); its click target is history (the
+  // freshly reset database), unlike its error-group siblings.
+  "history_db_recovered",
 ] as const;
 
 // Outcome group: final companion-session results; the finalized transcript
@@ -262,9 +271,14 @@ for (const [code, entry] of Object.entries(NOTICE_CHANNEL_TABLE)) {
 // The declared groups agree with the table entries.
 for (const code of ERROR_GROUP) {
   assert.equal(NOTICE_CHANNEL_TABLE[code].group, "error", `${code} group`);
+  // Fleet pass 2 exception: history_db_recovered targets history (the
+  // freshly reset database the notice names); every other error-group
+  // code targets the in-app log, where its raw diagnostics live.
+  const expectedTarget =
+    code === "history_db_recovered" ? "history" : "notifications";
   assert.equal(
     NOTICE_CHANNEL_TABLE[code].target,
-    "notifications",
+    expectedTarget,
     `${code} click target`,
   );
 }

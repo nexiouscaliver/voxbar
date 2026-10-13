@@ -587,7 +587,10 @@ async testPostProcessPrompt(promptId: string) : Promise<Result<PromptTestOutcome
  * Runs are sequential on purpose: the local engine is an exclusive memory
  * swap (voice out, LLM in), so two concurrent local generations would
  * fight over the swap on a memory-constrained machine. Results return in
- * request order, each labeled with its request.
+ * request order, each labeled with its request. KB-257: the loop checks
+ * the cancellation generation between runs and returns the PARTIAL
+ * results when a cancel landed (the unstarted pairs mint no result, so
+ * the frontend can tell cancelled from finished).
  */
 async testPostProcessPromptBatch(source: StudioSource, runs: StudioRunRequest[]) : Promise<Result<StudioRunResult[], TestPromptError>> {
     try {
@@ -596,6 +599,14 @@ async testPostProcessPromptBatch(source: StudioSource, runs: StudioRunRequest[])
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * KB-257: the Prompt Studio's cancel affordance. Bumps the batch
+ * generation, so every in-flight `test_post_process_prompt_batch` stops
+ * before its next run and returns the results it already collected.
+ */
+async cancelPostProcessPromptBatch() : Promise<number> {
+    return await TAURI_INVOKE("cancel_post_process_prompt_batch");
 },
 async updateCustomWords(words: string[]) : Promise<Result<null, string>> {
     try {
@@ -1154,14 +1165,6 @@ async getTranscriptionModelStatus() : Promise<Result<string | null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
-async isModelLoading() : Promise<Result<boolean, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("is_model_loading") };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
 /**
  * Re-scan local sources (custom models dir + shared HF cache) for models added
  * since launch
@@ -1553,6 +1556,20 @@ async retryHistoryEntryTranscription(id: number) : Promise<Result<null, string>>
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * KB-179: the launch-time history database recovery record, if this
+ * launch quarantined an unreadable history.db and started fresh. The
+ * frontend pulls this once on mount (the recovery happens before any
+ * webview listener exists) and posts the persistent notice.
+ */
+async getHistoryDbRecovery() : Promise<Result<HistoryDbRecovery | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_history_db_recovery") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async updateHistoryLimit(limit: number) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_history_limit", { limit }) };
@@ -1782,6 +1799,16 @@ post_process_local_model_id?: string; post_process_providers?: PostProcessProvid
  * serves a different list).
  */
 post_process_model_lists?: Partial<{ [key in string]: CachedModelList }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; 
+/**
+ * KB-108: persisted tombstones for DELETED built-in prompt templates.
+ * The seed loop pushes every missing built-in back into the library on
+ * each settings read, so without this list a deleted builtin
+ * resurrected at the catalog end on the next launch. An id in this
+ * list means the operator explicitly deleted that builtin: the seed
+ * loop skips it forever (until a future store edit clears the list).
+ * User templates never appear here; their deletion is just removal.
+ */
+post_process_deleted_builtin_prompt_ids?: string[]; 
 /**
  * One-time marker for the local-default post-process migration (spec
  * 5.2): absent on legacy stores (the migration fires once), true on
@@ -2090,6 +2117,18 @@ filename: string;
  * Blob size in bytes when the API reported it.
  */
 size_bytes: number | null }
+/**
+ * KB-179: what a launch-time database recovery wants the user to know.
+ * Surfaced through the `get_history_db_recovery` command so the frontend
+ * can post one persistent notice (the recovery happens before any webview
+ * is listening, so a push would be missed; the pull is the reliable leg).
+ */
+export type HistoryDbRecovery = { 
+/**
+ * The file name the unreadable database was quarantined under (inside
+ * the app data dir), so the notice can name where the old data lives.
+ */
+quarantined_file: string }
 export type HistoryEntry = { id: number; file_name: string; timestamp: number; saved: boolean; title: string; transcription_text: string; post_processed_text: string | null; post_process_prompt: string | null; post_process_requested: boolean; 
 /**
  * Model id that actually produced `transcription_text` (the resident
@@ -2116,7 +2155,13 @@ capture_source: string;
  * to be) delivered, "mac" (pasted on the Mac) or "phone" (sent to the
  * phone). Pre-migration rows read "mac".
  */
-delivery_destination: string }
+delivery_destination: string; 
+/**
+ * v1.6.2 W1-L2: which companion device dictated this entry (the hello
+ * device name the session froze). "" for keyboard sessions and
+ * pre-migration rows. The per-phone recent lists filter on it.
+ */
+capture_device: string }
 export type HistoryUpdatePayload = { action: "added"; entry: HistoryEntry } | { action: "updated"; entry: HistoryEntry } | { action: "deleted"; id: number } | { action: "toggled"; id: number }
 /**
  * Result of changing keyboard implementation

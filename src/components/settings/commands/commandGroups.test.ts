@@ -144,4 +144,51 @@ const noDefaults = computeRowReset("comma", edited, []);
 assert.equal(noDefaults.table, null);
 assert.equal(noDefaults.collision, null);
 
+// KB-022: an add/remove that commits BEFORE the stored table and the
+// default phrases resolve must not persist zero-phrase rows for every
+// command the edit does not name. With the loaded defaults passed in (the
+// component's fixed shape), the pre-resolution add fills every sibling
+// from the defaults.
+const preResolutionDefaults: CommandMatrixEntry[] = [
+  { command: "comma", phrases: ["comma"] },
+  { command: "period", phrases: ["period", "full stop"] },
+  { command: "questionMark", phrases: ["question mark"] },
+];
+const resolvedAdd = replaceCommandPhrases(
+  "comma",
+  ["comma", "pauses"],
+  [], // the stored table is absent and defaults have just landed
+  preResolutionDefaults,
+);
+assert.deepEqual(
+  resolvedAdd.find((entry) => entry.command === "comma")?.phrases,
+  ["comma", "pauses"],
+  "the edited command carries the added phrase",
+);
+assert.deepEqual(
+  resolvedAdd.find((entry) => entry.command === "period")?.phrases,
+  ["period", "full stop"],
+  "a sibling the edit does not name keeps the default phrases",
+);
+assert.deepEqual(
+  resolvedAdd.find((entry) => entry.command === "questionMark")?.phrases,
+  ["question mark"],
+);
+// A command in NO surface (not stored, not in defaults) still falls back
+// to empty - which is why the UI also disables add/remove while the
+// defaults are unresolved (defaultsPending in CommandsSettings.tsx): with
+// null defaults the same pre-resolution add would persist ~29 zero-phrase
+// rows.
+const unresolvedAdd = replaceCommandPhrases(
+  "comma",
+  ["comma", "pauses"],
+  [],
+  null,
+);
+assert.equal(
+  unresolvedAdd.filter((entry) => entry.phrases.length === 0).length,
+  29,
+  "the pre-resolution add with null defaults would blank every unnamed command (why the UI gates on defaults)",
+);
+
 console.log("commandGroups: all assertions passed");

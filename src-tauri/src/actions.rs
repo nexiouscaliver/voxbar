@@ -31,6 +31,16 @@ const CANCELLATION_POLL_INTERVAL: Duration = Duration::from_millis(25);
 /// when `preview_before_paste` is enabled.
 const PREVIEW_BEFORE_PASTE_DELAY: Duration = Duration::from_millis(1200);
 
+/// v1.6.2 W1-L2: serializes the ASR-engine-consuming region of the stop
+/// pipeline (stream finalize and its batch fallback) across CONCURRENT
+/// pipelines. Several phones' sessions may record simultaneously (per-lane
+/// recorders), so their stop pipelines can overlap - but the transcription
+/// engine is a process singleton, and two pipelines driving it at once (a
+/// finalize racing a batch, or two batches contending the resident model)
+/// has no defined behavior. Capture stays fully concurrent; only the
+/// engine step waits its turn.
+static ENGINE_PIPELINE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 #[derive(Clone, serde::Serialize)]
 struct RecordingErrorEvent {
     error_type: String,
@@ -38,8 +48,11 @@ struct RecordingErrorEvent {
 }
 
 /// Drop guard that finishes the transcription pipeline, including immediate
-/// model unloading on early exits.
-struct FinishGuard(AppHandle, Arc<TranscriptionManager>);
+/// model unloading on early exits. v1.6.2 W1-L2: carries the pipeline's
+/// session key (a companion lane, or None for the keyboard session), so the
+/// coordinator resumes exactly the machine whose pipeline drained when
+/// several phones' pipelines overlap.
+struct FinishGuard(AppHandle, Arc<TranscriptionManager>, Option<u64>);
 impl Drop for FinishGuard {
     fn drop(&mut self) {
         // The cancel shortcut stays registered for the WHOLE pipeline
@@ -48,17 +61,61 @@ impl Drop for FinishGuard {
         // left a wedged post-process request with no keyboard escape
         // (the handler gate also required a live recording), so only the
         // tray Cancel could break out. Unregistering here, at the true end
-        // of the pipeline, keeps Escape alive the entire time.
-        crate::shortcut::unregister_cancel_shortcut(&self.0);
+        // of the pipeline, keeps Escape alive the entire time. Fleet pass 2:
+        // this releases ONLY this pipeline's session want - the key stays
+        // armed while any OTHER session still wants it (overlapping
+        // pipelines are a v1.6.2 design fact).
+        crate::shortcut::unregister_cancel_shortcut(&self.0, self.2);
+        // Fleet pass 2: leave the in-flight pipeline registry the same way
+        // (the Escape path's abort-all resolution reads it).
+        unregister_in_flight_pipeline(self.2);
         self.1.maybe_unload_immediately("transcription session");
         if let Some(c) = self.0.try_state::<TranscriptionCoordinator>() {
-            c.notify_processing_finished();
+            c.notify_processing_finished_for(self.2);
         }
         // The pipeline just freed its large transient buffers (captured PCM,
         // WAV copy, engine scratch); hand the cached pages back to the OS so
         // they don't sit in malloc arenas until they get swapped out (#1792).
         crate::memory::trim_freed_memory();
     }
+}
+
+// v1.6.2 fleet pass 2: the session keys of the stop pipelines currently in
+// flight (None = the keyboard's, Some(lane) = one phone's). The Escape
+// path's abort-all resolution reads it: when a cancel resolves to NOTHING
+// (no recording anywhere to tear down), the only work left in the process
+// is these pipelines, and the Mac's Escape means "abort the current work"
+// exactly as it did in the single-session era. Registered by each stop
+// pipeline thread at spawn, removed by its FinishGuard at drain.
+static IN_FLIGHT_PIPELINES: std::sync::Mutex<Vec<Option<u64>>> = std::sync::Mutex::new(Vec::new());
+
+pub(crate) fn register_in_flight_pipeline(session: Option<u64>) {
+    let mut in_flight = IN_FLIGHT_PIPELINES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    if !in_flight.contains(&session) {
+        in_flight.push(session);
+    }
+}
+
+pub(crate) fn unregister_in_flight_pipeline(session: Option<u64>) {
+    IN_FLIGHT_PIPELINES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .retain(|key| *key != session);
+}
+
+/// The lane ids whose stop pipelines are in flight right now (the
+/// abort-all resolution's targets). The keyboard's None key is deliberately
+/// NOT returned: that pipeline gates on the local cancel generation, which
+/// the cancel path already bumps.
+pub(crate) fn in_flight_lane_pipelines() -> Vec<u64> {
+    IN_FLIGHT_PIPELINES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .iter()
+        .filter_map(|key| *key)
+        .collect()
 }
 
 // Shortcut Action Trait
@@ -111,6 +168,40 @@ enum TranscriptDelivery {
     /// Skip every Mac paste step; broadcast a TranscriptResult frame to the
     /// phone and still write history.
     PhoneSend,
+}
+
+/// v1.6.2 multi-phone review fix: retire the shared recording surfaces
+/// (tray icon + overlay card) at ONE session's teardown, but only when no
+/// OTHER session is still live. Overlapping sessions are a v1.6.2 design
+/// fact - a second phone may still be mid-dictation when this pipeline
+/// finishes - and the tray and overlay are singletons, so the
+/// unconditional flip this code used to run showed TrayIconState::Idle
+/// and hid the card under a live session's feet (the overlay's
+/// show-generation guard only protects NEWER shows, not the still-live
+/// session whose show predates this pipeline). At every call site the
+/// caller's own recorder is already torn down (the stop pipeline's lane
+/// entry, the cancel path's resolved target), so `is_recording()` reads
+/// exactly the OTHER sessions' liveness - the failed-start path's guard,
+/// applied to every teardown: the stop pipeline's drains, the
+/// Escape-cancel route, and the hotkey model-load-failure teardown.
+/// `readable_notice` picks the notice-readable delayed hide for paths
+/// that just put an error on the card (the zero-audio notice, a failed
+/// paste, the load-failure notice). A manager-less context (unit tests)
+/// has no concurrent sessions and retires unconditionally.
+pub(crate) fn retire_session_surfaces(app: &AppHandle, readable_notice: bool) {
+    if app
+        .try_state::<Arc<AudioRecordingManager>>()
+        .is_some_and(|rm| rm.is_recording())
+    {
+        // Another session owns the shared surfaces until its own teardown.
+        return;
+    }
+    set_tray_state(app, TrayIconState::Idle);
+    if readable_notice {
+        utils::hide_recording_overlay_after_error(app);
+    } else {
+        utils::hide_recording_overlay(app);
+    }
 }
 
 /// The pure routing decision for one finished session: `source` is the
@@ -220,6 +311,16 @@ where
 
 fn should_use_streaming_overlay(style: OverlayStyle, is_streaming: bool) -> bool {
     style == OverlayStyle::Live && is_streaming
+}
+
+/// KB-014: whether the final-preview step has anything to show, and with it
+/// whether the stop pipeline should pay PREVIEW_BEFORE_PASTE_DELAY before
+/// the paste. With `overlay_style = None` both preview branches are no-ops
+/// (`show_final_preview_overlay` returns early and no streaming overlay
+/// window was ever shown), so the 1.2 s wait delayed every paste while
+/// showing nothing. Pure, like `should_use_streaming_overlay`.
+fn preview_worth_waiting_for(style: OverlayStyle, preview_before_paste: bool) -> bool {
+    preview_before_paste && style != OverlayStyle::None
 }
 
 /// What the stop pipeline does when a stream finalize produced no usable
@@ -493,8 +594,11 @@ async fn run_cloud_lifecycle(
                                 );
                             }
                             debug!(
+                                // KB-239: str::len() is BYTES; the label
+                                // says chars, and non-ASCII post-processed
+                                // text makes the two disagree.
                                 "Post-processing succeeded. Output length: {} chars",
-                                result.len()
+                                result.chars().count()
                             );
                             Some(result)
                         }
@@ -582,7 +686,12 @@ async fn run_cloud_lifecycle(
     }
 
     // ---- Legacy attempt (the retry, or the only mode) ----
-    debug!("Processed prompt length: {} chars", legacy_prompt.len());
+    // KB-239: chars, not str::len()'s bytes - a non-ASCII template body
+    // (any localized prompt) made the label overcount by its UTF-8 width.
+    debug!(
+        "Processed prompt length: {} chars",
+        legacy_prompt.chars().count()
+    );
     match seam.send(legacy_prompt, None, None).await {
         Ok(completion) => {
             handle_completion!(completion, PostProcessOutputMode::FreeText);
@@ -728,6 +837,7 @@ async fn post_process_transcription(
         &prompt_entry,
         is_cancelled,
         None,
+        None,
     )
     .await
 }
@@ -748,7 +858,15 @@ async fn post_process_transcription(
 /// skipped one); the command layer validates ids up front, so this guard
 /// is the pure seam's backstop.
 ///
+/// `model_override` (KB-109) pins the model the same way: the history
+/// retry resolves the entry's RECORDED model and must not silently fall
+/// back to whatever model is configured for that provider today. None
+/// (every other caller) resolves the settings' model map as before. An
+/// empty override falls through to the settings map (an empty model is
+/// no model).
+///
 /// Never pastes and never writes history: those live in the callers.
+#[allow(clippy::too_many_arguments)] // the resolved request rides with its cancellation and pins
 async fn post_process_with_prompt(
     app: Option<&AppHandle>,
     settings: &AppSettings,
@@ -757,6 +875,7 @@ async fn post_process_with_prompt(
     prompt_entry: &crate::settings::LLMPrompt,
     is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
     provider_override: Option<&str>,
+    model_override: Option<&str>,
 ) -> PostProcessAttempt {
     if is_blank_transcription(transcription) {
         debug!("Post-processing skipped because the transcription is empty");
@@ -783,11 +902,14 @@ async fn post_process_with_prompt(
         },
     };
 
-    let model = settings
-        .post_process_models
-        .get(&provider.id)
-        .cloned()
-        .unwrap_or_default();
+    let model = match model_override {
+        Some(pinned) if !pinned.trim().is_empty() => pinned.to_string(),
+        _ => settings
+            .post_process_models
+            .get(&provider.id)
+            .cloned()
+            .unwrap_or_default(),
+    };
 
     if model.trim().is_empty() {
         debug!(
@@ -1119,6 +1241,7 @@ pub(crate) async fn run_prompt_test(
         prompt,
         None,
         None,
+        None,
     )
     .await;
     prompt_test_outcome_from_attempt(transcription, attempt)
@@ -1145,6 +1268,7 @@ pub(crate) async fn run_prompt_test_with_engine(
         prompt,
         None,
         engine_provider_id,
+        None,
     )
     .await;
     prompt_test_outcome_from_attempt(transcription, attempt)
@@ -1252,8 +1376,11 @@ async fn run_local_lifecycle(
                     );
                 }
                 debug!(
+                    // KB-239: str::len() is BYTES; the label says chars, and
+                    // for non-ASCII post-processed text the two disagree by
+                    // the UTF-8 width.
                     "Local post-processing succeeded. Output length: {} chars",
-                    text.len()
+                    text.chars().count()
                 );
                 Some(text)
             }
@@ -1315,11 +1442,24 @@ async fn run_apple_intelligence_lifecycle(
         let token_limit = model.trim().parse::<i32>().unwrap_or(0);
         runs().engine_phase(Some(app), run_id, None, None);
         let generation_started = Instant::now();
-        match apple_intelligence::process_text_with_system_prompt(
-            &system_prompt,
-            transcription,
-            token_limit,
-        ) {
+        // KB-239: the Swift side parks the calling thread on a
+        // DispatchSemaphore until generation completes
+        // (apple_intelligence.swift), so invoking the FFI straight from
+        // this async fn blocked a tokio worker for the whole generation.
+        // spawn_blocking moves that wait onto the dedicated blocking
+        // pool; a join panic (engine wedged) maps to the same Err arm
+        // the FFI's own failures take.
+        let transcription_for_ffi = transcription.to_string();
+        let generation = tokio::task::spawn_blocking(move || {
+            apple_intelligence::process_text_with_system_prompt(
+                &system_prompt,
+                &transcription_for_ffi,
+                token_limit,
+            )
+        })
+        .await
+        .unwrap_or_else(|join_err| Err(format!("Apple Intelligence task panicked: {join_err}")));
+        match generation {
             Ok(result) => {
                 let ms = generation_started.elapsed().as_millis() as u64;
                 runs().generation_phase(Some(app), run_id, Some(ms), Some(0));
@@ -1344,8 +1484,10 @@ async fn run_apple_intelligence_lifecycle(
                             );
                         }
                         debug!(
+                            // KB-239: chars, not str::len()'s bytes (CJK and
+                            // Devanagari output made the old label lie).
                             "Apple Intelligence post-processing succeeded. Output length: {} chars",
-                            clean.len()
+                            clean.chars().count()
                         );
                         Some(clean)
                     }
@@ -1467,6 +1609,196 @@ pub(crate) async fn process_transcription_output(
     }
 }
 
+/// KB-109: the engine triple a history retry's post-process leg targets.
+/// Each field carries the entry's RECORDED value when it has one; the
+/// resolver falls back to the current settings only for fields the entry
+/// never recorded (pre-cycle rows carry no summary at all).
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub(crate) struct RetryPostProcessTarget {
+    pub provider_id: Option<String>,
+    pub model: Option<String>,
+    pub prompt_id: Option<String>,
+}
+
+/// KB-109: resolve the retry's provider/model/prompt. A recorded value
+/// always wins (never re-ship the stored transcript to a different
+/// engine, model, or template than the one that produced the original);
+/// only fields with NO recorded value fall back to the current settings,
+/// so an entry polished by a provider the operator has since unselected
+/// still retries against that recorded provider. A recorded provider the
+/// settings no longer know about fails later in the runner's
+/// provider-lookup guard (a skip with a notice, never a silent
+/// re-target).
+pub(crate) fn resolve_retry_post_process_target(
+    recorded: &RetryPostProcessTarget,
+    settings: &AppSettings,
+) -> RetryPostProcessTarget {
+    let provider_id = recorded
+        .provider_id
+        .clone()
+        .filter(|provider| !provider.trim().is_empty())
+        .or_else(|| {
+            settings
+                .active_post_process_provider()
+                .map(|provider| provider.id.clone())
+        });
+    let model = recorded
+        .model
+        .clone()
+        .filter(|model| !model.trim().is_empty())
+        .or_else(|| {
+            provider_id
+                .as_ref()
+                .and_then(|provider| settings.post_process_models.get(provider).cloned())
+        });
+    let prompt_id = recorded
+        .prompt_id
+        .clone()
+        .filter(|prompt| !prompt.trim().is_empty())
+        .or_else(|| settings.post_process_selected_prompt_id.clone());
+    RetryPostProcessTarget {
+        provider_id,
+        model,
+        prompt_id,
+    }
+}
+
+/// KB-109: the history retry's post-process leg. Same lifecycle as the
+/// dictation's [`process_transcription_output`], but the engine triple is
+/// resolved from the entry's recorded summary first (see
+/// [`resolve_retry_post_process_target`]) instead of the current settings;
+/// the config-level fallbacks (provider gone, model empty, template
+/// missing or empty) emit the same round-7 PostProcessNotConfigured
+/// notice so the operator learns the polish did not run. The retry owns
+/// no cancel generation (no recording session is live).
+pub(crate) async fn process_retry_transcription_output(
+    app: &AppHandle,
+    transcription: &str,
+    recorded: &RetryPostProcessTarget,
+) -> ProcessedTranscription {
+    let settings = get_settings(app);
+    let mut final_text = transcription.to_string();
+    let mut post_processed_text: Option<String> = None;
+    let mut post_process_prompt: Option<String> = None;
+    let mut post_process_summary: Option<crate::post_process_runs::PostProcessRunSummary> = None;
+
+    if is_blank_transcription(transcription) {
+        debug!("Post-processing skipped because the transcription is empty");
+        return ProcessedTranscription {
+            final_text,
+            post_processed_text,
+            post_process_prompt,
+            post_process_summary,
+        };
+    }
+
+    let target = resolve_retry_post_process_target(recorded, &settings);
+
+    let cause = if target.provider_id.is_none() {
+        Some("no post-process provider is recorded or selected".to_string())
+    } else if target
+        .provider_id
+        .as_deref()
+        .is_some_and(|id| settings.post_process_provider(id).is_none())
+    {
+        Some(format!(
+            "the recorded provider '{}' is no longer configured",
+            target.provider_id.clone().unwrap_or_default()
+        ))
+    } else if target
+        .model
+        .as_deref()
+        .map(|model| model.trim().is_empty())
+        .unwrap_or(true)
+    {
+        Some("no model is recorded or configured for the provider".to_string())
+    } else {
+        None
+    };
+    if let Some(cause) = cause {
+        debug!("History retry post-processing skipped because {cause}");
+        crate::managers::transcription::emit_overlay_notice(
+            app,
+            crate::managers::transcription::NoticeCode::PostProcessNotConfigured,
+            Some(cause),
+        );
+        return ProcessedTranscription {
+            final_text,
+            post_processed_text,
+            post_process_prompt,
+            post_process_summary,
+        };
+    }
+
+    // The recorded prompt id must still name a template in the library:
+    // re-polishing with a DIFFERENT template than the recorded one would
+    // mislabel the entry, so a dangling id skips the leg (notice above
+    // the surface, summary columns clear via KB-023).
+    let prompt_entry = target.prompt_id.as_deref().and_then(|prompt_id| {
+        settings
+            .post_process_prompts
+            .iter()
+            .find(|prompt| prompt.id == prompt_id)
+            .cloned()
+    });
+    let Some(prompt_entry) = prompt_entry else {
+        let cause = "the recorded prompt template no longer exists".to_string();
+        debug!("History retry post-processing skipped because {cause}");
+        crate::managers::transcription::emit_overlay_notice(
+            app,
+            crate::managers::transcription::NoticeCode::PostProcessNotConfigured,
+            Some(cause),
+        );
+        return ProcessedTranscription {
+            final_text,
+            post_processed_text,
+            post_process_prompt,
+            post_process_summary,
+        };
+    };
+    if prompt_entry.prompt.trim().is_empty() {
+        let cause = "the recorded prompt template is empty".to_string();
+        debug!("History retry post-processing skipped because {cause}");
+        crate::managers::transcription::emit_overlay_notice(
+            app,
+            crate::managers::transcription::NoticeCode::PostProcessNotConfigured,
+            Some(cause),
+        );
+        return ProcessedTranscription {
+            final_text,
+            post_processed_text,
+            post_process_prompt,
+            post_process_summary,
+        };
+    }
+
+    let attempt = post_process_with_prompt(
+        Some(app),
+        &settings,
+        "history_retry",
+        &final_text,
+        &prompt_entry,
+        None,
+        target.provider_id.as_deref(),
+        target.model.as_deref(),
+    )
+    .await;
+
+    post_process_summary = attempt.summary;
+    if let Some(processed_text) = attempt.text {
+        post_processed_text = Some(processed_text.clone());
+        final_text = processed_text;
+        post_process_prompt = Some(prompt_entry.prompt.clone());
+    }
+
+    ProcessedTranscription {
+        final_text,
+        post_processed_text,
+        post_process_prompt,
+        post_process_summary,
+    }
+}
+
 impl ShortcutAction for TranscribeAction {
     fn start(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
         let start_time = Instant::now();
@@ -1476,12 +1808,17 @@ impl ShortcutAction for TranscribeAction {
         let tm = app.state::<Arc<TranscriptionManager>>();
         let rm = app.state::<Arc<AudioRecordingManager>>();
 
+        // v1.6.2 W1-L2: the lane of the companion session this Start effect
+        // commits (frozen a moment ago by the coordinator's begin_session,
+        // on the same serialized thread). None for keyboard/signal starts.
+        let starting_lane = crate::companion::starting_session_lane(app);
+
         // Load ASR model and VAD model in parallel
         let kickoff_started = Instant::now();
         tm.initiate_model_load();
         // The local VAD warm-up only pays off for the local capture path;
-        // the companion server pre-warms the remote recorder when enabled,
-        // so a phone press skips this entirely.
+        // the companion server pre-warms each lane's recorder when the
+        // phone connects, so a phone press skips this entirely.
         if matches!(self.source, CaptureSource::Local) {
             let rm_clone = Arc::clone(&rm);
             std::thread::spawn(move || {
@@ -1540,16 +1877,35 @@ impl ShortcutAction for TranscribeAction {
             .as_ref()
             .map(|m| m.supports_streaming)
             .unwrap_or(false);
+        // v1.6.2 W1-L2: the streaming engine is a process singleton, so at
+        // most ONE live session may own it. The owner is decided HERE, on
+        // the coordinator's serialized thread, before any recorder runs:
+        // the first session to start claims it, and every concurrently
+        // recording session (another phone, or a phone while the keyboard
+        // drains) records with the offline VAD profile and
+        // batch-transcribes its ring at stop.
+        let stream_free =
+            model_supports_streaming && !tm.is_streaming() && !tm.stream_router().is_open();
         let vad_policy = if !settings.vad_enabled {
             VadPolicy::Disabled
-        } else if model_supports_streaming {
+        } else if stream_free {
             VadPolicy::Streaming
         } else {
             VadPolicy::Offline
         };
-        if model_supports_streaming {
+        let claimed_owner = if stream_free {
+            let owner = match (self.source, starting_lane) {
+                (CaptureSource::Remote, Some(lane)) => {
+                    crate::managers::audio::StreamOwner::Lane(lane)
+                }
+                _ => crate::managers::audio::StreamOwner::Local,
+            };
             tm.start_stream();
-        }
+            rm.set_stream_owner(owner);
+            Some(owner)
+        } else {
+            None
+        };
         let plan_elapsed = plan_started.elapsed();
 
         // Sizing the overlay follows the same advertised capability. A model that
@@ -1574,18 +1930,41 @@ impl ShortcutAction for TranscribeAction {
 
         let mut recording_error: Option<String> = None;
         let recording_start_time = Instant::now();
-        match rm.try_start_recording_for(self.source, &binding_id, vad_policy) {
+        let start_result = match (self.source, starting_lane) {
+            (CaptureSource::Remote, Some(lane)) => {
+                rm.try_start_remote_lane_recording(lane, &binding_id, vad_policy)
+            }
+            (CaptureSource::Remote, None) => Err("Companion session has no lane".to_string()),
+            (CaptureSource::Local, _) => rm.try_start_recording_for(&binding_id, vad_policy),
+        };
+        match start_result {
             Ok(readiness) => {
                 debug!(
                     "Recording request accepted in {:?}; waiting for first microphone samples",
                     recording_start_time.elapsed()
                 );
-                if matches!(self.source, CaptureSource::Remote) {
-                    crate::companion::on_session_changed(app, true);
+                if let Some(lane) = starting_lane {
+                    if matches!(self.source, CaptureSource::Remote) {
+                        crate::companion::on_lane_session_changed(app, lane, true);
+                    }
                 }
                 let generation = readiness.generation();
                 let app_clone = app.clone();
                 let rm_clone = Arc::clone(&rm);
+                // v1.6.2 W1-L2: remote readiness validates per LANE (its
+                // stop only ever removes its own entry), local readiness
+                // against the global capture generation as before.
+                let readiness_current: Arc<dyn Fn() -> bool + Send + Sync> =
+                    match (self.source, starting_lane) {
+                        (CaptureSource::Remote, Some(lane)) => {
+                            let rm_check = Arc::clone(&rm);
+                            Arc::new(move || rm_check.lane_readiness_current(lane, generation))
+                        }
+                        _ => {
+                            let rm_check = Arc::clone(&rm_clone);
+                            Arc::new(move || rm_check.is_recording_readiness_current(generation))
+                        }
+                    };
                 std::thread::spawn(move || {
                     if !readiness.wait() {
                         debug!("Microphone readiness wait ended without receiving samples");
@@ -1607,7 +1986,7 @@ impl ShortcutAction for TranscribeAction {
                         }
                     }
 
-                    if !rm_clone.is_recording_readiness_current(generation) {
+                    if !readiness_current() {
                         debug!("Microphone became ready for an inactive recording");
                         return;
                     }
@@ -1619,10 +1998,10 @@ impl ShortcutAction for TranscribeAction {
                     // first real input callback rather than Stream::play() or a
                     // fixed delay. The helper returns immediately when feedback
                     // is disabled; mute still follows the same readiness point.
-                    if rm_clone.is_recording_readiness_current(generation) {
+                    if readiness_current() {
                         play_feedback_sound_blocking(&app_clone, SoundType::Start);
                     }
-                    if rm_clone.is_recording_readiness_current(generation) {
+                    if readiness_current() {
                         rm_clone.apply_mute();
                     }
                 });
@@ -1630,25 +2009,58 @@ impl ShortcutAction for TranscribeAction {
             Err(e) => {
                 debug!("Failed to start recording: {}", e);
                 recording_error = Some(e);
-                if matches!(self.source, CaptureSource::Remote) {
-                    // The badge must never outlive a start that did not
-                    // begin recording.
-                    crate::companion::on_session_changed(app, false);
+                if let Some(lane) = starting_lane {
+                    if matches!(self.source, CaptureSource::Remote) {
+                        // The badge must never outlive a start that did not
+                        // begin recording.
+                        crate::companion::on_lane_session_changed(app, lane, false);
+                    }
+                }
+                // v1.6.2 W1-L2: a start that claimed the streaming engine
+                // but never recorded must give it back (the idle stream
+                // worker would otherwise swallow the next session's frames
+                // until its finalize).
+                if let Some(owner) = claimed_owner {
+                    rm.clear_stream_owner_if(owner);
                 }
             }
         }
 
         if recording_error.is_none() {
-            // Dynamically register the cancel shortcut in a separate task to avoid deadlock
-            shortcut::register_cancel_shortcut(app);
+            // Dynamically register the cancel shortcut in a separate task to avoid deadlock.
+            // Fleet pass 2: THIS session's key (its lane for a phone start,
+            // None for the keyboard) - the want is per session, so the first
+            // overlapping pipeline to drain cannot disarm another's Escape.
+            let session_key = match (self.source, starting_lane) {
+                (CaptureSource::Remote, Some(lane)) => Some(lane),
+                _ => None,
+            };
+            shortcut::register_cancel_shortcut(app, session_key);
         } else {
             // Starting failed (for example due to blocked microphone permissions).
             // Revert UI state so we don't stay stuck in the recording overlay.
             // The overlay hide is DELAYED so the notice row below stays
             // readable on the card; the show-generation guard cancels the
             // hide if a new session starts within the read window.
-            tm.cancel_stream();
-            set_tray_state(app, TrayIconState::Idle);
+            //
+            // Fleet pass 2: every teardown here is scoped to what THIS
+            // failed start owns. The stream is cancelled only when this
+            // start CLAIMED it (a failed non-owner start - another lane's
+            // recorder open failure while a different session streams -
+            // must not cancel that session's live stream); the claim is
+            // also handed back, mirroring the early-return path above. The
+            // tray and overlay are reverted only when NO other session is
+            // live: this failed start holds no recorder, so is_recording()
+            // is exactly the other sessions' liveness, and a concurrent
+            // phone dictation owns the tray/overlay until it ends.
+            if let Some(owner) = claimed_owner {
+                tm.cancel_stream();
+                rm.clear_stream_owner_if(owner);
+            }
+            let other_session_live = rm.is_recording();
+            if !other_session_live {
+                set_tray_state(app, TrayIconState::Idle);
+            }
             if let Some(err) = recording_error {
                 let error_type = if is_microphone_access_denied(&err) {
                     "microphone_permission_denied"
@@ -1672,7 +2084,9 @@ impl ShortcutAction for TranscribeAction {
                     Some(err),
                 );
             }
-            utils::hide_recording_overlay_after_error(app);
+            if !other_session_live {
+                utils::hide_recording_overlay_after_error(app);
+            }
         }
 
         debug!(
@@ -1692,10 +2106,32 @@ impl ShortcutAction for TranscribeAction {
         let stop_time = Instant::now();
         debug!("TranscribeAction::stop called for binding: {}", binding_id);
 
-        if matches!(self.source, CaptureSource::Remote) {
-            // The phone session ends here; the pipeline below (finalize,
-            // transcribe, paste) is the shared one.
-            crate::companion::on_session_changed(app, false);
+        // v1.6.2 W1-L2: the stopping session's identity, handed over by the
+        // coordinator's Stop effect (note_stopping_session). Everything the
+        // pipeline resolves per session - the delivery target, the prefs,
+        // the attribution device (KB-254), the recorder to stop, the
+        // history device - comes from THIS record, never from a slot
+        // another connection can claim.
+        let stopping = crate::companion::take_stopping_session(app);
+        let session_lane = stopping.as_ref().map(|(lane, _, _)| *lane);
+        let session_device = match (&stopping, self.source) {
+            (Some((_, device, _)), _) => Some(device.clone()),
+            // Manager-less/test Remote contexts with no session record keep
+            // the legacy name resolution; a keyboard session resolves no
+            // device at all (and skips the settings read entirely).
+            (None, CaptureSource::Remote) => crate::settings::get_settings(app)
+                .companion_last_device
+                .clone(),
+            (None, CaptureSource::Local) => None,
+        };
+        let session_prefs = stopping.map(|(_, _, prefs)| prefs).unwrap_or_default();
+
+        if let Some(lane) = session_lane {
+            if matches!(self.source, CaptureSource::Remote) {
+                // The phone session ends here; the pipeline below (finalize,
+                // transcribe, deliver) is the shared one.
+                crate::companion::on_lane_session_changed(app, lane, false);
+            }
         }
 
         let ah = app.clone();
@@ -1726,26 +2162,30 @@ impl ShortcutAction for TranscribeAction {
 
         // v1.6.0 companion preferences, resolved ONCE here on the
         // coordinator's stop call (before any await): the session's prefs
-        // were carried by its starting press's edge and applied on the
-        // coordinator thread at the instant that start was committed, so a
-        // press racing this pipeline can only arm the NEXT session's prefs
-        // and cannot retarget this one.
+        // were frozen into its per-lane record at the instant its start
+        // committed on the coordinator thread, so a press racing this
+        // pipeline can only arm the NEXT session's prefs and cannot
+        // retarget this one.
         let binding_id = binding_id.to_string(); // Clone binding_id for the async task
         let capture_source = self.source;
-        let session_prefs = crate::companion::session_prefs(app);
         let delivery = transcript_delivery(capture_source, session_prefs.output_target);
         // v1.6.0 W1-L7: the session override rides above the legacy
         // resolution, so the pipeline honors the session's FINAL mode. The
         // coordinator resolved that mode at START (master toggle read at
         // that one instant; each mid-recording pp-hotkey press flips it),
-        // so this reads exactly the mode the just-ended session had - the
+        // so this reads exactly the mode the just-ended session had. The
         // live get_settings read below feeds only the override-less None
         // fallback (manager-less test contexts) and can never contradict
         // a badge the start arm lit or darkened. stop() runs inside the
         // coordinator's Stop effect, before its mirror republishes.
-        let session_pp_override = app
-            .try_state::<TranscriptionCoordinator>()
-            .and_then(|c| c.session_post_process_override());
+        // v1.6.2 W1-L2: a companion session's override reads from ITS
+        // lane's mirror.
+        let session_pp_override =
+            app.try_state::<TranscriptionCoordinator>()
+                .and_then(|c| match session_lane {
+                    Some(lane) => c.lane_session_post_process_override(lane),
+                    None => c.session_post_process_override(),
+                });
         let post_process = session_runs_post_process(
             self.post_process,
             capture_source,
@@ -1755,7 +2195,31 @@ impl ShortcutAction for TranscribeAction {
         );
         let (history_capture_source, history_destination) =
             history_provenance(capture_source, delivery);
-        let cancel_generation = rm.cancel_generation();
+        // v1.6.2 W1-L2: the history device (per-phone recents filter).
+        let history_capture_device = match capture_source {
+            CaptureSource::Remote => session_device.clone().unwrap_or_default(),
+            CaptureSource::Local => String::new(),
+        };
+        // v1.6.2 fleet pass 1: this pipeline gates on ITS OWN session's
+        // cancel generation - the local machine's shared one, or its lane's
+        // private one - so a cancel that resolves to any OTHER session
+        // (another lane's, or the local machine's while this is a lane
+        // pipeline) can never discard this pipeline's captured audio.
+        let cancel_lane = match capture_source {
+            CaptureSource::Remote => session_lane,
+            CaptureSource::Local => None,
+        };
+        let cancel_generation = rm.cancel_generation(cancel_lane);
+        // v1.6.2 W1-L2: does THIS session own the streaming engine? Only
+        // its Stop may finalize it - another lane's pipeline (or the
+        // keyboard's) finalizing a stream it does not own would swallow
+        // the owner's transcript and break its own batch fallback.
+        let stream_owner = rm.stream_owner();
+        let owns_stream = match capture_source {
+            CaptureSource::Local => stream_owner == crate::managers::audio::StreamOwner::Local,
+            CaptureSource::Remote => matches!(session_lane,
+                Some(lane) if stream_owner == crate::managers::audio::StreamOwner::Lane(lane)),
+        };
 
         // The stop pipeline runs on a dedicated std::thread (mirroring
         // run_stream_worker), entering the async world via block_on only for
@@ -1770,25 +2234,38 @@ impl ShortcutAction for TranscribeAction {
             .name("stop-pipeline".into())
             .spawn(move || {
                 tauri::async_runtime::block_on(async move {
-            let _guard = FinishGuard(ah.clone(), Arc::clone(&tm));
+            // Fleet pass 2: publish this pipeline as in flight (the Escape
+            // path's abort-all resolution bumps exactly these lanes'
+            // generations when nothing is recording anymore); the guard
+            // below removes it at drain, on every exit path.
+            register_in_flight_pipeline(session_lane);
+            let _guard = FinishGuard(ah.clone(), Arc::clone(&tm), session_lane);
             debug!(
                 "Starting async transcription task for binding: {}",
                 binding_id
             );
 
             let stop_recording_time = Instant::now();
-            if let Some(samples) = rm.stop_recording(&binding_id, cancel_generation) {
+            let stopped_samples = match (capture_source, session_lane) {
+                (CaptureSource::Remote, Some(lane)) => {
+                    rm.stop_remote_lane_recording(lane, cancel_generation)
+                }
+                (CaptureSource::Remote, None) => None,
+                (CaptureSource::Local, _) => {
+                    rm.stop_recording(&binding_id, cancel_generation)
+                }
+            };
+            if let Some(samples) = stopped_samples {
                 debug!(
                     "Recording stopped and samples retrieved in {:?}, sample count: {}",
                     stop_recording_time.elapsed(),
                     samples.len()
                 );
 
-                if rm.was_cancelled_since(cancel_generation) {
+                if rm.was_cancelled_since(cancel_lane, cancel_generation) {
                     debug!("Transcription operation cancelled after recording stop");
                     tm.cancel_stream();
-                    utils::hide_recording_overlay(&ah);
-                    set_tray_state(&ah, TrayIconState::Idle);
+                    retire_session_surfaces(&ah, false);
                     return;
                 }
 
@@ -1804,11 +2281,14 @@ impl ShortcutAction for TranscribeAction {
                         // through the notice channel AND the phone through
                         // the forwarder (companion_zero_audio is classified
                         // phone-forwarding); emitting anywhere else would
-                        // double-broadcast.
+                        // double-broadcast. v1.6.2 W1-L2 (KB-254): the
+                        // detail names THIS session's own device, from the
+                        // stopping session record - never a claimable slot
+                        // a spectating phone's hello could have renamed.
                         crate::managers::transcription::emit_overlay_notice(
                             &ah,
                             crate::managers::transcription::NoticeCode::CompanionZeroAudio,
-                            crate::companion::session_device_name(&ah),
+                            session_device.clone(),
                         );
                         // The notice just landed on the card the stop path
                         // showed; the error-read hide keeps it readable
@@ -1816,16 +2296,20 @@ impl ShortcutAction for TranscribeAction {
                         // while the frontend's session-cap-class routing
                         // offers the macOS notification independently of the
                         // card, because this hide WILL retire the card.
-                        tm.cancel_stream();
-                        set_tray_state(&ah, TrayIconState::Idle);
-                        utils::hide_recording_overlay_after_error(&ah);
+                        if owns_stream {
+                            // Only the stream's owner may tear it down; a
+                            // concurrent session's stream must survive this
+                            // pipeline (W1-L2).
+                            tm.cancel_stream();
+                            rm.clear_stream_owner_if(stream_owner);
+                        }
+                        retire_session_surfaces(&ah, true);
                         return;
                     }
                     // Tear down any streaming worker so its channel doesn't leak
                     // and block the next start_stream.
                     tm.cancel_stream();
-                    utils::hide_recording_overlay(&ah);
-                    set_tray_state(&ah, TrayIconState::Idle);
+                    retire_session_surfaces(&ah, false);
                 } else {
                     // Save WAV concurrently with transcription
                     let sample_count = samples.len();
@@ -1850,52 +2334,71 @@ impl ShortcutAction for TranscribeAction {
                     // In-session command edits (the command-mode modifier) and
                     // manual buffer edits fold into the final text through the
                     // session buffer inside finalize_stream.
+                    //
+                    // v1.6.2 W1-L2: only the stream's OWNER finalizes it; a
+                    // concurrent session's pipeline (which recorded batch)
+                    // transcribes its own samples and never touches the
+                    // owner's stream. The engine lock serializes the whole
+                    // engine-consuming region across overlapping pipelines.
                     let transcription_time = Instant::now();
                     let stream_model = tm.get_current_model().unwrap_or_default();
-                    let finalize = tm.finalize_stream();
                     // The summary line's source term: which arm produced the
                     // text (finalize-vs-batch, the survey's unanswerable
                     // question).
                     let mut outcome_source: &'static str = "stream-finalize";
-                    let transcription_result = match finalize {
+                    let _engine_guard = ENGINE_PIPELINE_LOCK.lock().await;
+                    let transcription_result = if owns_stream {
+                        let finalize = tm.finalize_stream();
+                        rm.clear_stream_owner_if(stream_owner);
                         // A finalized stream with usable text wins. An empty result
                         // (no active stream, produced nothing, or the stream failed
                         // or its worker crashed) falls back to a full batch
                         // transcription of the same audio. A cancelled finalize is
                         // surfaced instead, so a cancel never starts a batch run.
-                        Ok(Some(text)) if !text.trim().is_empty() => {
-                            Ok((text, stream_model.clone()))
-                        }
-                        Ok(empty) => {
-                            // The one exception: an empty finalize with the
-                            // model already evicted by the Immediately unload
-                            // returns the quiet empty result instead of a
-                            // batch run that can only fail (see
-                            // empty_finalize_outcome).
-                            let unload_is_immediately = get_settings(&ah).model_unload_timeout
-                                == ModelUnloadTimeout::Immediately;
-                            match empty_finalize_outcome(
-                                unload_is_immediately,
-                                tm.is_model_loaded(),
-                            ) {
-                                EmptyFinalizeOutcome::QuietEmpty => {
-                                    debug!(
-                                        "Stream finalize produced no text ({}) and the model \
-                                         was unloaded by the Immediately setting; returning the \
-                                         quiet empty result",
-                                        empty.as_deref().map(str::len).unwrap_or(0)
-                                    );
-                                    outcome_source = "quiet-empty";
-                                    Ok((String::new(), stream_model.clone()))
-                                }
-                                EmptyFinalizeOutcome::Batch => {
-                                    outcome_source = "batch";
-                                    tm.transcribe_with_model(samples)
+                        match finalize {
+                            Ok(Some(text)) if !text.trim().is_empty() => {
+                                Ok((text, stream_model.clone()))
+                            }
+                            Ok(empty) => {
+                                // The one exception: an empty finalize with the
+                                // model already evicted by the Immediately unload
+                                // returns the quiet empty result instead of a
+                                // batch run that can only fail (see
+                                // empty_finalize_outcome).
+                                let unload_is_immediately = get_settings(&ah)
+                                    .model_unload_timeout
+                                    == ModelUnloadTimeout::Immediately;
+                                match empty_finalize_outcome(
+                                    unload_is_immediately,
+                                    tm.is_model_loaded(),
+                                ) {
+                                    EmptyFinalizeOutcome::QuietEmpty => {
+                                        debug!(
+                                            "Stream finalize produced no text ({}) and the model \
+                                             was unloaded by the Immediately setting; returning the \
+                                             quiet empty result",
+                                            empty.as_deref().map(str::len).unwrap_or(0)
+                                        );
+                                        outcome_source = "quiet-empty";
+                                        Ok((String::new(), stream_model.clone()))
+                                    }
+                                    EmptyFinalizeOutcome::Batch => {
+                                        outcome_source = "batch";
+                                        tm.transcribe_with_model(samples)
+                                    }
                                 }
                             }
+                            Err(err) => Err(err),
                         }
-                        Err(err) => Err(err),
+                    } else {
+                        // v1.6.2 W1-L2: a session that does not own the
+                        // streaming engine (another session claimed it while
+                        // this one recorded, or the model does not stream)
+                        // batch-transcribes its own ring.
+                        outcome_source = "batch";
+                        tm.transcribe_with_model(samples)
                     };
+                    drop(_engine_guard);
 
                     // Await WAV save and verify
                     let wav_saved = match wav_handle.await {
@@ -1921,10 +2424,9 @@ impl ShortcutAction for TranscribeAction {
                         }
                     };
 
-                    if rm.was_cancelled_since(cancel_generation) {
+                    if rm.was_cancelled_since(cancel_lane, cancel_generation) {
                         debug!("Transcription operation cancelled before output handling");
-                        utils::hide_recording_overlay(&ah);
-                        set_tray_state(&ah, TrayIconState::Idle);
+                        retire_session_surfaces(&ah, false);
                         return;
                     }
 
@@ -1950,7 +2452,7 @@ impl ShortcutAction for TranscribeAction {
                             let rm_for_swap = Arc::clone(&rm);
                             let is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>> =
                                 Some(Arc::new(move || {
-                                    rm_for_swap.was_cancelled_since(cancel_generation)
+                                    rm_for_swap.was_cancelled_since(cancel_lane, cancel_generation)
                                 }));
                             let Some(processed) = complete_unless_cancelled(
                                 process_transcription_output(
@@ -1960,7 +2462,7 @@ impl ShortcutAction for TranscribeAction {
                                     post_process,
                                     is_cancelled,
                                 ),
-                                || rm.was_cancelled_since(cancel_generation),
+                                || rm.was_cancelled_since(cancel_lane, cancel_generation),
                             )
                             .await
                             else {
@@ -1971,15 +2473,13 @@ impl ShortcutAction for TranscribeAction {
                                 // never shows a phantom live run.
                                 crate::post_process_runs::runs()
                                     .cancel_live_dictation_runs();
-                                utils::hide_recording_overlay(&ah);
-                                set_tray_state(&ah, TrayIconState::Idle);
+                                retire_session_surfaces(&ah, false);
                                 return;
                             };
 
-                            if rm.was_cancelled_since(cancel_generation) {
+                            if rm.was_cancelled_since(cancel_lane, cancel_generation) {
                                 debug!("Transcription operation cancelled before paste");
-                                utils::hide_recording_overlay(&ah);
-                                set_tray_state(&ah, TrayIconState::Idle);
+                                retire_session_surfaces(&ah, false);
                                 return;
                             }
 
@@ -1995,15 +2495,43 @@ impl ShortcutAction for TranscribeAction {
                                     processed.post_process_summary.clone(),
                                     history_capture_source.clone(),
                                     history_destination.clone(),
+                                    history_capture_device.clone(),
                                 ) {
                                     Ok(_) => {
                                         // v1.6.0: every companion write
-                                        // refreshes the phones' recent list
-                                        // (the RecentHistory frame). Best
-                                        // effort; the write itself already
-                                        // succeeded.
+                                        // refreshes the phones' recent lists
+                                        // (the RecentHistory frame, each
+                                        // phone its own). v1.6.3: strictly
+                                        // OFF the stop pipeline. The proof
+                                        // runs reproduced the stop task
+                                        // wedging inside this broadcast (the
+                                        // SQLite recents query plus the
+                                        // registry lock), freezing the
+                                        // pipeline between the history write
+                                        // and the transcript delivery: the
+                                        // phone never got its text and the
+                                        // binding stayed busy until restart.
+                                        // The refresh is best effort (the
+                                        // write already succeeded), so it
+                                        // runs on a blocking worker the
+                                        // pipeline never waits on; the
+                                        // transcript delivery below stays
+                                        // synchronous because its send is
+                                        // provably non-blocking (an
+                                        // unbounded channel under a
+                                        // momentary lock).
                                         if matches!(capture_source, CaptureSource::Remote) {
-                                            crate::companion::broadcast_recent_history(&ah);
+                                            let ah_for_recents = ah.clone();
+                                            tauri::async_runtime::spawn_blocking(move || {
+                                                let started = std::time::Instant::now();
+                                                crate::companion::broadcast_recent_history(
+                                                    &ah_for_recents,
+                                                );
+                                                log::debug!(
+                                                    "companion: post-save recent-history refresh finished in {:?}",
+                                                    started.elapsed()
+                                                );
+                                            });
                                         }
                                     }
                                     Err(err) => error!("Failed to save history entry: {}", err),
@@ -2033,25 +2561,29 @@ impl ShortcutAction for TranscribeAction {
                                         stop_to_end_ms: stop_time.elapsed().as_millis(),
                                     })
                                 );
-                                utils::hide_recording_overlay(&ah);
-                                set_tray_state(&ah, TrayIconState::Idle);
+                                retire_session_surfaces(&ah, false);
                             } else if matches!(delivery, TranscriptDelivery::PhoneSend) {
                                 // v1.6.0 phone-target delivery: skip every
                                 // Mac paste step (preview, paste, clipboard
                                 // handling, auto-submit all live inside the
-                                // paste path below) and broadcast the final
+                                // paste path below) and send the final
                                 // transcript to the phone instead. History
                                 // was already written above with
                                 // destination=phone; the RecentHistory
                                 // refresh rode that write. A send with no
-                                // subscribers (the phone dropped) is a
+                                // subscriber (the phone dropped) is a
                                 // no-op - the transcript is safe in history.
-                                crate::companion::deliver_transcript_to_phone(
-                                    &ah,
-                                    &processed.final_text,
-                                    processed.post_processed_text.is_some(),
-                                    &used_model,
-                                );
+                                // v1.6.2 W1-L2: the target is the stopping
+                                // session's OWN lane.
+                                if let Some(lane) = session_lane {
+                                    crate::companion::deliver_transcript_to_lane(
+                                        &ah,
+                                        lane,
+                                        &processed.final_text,
+                                        processed.post_processed_text.is_some(),
+                                        &used_model,
+                                    );
+                                }
                                 info!(
                                     "{}",
                                     format_session_outcome(&SessionOutcomeSummary {
@@ -2064,8 +2596,7 @@ impl ShortcutAction for TranscribeAction {
                                         stop_to_end_ms: stop_time.elapsed().as_millis(),
                                     })
                                 );
-                                utils::hide_recording_overlay(&ah);
-                                set_tray_state(&ah, TrayIconState::Idle);
+                                retire_session_surfaces(&ah, false);
                             } else {
                                 // Final-text preview before the paste: batch
                                 // models show nothing while recording, so
@@ -2082,7 +2613,19 @@ impl ShortcutAction for TranscribeAction {
                                 // the paste entirely (the loop below polls
                                 // the same cancellation generation the paste
                                 // closure checks).
-                                if get_settings(&ah).preview_before_paste {
+                                //
+                                // KB-014: read the settings CURRENT here
+                                // (mirroring show_final_preview_overlay's
+                                // own overlay-style check): overlay_style
+                                // None makes the preview a no-op, so the
+                                // 1.2 s read delay is skipped - the paste
+                                // lands immediately instead of 1.2 s late
+                                // with nothing shown for it.
+                                let preview_settings = get_settings(&ah);
+                                if preview_worth_waiting_for(
+                                    preview_settings.overlay_style,
+                                    preview_settings.preview_before_paste,
+                                ) {
                                     if use_streaming_overlay {
                                         let _ = StreamTextEvent {
                                             committed: processed.final_text.clone(),
@@ -2102,12 +2645,11 @@ impl ShortcutAction for TranscribeAction {
 
                                     let mut waited = Duration::ZERO;
                                     while waited < PREVIEW_BEFORE_PASTE_DELAY {
-                                        if rm.was_cancelled_since(cancel_generation) {
+                                        if rm.was_cancelled_since(cancel_lane, cancel_generation) {
                                             debug!(
                                                 "Transcription operation cancelled during final preview"
                                             );
-                                            utils::hide_recording_overlay(&ah);
-                                            set_tray_state(&ah, TrayIconState::Idle);
+                                            retire_session_surfaces(&ah, false);
                                             return;
                                         }
                                         tokio::time::sleep(CANCELLATION_POLL_INTERVAL).await;
@@ -2138,10 +2680,9 @@ impl ShortcutAction for TranscribeAction {
                                     stop_to_end_ms: 0,
                                 };
                                 ah.run_on_main_thread(move || {
-                                    if rm_for_paste.was_cancelled_since(cancel_generation) {
+                                    if rm_for_paste.was_cancelled_since(cancel_lane, cancel_generation) {
                                         debug!("Transcription operation cancelled before paste");
-                                        utils::hide_recording_overlay(&ah_clone);
-                                        set_tray_state(&ah_clone, TrayIconState::Idle);
+                                        retire_session_surfaces(&ah_clone, false);
                                         return;
                                     }
 
@@ -2177,15 +2718,10 @@ impl ShortcutAction for TranscribeAction {
                                     outcome_summary.stop_to_end_ms =
                                         stop_time.elapsed().as_millis();
                                     info!("{}", format_session_outcome(&outcome_summary));
-                                    set_tray_state(&ah_clone, TrayIconState::Idle);
-                                    if paste_failed_flag.load(std::sync::atomic::Ordering::Acquire)
-                                    {
-                                        // Delayed hide so the in-card paste
-                                        // error stays readable.
-                                        utils::hide_recording_overlay_after_error(&ah_clone);
-                                    } else {
-                                        utils::hide_recording_overlay(&ah_clone);
-                                    }
+                                    retire_session_surfaces(
+                                        &ah_clone,
+                                        paste_failed_flag.load(std::sync::atomic::Ordering::Acquire),
+                                    );
                                 })
                                 .unwrap_or_else(|e| {
                                     error!("Failed to run paste on main thread: {:?}", e);
@@ -2201,18 +2737,16 @@ impl ShortcutAction for TranscribeAction {
                                             stop_to_end_ms: stop_time.elapsed().as_millis(),
                                         })
                                     );
-                                    utils::hide_recording_overlay(&ah);
-                                    set_tray_state(&ah, TrayIconState::Idle);
+                                    retire_session_surfaces(&ah, false);
                                 });
                             }
                         }
                         Err(err) => {
-                            if rm.was_cancelled_since(cancel_generation) {
+                            if rm.was_cancelled_since(cancel_lane, cancel_generation) {
                                 debug!(
                                     "Transcription operation cancelled after transcription error"
                                 );
-                                utils::hide_recording_overlay(&ah);
-                                set_tray_state(&ah, TrayIconState::Idle);
+                                retire_session_surfaces(&ah, false);
                                 return;
                             }
 
@@ -2249,22 +2783,27 @@ impl ShortcutAction for TranscribeAction {
                                     None,
                                     history_capture_source.clone(),
                                     history_destination.clone(),
+                                    history_capture_device.clone(),
                                 ) {
                                     error!("Failed to save failed history entry: {}", save_err);
                                 }
                             }
                             // Delayed hide so the in-card error stays readable.
-                            set_tray_state(&ah, TrayIconState::Idle);
-                            utils::hide_recording_overlay_after_error(&ah);
+                            retire_session_surfaces(&ah, true);
                         }
                     }
                 }
             } else {
                 debug!("No samples retrieved from recording stop");
                 // Tear down any streaming worker so its channel doesn't leak.
-                tm.cancel_stream();
-                utils::hide_recording_overlay(&ah);
-                set_tray_state(&ah, TrayIconState::Idle);
+                // v1.6.2 W1-L2: only the stream's owner may (a concurrent
+                // session's stream must survive this pipeline's no-sample
+                // exit).
+                if owns_stream {
+                    tm.cancel_stream();
+                    rm.clear_stream_owner_if(stream_owner);
+                }
+                retire_session_surfaces(&ah, false);
             }
                 })
             })
@@ -2482,8 +3021,8 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
 mod tests {
     use super::{
         complete_unless_cancelled, is_blank_transcription, local_engine_availability,
-        post_process_output_schema, should_use_streaming_overlay, strip_think_block,
-        uses_local_engine, TRANSCRIPTION_FIELD,
+        post_process_output_schema, preview_worth_waiting_for, should_use_streaming_overlay,
+        strip_think_block, uses_local_engine, TRANSCRIPTION_FIELD,
     };
     use crate::settings::OverlayStyle;
     use std::future;
@@ -2497,6 +3036,36 @@ mod tests {
         assert!(is_blank_transcription(""));
         assert!(is_blank_transcription("   "));
         assert!(is_blank_transcription("\t\n  \r\n"));
+    }
+
+    /// KB-239: every log whose label says "chars" must be fed by
+    /// chars().count(), never str::len() (bytes). The engines' outputs are
+    /// routinely non-ASCII (any localized template or transcript), where the
+    /// byte count overstates the char count by the UTF-8 width. Pinned
+    /// against this committed source because the values only exist at
+    /// runtime inside debug! calls (the KB-242 source-pin convention).
+    #[test]
+    fn output_length_logs_count_chars_not_bytes_kb239() {
+        let source = include_str!("actions.rs");
+        for needle in [
+            "\"Post-processing succeeded. Output length: {} chars\"",
+            "\"Processed prompt length: {} chars\"",
+            "\"Local post-processing succeeded. Output length: {} chars\"",
+            "\"Apple Intelligence post-processing succeeded. Output length: {} chars\"",
+        ] {
+            let mut from = 0usize;
+            let mut hits = 0usize;
+            while let Some(at) = source[from..].find(needle) {
+                let window = &source[from + at..from + at + needle.len() + 200];
+                assert!(
+                    window.contains("chars().count()"),
+                    "a \"chars\" log line is not fed by chars().count(): {needle}"
+                );
+                hits += 1;
+                from += at + needle.len();
+            }
+            assert!(hits > 0, "the log line this pin guards is gone: {needle}");
+        }
     }
 
     #[test]
@@ -2690,6 +3259,257 @@ mod tests {
         assert!(!should_use_streaming_overlay(OverlayStyle::Live, false));
         assert!(!should_use_streaming_overlay(OverlayStyle::Minimal, true));
         assert!(!should_use_streaming_overlay(OverlayStyle::None, true));
+    }
+
+    /// KB-014 pin: the preview wait only runs when the preview can render.
+    /// The exhaustive overlay-style x toggle table - a None style with the
+    /// toggle ON is the bug's exact configuration (show_final_preview_overlay
+    /// no-ops, yet the 1.2 s delay still ran before every paste).
+    #[test]
+    fn kb014_preview_wait_runs_only_when_something_can_show() {
+        assert!(preview_worth_waiting_for(OverlayStyle::Live, true));
+        assert!(preview_worth_waiting_for(OverlayStyle::Minimal, true));
+        // The bug: overlay off, preview toggle on - nothing to show, so no
+        // delay.
+        assert!(!preview_worth_waiting_for(OverlayStyle::None, true));
+        // Toggle off: no preview step at all, in any style.
+        assert!(!preview_worth_waiting_for(OverlayStyle::Live, false));
+        assert!(!preview_worth_waiting_for(OverlayStyle::Minimal, false));
+        assert!(!preview_worth_waiting_for(OverlayStyle::None, false));
+    }
+
+    /// KB-014 wiring pin: the stop pipeline's preview block must gate on
+    /// `preview_worth_waiting_for` (the overlay-style-aware decision), not
+    /// on `preview_before_paste` alone. The pipeline needs a full app a unit
+    /// test cannot mount, so the call is pinned against this committed
+    /// source - the same convention as the v1.6.0 companion wiring pin.
+    #[test]
+    fn kb014_stop_pipeline_gates_the_preview_wait_on_the_overlay_style() {
+        let source = include_str!("actions.rs");
+        let impl_at = source
+            .find("impl ShortcutAction for TranscribeAction")
+            .expect("the TranscribeAction impl");
+        let stop_at = impl_at + source[impl_at..].find("fn stop(").expect("its stop fn");
+        let end_at = stop_at
+            + source[stop_at..]
+                .find("\n// Cancel Action")
+                .expect("the end of the impl");
+        let stop_body = &source[stop_at..end_at];
+
+        assert!(
+            stop_body.contains("preview_worth_waiting_for("),
+            "the preview wait must go through the overlay-style-aware gate"
+        );
+        // ...and the raw toggle-only condition that burned the full delay
+        // with nothing to show is gone from the pipeline.
+        assert!(
+            !stop_body.contains("if get_settings(&ah).preview_before_paste {"),
+            "the preview block must not gate on preview_before_paste alone"
+        );
+    }
+
+    /// Fleet pass 2: the in-flight pipeline registry the Escape path's
+    /// abort-all resolution reads. Registered at pipeline spawn, removed at
+    /// FinishGuard drain; the lane view deliberately hides the keyboard's
+    /// None key (that pipeline gates on the local generation the cancel
+    /// path already bumps). Self-cleaning so it can live on the process
+    /// static.
+    #[test]
+    fn in_flight_pipeline_registry_tracks_lanes_and_drains() {
+        use super::{
+            in_flight_lane_pipelines, register_in_flight_pipeline, unregister_in_flight_pipeline,
+        };
+
+        register_in_flight_pipeline(None);
+        register_in_flight_pipeline(Some(7));
+        register_in_flight_pipeline(Some(9));
+        // Duplicate registration (the same lane twice) is one entry.
+        register_in_flight_pipeline(Some(7));
+        let mut lanes = in_flight_lane_pipelines();
+        lanes.sort_unstable();
+        assert_eq!(
+            lanes,
+            vec![7, 9],
+            "lane keys only; the keyboard's None key is not an abort-all target"
+        );
+
+        // A lane's drain removes exactly its own entry.
+        unregister_in_flight_pipeline(Some(7));
+        assert_eq!(in_flight_lane_pipelines(), vec![9]);
+        // Idempotent removal (its FinishGuard may fire again on a teardown
+        // path that already released it).
+        unregister_in_flight_pipeline(Some(7));
+        assert_eq!(in_flight_lane_pipelines(), vec![9]);
+        // The keyboard pipeline's drain removes its own key without
+        // touching any lane's.
+        unregister_in_flight_pipeline(None);
+        assert_eq!(in_flight_lane_pipelines(), vec![9]);
+        unregister_in_flight_pipeline(Some(9));
+        assert!(in_flight_lane_pipelines().is_empty());
+    }
+
+    /// Fleet pass 2 wiring pin: the pipeline publishes itself as in flight
+    /// BEFORE its FinishGuard exists (so every exit path removes it), and
+    /// the guard releases exactly its own session key from BOTH the cancel
+    /// want set and the registry.
+    #[test]
+    fn stop_pipeline_registers_in_flight_and_guard_releases_its_own_key() {
+        let source = include_str!("actions.rs");
+        let spawn_at = source
+            .find(".name(\"stop-pipeline\"")
+            .expect("the stop pipeline spawn");
+        let guard_at = spawn_at
+            + source[spawn_at..]
+                .find("let _guard = FinishGuard")
+                .expect("the guard");
+        let register_at = spawn_at
+            + source[spawn_at..]
+                .find("register_in_flight_pipeline(session_lane);")
+                .expect("the pipeline registers itself as in flight");
+        assert!(
+            register_at < guard_at,
+            "the in-flight registration must precede the FinishGuard so every exit path drains it"
+        );
+        let guard_at = source
+            .find("impl Drop for FinishGuard")
+            .expect("the guard impl");
+        let guard_end = guard_at
+            + source[guard_at..]
+                .find("\n    }\n}\n")
+                .expect("the guard impl end");
+        let guard_body = &source[guard_at..guard_end];
+        assert!(
+            guard_body.contains("unregister_cancel_shortcut(&self.0, self.2)"),
+            "the guard releases exactly ITS session's cancel want: a global unregister killed Escape for every concurrently-live session"
+        );
+        assert!(
+            guard_body.contains("unregister_in_flight_pipeline(self.2);"),
+            "the guard leaves the in-flight registry on every exit path"
+        );
+    }
+
+    /// Fleet pass 2: a failed start must tear down only what IT owns. The
+    /// stream is cancelled only when this start claimed it (a failed
+    /// non-owner start would otherwise cancel another session's live
+    /// stream), the claim is handed back, and the tray/overlay revert only
+    /// when no other session is live. Source pin: the start arm needs a
+    /// full app a unit test cannot mount.
+    #[test]
+    fn failed_start_teardown_is_scoped_to_what_it_owns() {
+        let source = include_str!("actions.rs");
+        let impl_at = source
+            .find("impl ShortcutAction for TranscribeAction")
+            .expect("the TranscribeAction impl");
+        let start_at = impl_at + source[impl_at..].find("fn start(").expect("its start fn");
+        let start_body =
+            &source[start_at..start_at + source[start_at..].find("fn stop(").expect("its stop fn")];
+        let failed_at = start_body.find("} else {").expect("the failed-start arm");
+        let failed = &start_body[failed_at..];
+        let cancel_stream_at = failed
+            .find("tm.cancel_stream();")
+            .expect("the stream teardown");
+        let claim_guard_at = failed
+            .find("if let Some(owner) = claimed_owner {")
+            .expect("the claim guard");
+        assert!(
+            claim_guard_at < cancel_stream_at,
+            "a failed start may cancel the stream ONLY when it claimed the singleton: a non-owner's failure must not kill the owner's live stream"
+        );
+        assert!(
+            failed[claim_guard_at..].contains("rm.clear_stream_owner_if(owner);"),
+            "a failed claim is handed back, mirroring the early-return path"
+        );
+        let tray_at = failed
+            .find("set_tray_state(app, TrayIconState::Idle);")
+            .expect("the tray revert");
+        let liveness_guard_at = failed
+            .find("let other_session_live = rm.is_recording();")
+            .expect("the other-session liveness guard");
+        assert!(
+            liveness_guard_at < tray_at,
+            "the tray may revert to Idle only when no other session is live"
+        );
+        let hide_at = failed
+            .rfind("utils::hide_recording_overlay_after_error(app);")
+            .expect("the overlay hide");
+        let hide_guard_at = failed[..hide_at]
+            .rfind("if !other_session_live {")
+            .expect("the liveness guard before the overlay hide");
+        assert!(
+            hide_guard_at < hide_at,
+            "the overlay hide rides the same liveness guard: a concurrent session's overlay must survive this start's failure"
+        );
+    }
+
+    /// v1.6.2 multi-phone review pin: EVERY stop-pipeline drain retires the
+    /// shared surfaces (tray icon + overlay card) through the
+    /// other-session liveness guard. The drains used to flip
+    /// TrayIconState::Idle and hide the overlay unconditionally; with two
+    /// phones dictating at once, the first pipeline to finish showed Idle
+    /// and hid the card while the second phone was still recording (the
+    /// overlay's show-generation guard only protects NEWER shows, not the
+    /// still-live session whose show predates the pipeline). Pinned
+    /// against this committed source (the pipeline needs live recorders),
+    /// the same convention as the failed-start guard pin above: the
+    /// helper's guard precedes its tray flip, and no drain site may flip
+    /// the tray or hide the overlay directly.
+    #[test]
+    fn stop_pipeline_drains_retire_shared_surfaces_only_when_no_other_session_is_live() {
+        let source = include_str!("actions.rs");
+        // The helper reads the other-session truth before touching either
+        // surface.
+        let helper_at = source
+            .find("fn retire_session_surfaces(")
+            .expect("the retire helper");
+        let helper = &source[helper_at
+            ..helper_at
+                + source[helper_at..]
+                    .find("fn transcript_delivery(")
+                    .expect("the helper's end")];
+        let guard_at = helper
+            .find(".is_some_and(|rm| rm.is_recording())")
+            .expect("the other-session liveness guard");
+        let tray_at = helper
+            .find("set_tray_state(app, TrayIconState::Idle);")
+            .expect("the tray flip");
+        assert!(
+            guard_at < tray_at,
+            "the helper may retire the surfaces only when no other session is live"
+        );
+        // And no drain site bypasses the helper: the pipeline body holds no
+        // direct Idle flip or overlay hide of its own. Scoped to
+        // TranscribeAction::stop's own body (the trait declaration and the
+        // failed-start arm inside `fn start` legitimately use the plain
+        // calls with their own guard).
+        let impl_at = source
+            .find("impl ShortcutAction for TranscribeAction")
+            .expect("the TranscribeAction impl");
+        let stop_at = impl_at
+            + source[impl_at..]
+                .find("fn stop(&self")
+                .expect("its stop fn");
+        let stop_end = stop_at
+            + source[stop_at..]
+                .find("\n// Cancel Action")
+                .expect("the end of the impl");
+        let pipeline = &source[stop_at..stop_end];
+        assert!(
+            !pipeline.contains("TrayIconState::Idle"),
+            "every drain routes its tray flip through retire_session_surfaces"
+        );
+        assert!(
+            !pipeline.contains("utils::hide_recording_overlay"),
+            "every drain routes its overlay hide through retire_session_surfaces"
+        );
+        // The drains are all there: every exit of the spawned pipeline
+        // (cancel paths, empty audio, empty text, phone delivery, paste
+        // tail, error tails) calls the helper exactly once. The helper's
+        // own definition sits before `fn stop`, outside this slice.
+        let calls = pipeline.matches("retire_session_surfaces(").count();
+        assert!(
+            calls >= 15,
+            "every pipeline exit must retire the surfaces through the helper (found {calls})"
+        );
     }
 
     /// The finalize-outcome x unload-timeout decision table: batch stays the
@@ -2973,10 +3793,13 @@ mod tests {
                 .expect("the end of the impl");
         let stop_body = &source[stop_at..end_at];
 
-        // The zero-audio emit exists, and its arm hides through the
-        // error-read delay: a plain hide retires the card ~300 ms after
-        // the notice landed on it (review finding: the notice was
-        // effectively unreadable on the Mac).
+        // The zero-audio emit exists, and its arm retires the surfaces
+        // through the readable-notice path (the error-read delay, not the
+        // plain 300 ms hide: a plain hide retires the card ~300 ms after
+        // the notice landed on it - review finding: the notice was
+        // effectively unreadable on the Mac). Multi-phone review: the
+        // retirement now rides the shared retire_session_surfaces guard,
+        // so the `true` argument IS the error-read choice.
         let emit_at = stop_body
             .find("NoticeCode::CompanionZeroAudio")
             .expect("the zero-audio emit in the empty-samples branch");
@@ -2985,27 +3808,29 @@ mod tests {
             .expect("the local-empty cleanup that follows the remote arm");
         let zero_audio_arm = &stop_body[emit_at..local_cleanup_at];
         assert!(
-            zero_audio_arm.contains("hide_recording_overlay_after_error"),
-            "the zero-audio notice must stay readable: the arm hides through the error-read delay, not the plain 300 ms hide"
+            zero_audio_arm.contains("retire_session_surfaces(&ah, true)"),
+            "the zero-audio notice must stay readable: the arm retires through the error-read delay, not the plain 300 ms hide"
         );
 
-        // The phone-delivery branch: the transcript goes to the broadcast
-        // seam and the outcome line records the delivery.
+        // The phone-delivery branch: the transcript goes to the session's
+        // own targeted lane (v1.6.2 W1-L2) and the outcome line records
+        // the delivery.
         let phone_branch_at = stop_body
             .find("TranscriptDelivery::PhoneSend")
             .expect("the PhoneSend branch");
         let phone_arm = &stop_body[phone_branch_at..];
         assert!(
-            phone_arm.contains("deliver_transcript_to_phone"),
-            "the branch must deliver through the companion broadcast seam"
+            phone_arm.contains("deliver_transcript_to_lane"),
+            "the branch must deliver through the session's own targeted lane"
         );
         assert!(
             phone_arm.contains("\"sent-to-phone\""),
             "the outcome line must record the phone delivery"
         );
 
-        // The history writes carry the provenance pair, and every
-        // companion write refreshes the phones' recent list.
+        // The history writes carry the provenance triple (source,
+        // destination, device), and every companion write refreshes the
+        // phones' recent lists (each its own).
         assert!(
             stop_body.contains("history_capture_source.clone()"),
             "the pipeline must pass the capture source into the history write"
@@ -3015,8 +3840,12 @@ mod tests {
             "the pipeline must pass the delivery destination into the history write"
         );
         assert!(
+            stop_body.contains("history_capture_device.clone()"),
+            "the pipeline must pass the capture device into the history write (per-phone recents)"
+        );
+        assert!(
             stop_body.contains("broadcast_recent_history"),
-            "a companion history write must refresh the phones' recent list"
+            "a companion history write must refresh the phones' recent lists"
         );
     }
 
@@ -3537,6 +4366,7 @@ mod tests {
             "transcribe_with_post_process",
             transcript,
             &seed,
+            None,
             None,
             None,
         ));
@@ -4151,5 +4981,89 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(failure.skip_reason, SkipReason::LengthGuard);
+    }
+
+    /// KB-109: the history retry's post-process leg resolves its
+    /// provider/model/prompt from the entry's RECORDED summary first.
+    /// Recorded values always win (the retry never re-ships the stored
+    /// transcript to a different engine than the recorded one); only
+    /// fields the entry never recorded fall back to the current settings.
+    #[test]
+    fn retry_post_process_resolution_prefers_the_recorded_summary() {
+        use super::{resolve_retry_post_process_target, RetryPostProcessTarget};
+        use crate::settings::get_default_settings;
+
+        let mut settings = get_default_settings();
+        let active_provider = settings
+            .active_post_process_provider()
+            .expect("defaults carry an active provider")
+            .id
+            .clone();
+        let active_model = settings
+            .post_process_models
+            .get(&active_provider)
+            .cloned()
+            .unwrap_or_default();
+        settings.post_process_selected_prompt_id = Some("english_casual".to_string());
+
+        // A fully recorded entry: every field survives untouched, even
+        // though the settings now point somewhere else entirely.
+        let recorded = RetryPostProcessTarget {
+            provider_id: Some("anthropic".to_string()),
+            model: Some("claude-3-haiku".to_string()),
+            prompt_id: Some("german".to_string()),
+        };
+        assert_eq!(
+            resolve_retry_post_process_target(&recorded, &settings),
+            recorded,
+            "recorded provider, model, and prompt win over the current settings"
+        );
+
+        // A pre-cycle entry (nothing recorded): everything falls back to
+        // the current settings - the active provider, that provider's
+        // configured model, and the selected template.
+        let fallback =
+            resolve_retry_post_process_target(&RetryPostProcessTarget::default(), &settings);
+        assert_eq!(
+            fallback.provider_id.as_deref(),
+            Some(active_provider.as_str())
+        );
+        assert_eq!(fallback.model.as_deref(), Some(active_model.as_str()));
+        assert_eq!(fallback.prompt_id.as_deref(), Some("english_casual"));
+
+        // A partially recorded entry resolves per FIELD: the recorded
+        // provider and prompt stand, but the model it never recorded falls
+        // back to the RECORDED provider's configured model (not the active
+        // provider's).
+        settings
+            .post_process_models
+            .insert("anthropic".to_string(), "claude-3-opus".to_string());
+        let partial = resolve_retry_post_process_target(
+            &RetryPostProcessTarget {
+                provider_id: Some("anthropic".to_string()),
+                model: None,
+                prompt_id: Some("german".to_string()),
+            },
+            &settings,
+        );
+        assert_eq!(partial.provider_id.as_deref(), Some("anthropic"));
+        assert_eq!(partial.model.as_deref(), Some("claude-3-opus"));
+        assert_eq!(partial.prompt_id.as_deref(), Some("german"));
+
+        // Blank recordings (empty strings read back from nullable columns)
+        // count as absent: the settings fallback applies.
+        let blank = resolve_retry_post_process_target(
+            &RetryPostProcessTarget {
+                provider_id: Some("   ".to_string()),
+                model: Some(String::new()),
+                prompt_id: Some(String::new()),
+            },
+            &settings,
+        );
+        assert_eq!(
+            blank,
+            resolve_retry_post_process_target(&RetryPostProcessTarget::default(), &settings),
+            "blank recorded values behave exactly like absent ones"
+        );
     }
 }

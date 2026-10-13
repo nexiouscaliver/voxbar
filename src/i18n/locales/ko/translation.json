@@ -36,13 +36,13 @@
     "output": "출력",
     "advanced": "고급",
     "postProcessing": "후처리",
-    "addonsGroup": "애드온",
     "enableInAdvancedHint": "고급에서 사용 설정",
     "history": "히스토리",
     "debug": "디버그",
     "about": "정보",
     "notifications": "알림",
-    "promptStudio": "프롬프트 스튜디오"
+    "promptStudio": "프롬프트 스튜디오",
+    "addonsGroup": "애드온"
   },
   "onboarding": {
     "subtitle": "시작하려면 음성 인식 모델을 선택하세요",
@@ -316,7 +316,6 @@
       "searchPlaceholder": "명령어 검색",
       "resetAll": "모든 명령어 재설정",
       "resetRow": "기본값으로 재설정",
-      "defaultPhrasesNote": "기본 구문은 인식기가 듣는 영어 단어이며, 내장된 힌디어·중국어 별칭이포함됩니다. 어떤 행에든 어떤 언어로든 자신만의 구문을 추가할 수 있습니다.",
       "addPhrase": "추가",
       "removePhrase": "{{phrase}} 제거",
       "placeholder": "구문 추가",
@@ -376,7 +375,8 @@
         "clearAll": "받아쓴 내용 전체를 삭제합니다",
         "undo": "포커스된 앱에서 실행 취소를 수행합니다",
         "paste": "포커스된 앱에 클립보드를 붙여넣습니다"
-      }
+      },
+      "defaultPhrasesNote": "기본 구문은 인식기가 듣는 영어 단어이며, 내장된 힌디어·중국어 별칭이포함됩니다. 어떤 행에든 어떤 언어로든 자신만의 구문을 추가할 수 있습니다."
     },
     "search": {
       "placeholder": "설정 검색",
@@ -440,7 +440,7 @@
       "addFromHf": {
         "title": "Hugging Face에서 모델 추가",
         "description": "공개 저장소 URL 또는 소유자/저장소를 붙여넣으세요. 예: https://huggingface.co/owner/model.",
-        "placeholder": "owner/repo",
+        "placeholder": "https://huggingface.co/owner/model 또는 소유자/저장소",
         "add": "추가",
         "cancel": "취소",
         "pickFile": "{{repo}}에서 파일을 선택하세요:",
@@ -654,7 +654,7 @@
       },
       "voiceDeletion": {
         "title": "음성 삭제 명령",
-        "description": "\"scratch that\", \"delete that\", \"remove that\"은 바로 앞 단어를 지우고, \"delete last three words\"는 여러 단어를 지우며, \"delete everything\" 또는 \"start over\"는 받아쓰기를 모두 지웁니다. 끄면 일반 단어로 남습니다."
+        "description": "\"scratch that\", \"delete that\", \"remove that\"은 바로 앞 단어를 지우고, \"delete last three words\"는 여러 단어를 지우며, \"delete everything\" 또는 \"scratch everything\"는 받아쓰기를 모두 지웁니다. 끄면 일반 단어로 남습니다."
       },
       "previewBeforePaste": {
         "title": "붙여넣기 전 미리보기",
@@ -671,7 +671,7 @@
       },
       "numberFormat": {
         "title": "음성 숫자",
-        "description": "말한 숫자 단어를 숫자로 기록하여 \"one eight zero one\"이 1801으로 붙여넣기 됩니다. \"받아쓴 대로\"는 숫자를 말한 대로 유지하고, Smart는 합성 서수와 열한 이상의 단일 숫자도 변환합니다.",
+        "description": "말한 숫자 단어를 숫자로 기록하여 \"one eight zero one\"이 1801으로 붙여넣기 됩니다. 이 변환은 영어와 힌디어(힌글리시 포함)의 음성 숫자 단어를 인식합니다. 다른 언어에서는 숫자가 말한 대로 유지됩니다. \"받아쓴 대로\"는 숫자를 말한 대로 유지하고, Smart는 합성 서수와 열한 이상의 단일 숫자도 변환합니다.",
         "options": {
           "asTranscribed": "전사된 그대로",
           "digits": "숫자",
@@ -690,7 +690,6 @@
         "noDevices": "아직 연결된 기기가 없습니다",
         "resetPairing": "페어링 재설정",
         "fingerprintLabel": "인증서 지문(SHA-256)",
-        "fingerprintCopied": "복사됨",
         "firewallNote": "처음 켤 때 macOS가 들어오는 연결 허용을 요청할 수 있습니다. 허용하지 않으면 휴대폰이 이 Mac에 접속할 수 없습니다.",
         "unavailable": "컴패니언 기기는 이번 주기에는 macOS가 필요합니다.",
         "serverError": "서버 실패: {{error}}",
@@ -720,7 +719,8 @@
         "restartButton": "서버 재시작",
         "restartPending": "변경 사항은 재시작 후 적용됩니다",
         "qrPreviewNote": "미리보기: 서버가 다음에 시작되면 이 URL이 알려집니다.",
-        "sharedNetworkNote": "휴대폰과 이 Mac은 같은 네트워크에 있어야 합니다: 같은 Wi-Fi 또는 LAN, 혹은 같은 tailnet(예: 둘 다 Tailscale)."
+        "sharedNetworkNote": "휴대폰과 이 Mac은 같은 네트워크에 있어야 합니다: 같은 Wi-Fi 또는 LAN, 혹은 같은 tailnet(예: 둘 다 Tailscale).",
+        "fingerprintCopied": "복사됨"
       }
     },
     "postProcessing": {
@@ -763,13 +763,13 @@
           "notFetched": "아직 모델 목록이 없습니다.",
           "emptyTitle": "목록에 모델 없음",
           "emptyHint": "새로 고침하면 이 키로 볼 수 있는 모델을 불러옵니다. 또는 아래에 모델 ID를 입력하세요.",
-          "emptyNoKey": "위에 API 키를 입력한 다음 새로 고쳐 모델을 불러오세요.",
           "customSet": "설정",
           "customHint": "목록에 없어도 공급자가 제공하는 모델 ID라면 사용할 수 있습니다.",
           "filterPlaceholder": "모델 필터",
           "showAll_one": "모두 표시 ({{count}})",
           "showAll_other": "모두 표시 ({{count}})",
-          "showFewer": "적게 표시"
+          "showFewer": "적게 표시",
+          "emptyNoKey": "위에 API 키를 입력한 다음 새로 고쳐 모델을 불러오세요."
         },
         "timeout": {
           "title": "요청 시간 제한",
@@ -805,7 +805,8 @@
         "providerLabel": "로컬(기기에서)",
         "keepWarm": {
           "title": "로컬 모델을 메모리에 유지",
-          "description": "다듬기 후 로컬 후처리 모델이 즉시 언로드되지 않고 메모리에 머무는 시간. 받아쓰기는 항상 먼저 메모리를 되찾습니다."
+          "description": "다듬기 후 로컬 후처리 모델이 즉시 언로드되지 않고 메모리에 머무는 시간. 받아쓰기는 항상 먼저 메모리를 되찾습니다.",
+          "off": "꺼짐"
         }
       },
       "models": {
@@ -936,14 +937,12 @@
       "title": "히스토리",
       "openFolder": "녹음 폴더 열기",
       "loading": "히스토리 로딩 중...",
-      "emptyTitle": "아직 변환된 텍스트가 없습니다",
-      "emptyHint": "녹음 단축키를 눌러 첫 번째 받아쓰기를 기록하세요.",
+      "empty": "아직 변환된 내용이 없습니다. 녹음을 시작하여 히스토리를 만드세요!",
       "copyToClipboard": "녹음 내용을 클립보드에 복사",
       "copyError": "전사 내용을 클립보드에 복사하지 못했습니다.",
       "save": "변환된 텍스트 저장",
       "unsave": "저장에서 제거",
       "delete": "항목 삭제",
-      "deleteConfirm": "이 항목을 삭제할까요? 녹음과 그 전사가 영구적으로 제거됩니다.",
       "deleteError": "항목 삭제에 실패했습니다. 다시 시도해주세요.",
       "retranscribe": "다시 전사",
       "retranscribeError": "다시 전사에 실패했습니다. 다시 시도해주세요.",
@@ -960,8 +959,13 @@
       "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms로 처리",
       "viewChanges": "변경 사항 보기",
       "hideChanges": "변경 사항 접기",
+      "emptyTitle": "아직 변환된 텍스트가 없습니다",
+      "emptyHint": "녹음 단축키를 눌러 첫 번째 받아쓰기를 기록하세요.",
+      "deleteConfirm": "이 항목을 삭제할까요? 녹음과 그 전사가 영구적으로 제거됩니다.",
       "today": "오늘",
-      "yesterday": "어제"
+      "yesterday": "어제",
+      "savedToggleError": "저장 상태를 업데이트하지 못했습니다.",
+      "dbRecoveredNotice": "전사 기록 데이터베이스를 읽을 수 없어 새 데이터베이스가 시작되었습니다. 이전 데이터베이스는 {{file}}(으)로 보관되었습니다."
     },
     "debug": {
       "title": "디버그",
@@ -981,9 +985,9 @@
         "pause": "일시정지",
         "resume": "재개",
         "copied": "복사됨",
-        "clearConfirm": "이 보기에서 캡처된 줄을 지울까요? 디스크의 로그 파일은 유지됩니다.",
         "lineCount": "{{count}}줄",
         "empty": "로그 대기 중… 앱이 로그를 출력하면 여기에 표시됩니다.",
+        "clearConfirm": "이 보기에서 캡처된 줄을 지울까요? 디스크의 로그 파일은 유지됩니다.",
         "clearConfirmTitle": "캡처한 줄을 지울까요?"
       },
       "updateChecks": {
@@ -1173,7 +1177,7 @@
       },
       "log": {
         "title": "알림 기록",
-        "description": "최근 50건의 오류 및 결과 알림.",
+        "description": "최근 50건의 오류 및 결과 알림. 새 기록은 시스템 알림이 켜져 있는 동안에만 저장됩니다.",
         "empty": "아직 알림이 없습니다.",
         "clear": "모두 지우기"
       }
@@ -1203,7 +1207,6 @@
       "runHint_one": "엔진 1개에 프롬프트 1개. 아무것도 입력하거나 저장하지 않습니다.",
       "runHint_other": "프롬프트-엔진 조합 {{count}}개. 아무것도 입력하거나 저장하지 않습니다.",
       "running": "실행 중...",
-      "appliedLabel": "성공",
       "rerun": "다시 실행",
       "latency": "{{ms}} ms",
       "rawKept": "엔진이 실패하거나 건너뛰어 원본 전사가 유지됩니다.",
@@ -1216,16 +1219,20 @@
         "emptyBatch": "프롬프트와 엔진을 각각 하나 이상 선택하세요."
       },
       "diff": {
+        "lines": "줄",
+        "charsChanged_one": "1자 변경됨",
+        "charsChanged_other": "{{count}}자 변경됨",
         "identical": "변경 사항 없음.",
         "added_one": "+{{count}}줄 추가",
         "added_other": "+{{count}}줄 추가",
         "removed_one": "{{count}}줄 삭제",
-        "removed_other": "{{count}}줄 삭제",
-        "charsChanged_one": "1자 변경됨",
-        "charsChanged_other": "{{count}}자 변경됨"
+        "removed_other": "{{count}}줄 삭제"
       },
       "resultsEmptyTitle": "결과가 여기에 표시됩니다",
-      "resultsEmptyHint": "위에서 소스, 프롬프트, 엔진을 선택하고 실행하세요. 각 카드에 다듬은 텍스트, 변경 사항, 속도가 표시됩니다."
+      "resultsEmptyHint": "위에서 소스, 프롬프트, 엔진을 선택하고 실행하세요. 각 카드에 다듬은 텍스트, 변경 사항, 속도가 표시됩니다.",
+      "appliedLabel": "성공",
+      "cancel": "취소",
+      "cancelledCard": "이 실행이 시작되기 전에 취소되었습니다."
     }
   },
   "footer": {
@@ -1269,11 +1276,11 @@
     "loading": "로딩 중...",
     "delete": "삭제",
     "close": "닫기",
-    "cancel": "취소",
     "open": "열기",
     "copy": "복사",
     "clear": "지우기",
-    "noOptionsFound": "옵션을 찾을 수 없습니다"
+    "noOptionsFound": "옵션을 찾을 수 없습니다",
+    "cancel": "취소"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar는 녹음된 텍스트를 입력하기 위해 접근성 권한이 필요합니다.",
@@ -1301,7 +1308,9 @@
     "transcriptionFailedTitle": "음성 인식 실패",
     "noModelSelectedTitle": "선택된 모델 없음",
     "noModelSelected": "받아쓰기 전에 설정에서 전사 모델을 선택하세요.",
-    "openDirectory": "폴더를 열 수 없습니다: {{error}}"
+    "openDirectory": "폴더를 열 수 없습니다: {{error}}",
+    "modelLoadFailedMemoryGate": "{{model}}을(를) 불러올 만큼 메모리가 부족합니다: 약 {{needed}}이(가) 필요하지만 사용 가능한 메모리는 약 {{free}}입니다.",
+    "modelLoadFailedDetail": "모델은 변경되지 않았습니다. 기술적 원인은 로그 파일에 있습니다."
   },
   "appLanguage": {
     "title": "애플리케이션 언어",
@@ -1445,6 +1454,15 @@
     "historyTitle": "최근",
     "historyEmpty": "이 휴대폰의 받아쓰기가 여기에 표시됩니다.",
     "stateMicBlocked": "마이크가 차단됨",
-    "micBlockedRetry": "마이크가 차단됨. 다시 시도하려면 탭하세요."
+    "micBlockedRetry": "마이크가 차단됨. 다시 시도하려면 탭하세요.",
+    "zeroAudioHold": "오디오가 Mac에 도달하지 못했습니다. 버튼을 누른 채로 말하세요.",
+    "zeroAudioHoldOrToggle": "오디오가 Mac에 도달하지 못했습니다. 버튼을 누르거나 탭한 다음 말하세요.",
+    "zeroAudioTap": "오디오가 Mac에 도달하지 못했습니다. 버튼을 탭한 다음 말하세요.",
+    "holdOrToggleToTalk": "누르고 말하기, 탭하여 잠그기"
+  },
+  "trayCopyOutcome": {
+    "copied": "받아쓰기를 클립보드에 복사했습니다.",
+    "empty": "아직 복사할 내용이 없습니다.",
+    "failed": "받아쓰기를 클립보드에 복사하지 못했습니다."
   }
 }

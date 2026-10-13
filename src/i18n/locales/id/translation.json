@@ -36,13 +36,13 @@
     "output": "Keluaran",
     "advanced": "Lanjutan",
     "postProcessing": "Pascaproses",
-    "addonsGroup": "Add-on",
     "enableInAdvancedHint": "Aktifkan di Lanjutan",
     "history": "Riwayat",
     "debug": "Debug",
     "about": "Tentang",
     "notifications": "Notifikasi",
-    "promptStudio": "Studio Prompt"
+    "promptStudio": "Studio Prompt",
+    "addonsGroup": "Add-on"
   },
   "onboarding": {
     "subtitle": "Untuk memulai, pilih model transkripsi",
@@ -316,7 +316,6 @@
       "searchPlaceholder": "Cari perintah",
       "resetAll": "Reset semua perintah",
       "resetRow": "Reset",
-      "defaultPhrasesNote": "Frasa bawaan adalah kata-kata bahasa Inggris yang didengarkan olehpengenal, ditambah alias bawaan Hindi dan Mandarin. Tambahkan frasa Andasendi dalam bahasa apa pun di baris mana pun.",
       "addPhrase": "Tambah",
       "removePhrase": "Hapus {{phrase}}",
       "placeholder": "Tambah frasa",
@@ -376,7 +375,8 @@
         "clearAll": "Menghapus seluruh dikte",
         "undo": "Menjalankan urungkan di aplikasi aktif",
         "paste": "Menempelkan papan klip di aplikasi aktif"
-      }
+      },
+      "defaultPhrasesNote": "Frasa bawaan adalah kata-kata bahasa Inggris yang didengarkan olehpengenal, ditambah alias bawaan Hindi dan Mandarin. Tambahkan frasa Andasendi dalam bahasa apa pun di baris mana pun."
     },
     "search": {
       "placeholder": "Cari pengaturan",
@@ -405,7 +405,7 @@
       "addFromHf": {
         "title": "Tambahkan model dari Hugging Face",
         "description": "Tempel URL repo publik atau pemilik/repo, misalnya https://huggingface.co/pemilik/model.",
-        "placeholder": "owner/repo",
+        "placeholder": "https://huggingface.co/pemilik/model atau pemilik/model",
         "add": "Tambahkan",
         "cancel": "Batal",
         "pickFile": "Pilih file dari {{repo}}:",
@@ -654,7 +654,7 @@
       },
       "voiceDeletion": {
         "title": "Perintah penghapusan suara",
-        "description": "\"scratch that\", \"delete that\", dan \"remove that\" menghapus kata sebelumnya, \"delete last three words\" menghapus beberapa kata, dan \"delete everything\" atau \"start over\" mengosongkan dikte. Matikan untuk membiarkannya sebagai kata biasa."
+        "description": "\"scratch that\", \"delete that\", dan \"remove that\" menghapus kata sebelumnya, \"delete last three words\" menghapus beberapa kata, dan \"delete everything\" atau \"scratch everything\" mengosongkan dikte. Matikan untuk membiarkannya sebagai kata biasa."
       },
       "previewBeforePaste": {
         "title": "Pratinjau sebelum tempel",
@@ -671,7 +671,7 @@
       },
       "numberFormat": {
         "title": "Angka lisan",
-        "description": "Menulis kata angka lisan sebagai digit, sehingga \"one eight zero one\" ditempel sebagai 1801. \"Sesuai transkrip\" mempertahankan angka seperti diucapkan; Smart juga mengonversi bilangan tingkat majemuk dan angka tunggal sebelas ke atas.",
+        "description": "Menulis kata angka lisan sebagai digit, sehingga \"one eight zero one\" ditempel sebagai 1801. Konversi ini mengenali kata angka lisan bahasa Inggris dan Hindi (termasuk Hinglish); bahasa lain mempertahankan angka seperti yang diucapkan. \"Sesuai transkrip\" mempertahankan angka seperti diucapkan; Smart juga mengonversi bilangan tingkat majemuk dan angka tunggal sebelas ke atas.",
         "options": {
           "asTranscribed": "Sesuai transkripsi",
           "digits": "Digit",
@@ -690,7 +690,6 @@
         "noDevices": "Belum ada perangkat tersambung",
         "resetPairing": "Atur ulang pemasangan",
         "fingerprintLabel": "Sidik jari sertifikat (SHA-256)",
-        "fingerprintCopied": "Disalin",
         "firewallNote": "macOS mungkin meminta izin koneksi masuk saat pertama diaktifkan. Izinkan, jika tidak ponsel tidak dapat menjangkau Mac ini.",
         "unavailable": "Perangkat pendamping memerlukan macOS pada siklus ini.",
         "serverError": "Server gagal: {{error}}",
@@ -720,7 +719,8 @@
         "restartButton": "Mulai ulang server",
         "restartPending": "Perubahan diterapkan setelah mulai ulang",
         "qrPreviewNote": "Pratinjau: URL ini akan diiklankan saat server berikutnya menyala.",
-        "sharedNetworkNote": "Ponsel dan Mac ini harus berada di jaringan yang sama: Wi-Fi atau LAN yang sama, atau tailnet yang sama (misalnya keduanya di Tailscale)."
+        "sharedNetworkNote": "Ponsel dan Mac ini harus berada di jaringan yang sama: Wi-Fi atau LAN yang sama, atau tailnet yang sama (misalnya keduanya di Tailscale).",
+        "fingerprintCopied": "Disalin"
       }
     },
     "postProcessing": {
@@ -763,13 +763,13 @@
           "notFetched": "Belum ada daftar model.",
           "emptyTitle": "Tidak ada model tercantum",
           "emptyHint": "Muat ulang untuk memuat model yang terlihat oleh kunci ini, atau ketik id model di bawah.",
-          "emptyNoKey": "Masukkan kunci API Anda di atas, lalu muat ulang untuk memuat model.",
           "customSet": "Atur",
           "customHint": "Id model apa pun dari penyedia Anda berfungsi, bahkan jika tidak tercantum.",
           "filterPlaceholder": "Filter model",
           "showAll_one": "Tampilkan semua ({{count}})",
           "showAll_other": "Tampilkan semua ({{count}})",
-          "showFewer": "Tampilkan lebih sedikit"
+          "showFewer": "Tampilkan lebih sedikit",
+          "emptyNoKey": "Masukkan kunci API Anda di atas, lalu muat ulang untuk memuat model."
         },
         "timeout": {
           "title": "Batas waktu permintaan",
@@ -805,7 +805,8 @@
         "providerLabel": "Lokal (di perangkat)",
         "keepWarm": {
           "title": "Simpan model lokal di memori",
-          "description": "Berapa lama model pascaproses lokal tetap di memori setelah satu pemolesan alih-alih langsung dilepas. Dikotasi selalu mengambil kembali memori lebih dulu."
+          "description": "Berapa lama model pascaproses lokal tetap di memori setelah satu pemolesan alih-alih langsung dilepas. Dikotasi selalu mengambil kembali memori lebih dulu.",
+          "off": "Mati"
         }
       },
       "models": {
@@ -936,14 +937,12 @@
       "title": "Riwayat",
       "openFolder": "Buka Folder Rekaman",
       "loading": "Memuat riwayat...",
-      "emptyTitle": "Belum ada transkripsi",
-      "emptyHint": "Tekan pintasan rekam Anda untuk menangkap dikte pertama Anda.",
+      "empty": "Belum ada transkripsi. Mulai merekam untuk mengisi riwayat Anda!",
       "copyToClipboard": "Salin transkripsi ke papan klip",
       "copyError": "Gagal menyalin transkripsi ke papan klip.",
       "save": "Simpan transkripsi",
       "unsave": "Hapus dari daftar tersimpan",
       "delete": "Hapus entri",
-      "deleteConfirm": "Hapus entri ini? Rekaman dan transkripsinya akan dihapus secara permanen.",
       "deleteError": "Gagal menghapus entri. Silakan coba lagi.",
       "retranscribe": "Transkripsikan ulang",
       "retranscribeError": "Gagal mentranskripsikan ulang. Silakan coba lagi.",
@@ -960,8 +959,13 @@
       "viaPostProcess": "lewat {{model}} · {{prompt}} · {{outcome}} · {{latency}} md",
       "viewChanges": "Lihat perubahan",
       "hideChanges": "Sembunyikan perubahan",
+      "emptyTitle": "Belum ada transkripsi",
+      "emptyHint": "Tekan pintasan rekam Anda untuk menangkap dikte pertama Anda.",
+      "deleteConfirm": "Hapus entri ini? Rekaman dan transkripsinya akan dihapus secara permanen.",
       "today": "Hari ini",
-      "yesterday": "Kemarin"
+      "yesterday": "Kemarin",
+      "savedToggleError": "Gagal memperbarui status tersimpan.",
+      "dbRecoveredNotice": "Database riwayat transkripsi Anda tidak dapat dibaca, sehingga database baru dimulai. Database sebelumnya disimpan sebagai {{file}}."
     },
     "debug": {
       "title": "Debug",
@@ -981,9 +985,9 @@
         "pause": "Jeda",
         "resume": "Lanjutkan",
         "copied": "Disalin",
-        "clearConfirm": "Hapus baris yang ditangkap dari tampilan ini? File log di disk tetap disimpan.",
         "lineCount": "{{count}} baris",
         "empty": "Menunggu log… Entri akan muncul di sini saat aplikasi menghasilkannya.",
+        "clearConfirm": "Hapus baris yang ditangkap dari tampilan ini? File log di disk tetap disimpan.",
         "clearConfirmTitle": "Hapus baris yang ditangkap?"
       },
       "updateChecks": {
@@ -1173,7 +1177,7 @@
       },
       "log": {
         "title": "Log notifikasi",
-        "description": "50 pemberitahuan kesalahan dan hasil terakhir.",
+        "description": "50 pemberitahuan kesalahan dan hasil terakhir. Entri baru hanya dicatat selama notifikasi sistem aktif.",
         "empty": "Belum ada notifikasi.",
         "clear": "Hapus semua"
       }
@@ -1203,7 +1207,6 @@
       "runHint_one": "1 prompt pada 1 mesin. Tidak ada yang diketik atau disimpan.",
       "runHint_other": "{{count}} pasangan prompt-mesin. Tidak ada yang diketik atau disimpan.",
       "running": "Sedang berjalan...",
-      "appliedLabel": "Berhasil",
       "rerun": "Jalankan lagi",
       "latency": "{{ms}} md",
       "rawKept": "Mesin gagal atau dilewati, sehingga transkripsi mentah akan dipertahankan.",
@@ -1216,16 +1219,20 @@
         "emptyBatch": "Pilih setidaknya satu prompt dan satu mesin."
       },
       "diff": {
+        "lines": "baris",
+        "charsChanged_one": "1 karakter berubah",
+        "charsChanged_other": "{{count}} karakter berubah",
         "identical": "Tidak ada perubahan.",
         "added_one": "+{{count}} ditambahkan",
         "added_other": "+{{count}} ditambahkan",
         "removed_one": "{{count}} dihapus",
-        "removed_other": "{{count}} dihapus",
-        "charsChanged_one": "1 karakter berubah",
-        "charsChanged_other": "{{count}} karakter berubah"
+        "removed_other": "{{count}} dihapus"
       },
       "resultsEmptyTitle": "Hasil akan muncul di sini",
-      "resultsEmptyHint": "Pilih sumber, prompt, dan mesin di atas, lalu jalankan. Setiap kartu menampilkan teks yang dipoles, perubahannya, dan kecepatannya."
+      "resultsEmptyHint": "Pilih sumber, prompt, dan mesin di atas, lalu jalankan. Setiap kartu menampilkan teks yang dipoles, perubahannya, dan kecepatannya.",
+      "appliedLabel": "Berhasil",
+      "cancel": "Batalkan",
+      "cancelledCard": "Dibatalkan sebelum eksekusi ini dimulai."
     }
   },
   "footer": {
@@ -1273,11 +1280,11 @@
     "loading": "Memuat...",
     "delete": "Hapus",
     "close": "Tutup",
-    "cancel": "Batal",
     "open": "Buka",
     "copy": "Salin",
     "clear": "Bersihkan",
-    "noOptionsFound": "Tidak ada opsi yang ditemukan"
+    "noOptionsFound": "Tidak ada opsi yang ditemukan",
+    "cancel": "Batal"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar memerlukan izin aksesibilitas untuk mengetik teks hasil transkripsi.",
@@ -1305,7 +1312,9 @@
     "transcriptionFailedTitle": "Transkripsi Gagal",
     "noModelSelectedTitle": "Tidak ada model dipilih",
     "noModelSelected": "Pilih model transkripsi di Pengaturan sebelum mendikte.",
-    "openDirectory": "Folder tidak dapat dibuka: {{error}}"
+    "openDirectory": "Folder tidak dapat dibuka: {{error}}",
+    "modelLoadFailedMemoryGate": "Memori bebas tidak cukup untuk memuat {{model}}: membutuhkan sekitar {{needed}}, dengan sekitar {{free}} tersedia.",
+    "modelLoadFailedDetail": "Model tidak berubah. Alasan teknisnya ada di berkas log."
   },
   "appLanguage": {
     "title": "Bahasa Aplikasi",
@@ -1445,6 +1454,15 @@
     "historyTitle": "Terbaru",
     "historyEmpty": "Dikte dari ponsel ini muncul di sini.",
     "stateMicBlocked": "Mikrofon diblokir",
-    "micBlockedRetry": "Mikrofon diblokir. Ketuk untuk mencoba lagi."
+    "micBlockedRetry": "Mikrofon diblokir. Ketuk untuk mencoba lagi.",
+    "zeroAudioHold": "Tidak ada audio yang sampai ke Mac. Tahan tombol lalu bicara.",
+    "zeroAudioHoldOrToggle": "Tidak ada audio yang sampai ke Mac. Tahan atau ketuk tombol lalu bicara.",
+    "zeroAudioTap": "Tidak ada audio yang sampai ke Mac. Ketuk tombol lalu bicara.",
+    "holdOrToggleToTalk": "Tahan untuk bicara, ketuk untuk mengunci"
+  },
+  "trayCopyOutcome": {
+    "copied": "Transkrip telah disalin ke papan klip.",
+    "empty": "Belum ada yang bisa disalin.",
+    "failed": "Gagal menyalin transkrip ke papan klip."
   }
 }

@@ -44,6 +44,14 @@ struct CaptureTransportState {
     /// remain silent until the consumer clears the request.
     pause_acknowledged: AtomicBool,
     overrun_samples: AtomicU64,
+    /// Fleet pass: the producer half is gone (the remote source was closed,
+    /// or its last clone dropped). A Stop arriving with the producer
+    /// already gone skips the pause wait entirely: the wait exists so
+    /// in-flight producer writes can land and acknowledge the pause, and a
+    /// dead producer has none - the ring's contents are final. Remote-only
+    /// by construction (a cpal stream's producer dies with the stream
+    /// itself, and the callback path never sets this).
+    producer_gone: AtomicBool,
 }
 
 /// How 16 kHz mono frames should be filtered for one recording session.
@@ -191,9 +199,15 @@ impl RemoteAudioSource {
 
     /// Drop the producer half. Audio pushed afterwards is discarded; the
     /// consumer drains what is left and exits on the next command cycle.
-    /// Acknowledges an in-flight pause, like every other teardown path.
+    /// Acknowledges an in-flight pause, like every other teardown path, and
+    /// marks the producer gone so a Stop that follows cannot wait out the
+    /// pause timeout for writes that can never arrive.
     pub fn close(&self) {
         *self.inner.producer.lock().unwrap() = None;
+        self.inner
+            .transport
+            .producer_gone
+            .store(true, Ordering::Release);
         acknowledge_pause_after_write(&self.inner.transport);
     }
 }
@@ -205,6 +219,7 @@ impl Drop for RemoteAudioInner {
         // handshake. There is no boundary block to forward, so the samples
         // already in the ring are what this recording finalizes with.
         *self.producer.lock().unwrap() = None;
+        self.transport.producer_gone.store(true, Ordering::Release);
         acknowledge_pause_after_write(&self.transport);
     }
 }
@@ -1155,10 +1170,19 @@ fn run_consumer(
 
                         // Request a pause that forwards one boundary block, then drain
                         // all audio committed before the acknowledgement.
+                        // Fleet pass: a producer that is already gone can
+                        // never write the boundary block, so the wait is
+                        // skipped outright (and is NOT a timeout: the
+                        // ring's contents are simply final) - the lane stop
+                        // closes the source before stopping the recorder,
+                        // and before that shape every healthy phone stop
+                        // paid the full PAUSE_ACK_TIMEOUT here.
                         transport.pause_acknowledged.store(false, Ordering::Relaxed);
                         transport.pause_requested.store(true, Ordering::Release);
+                        let producer_gone = transport.producer_gone.load(Ordering::Acquire);
                         let pause_started = Instant::now();
-                        while !transport.pause_acknowledged.load(Ordering::Acquire)
+                        while !producer_gone
+                            && !transport.pause_acknowledged.load(Ordering::Acquire)
                             && pause_started.elapsed() < PAUSE_ACK_TIMEOUT
                         {
                             let drained =
@@ -1168,7 +1192,8 @@ fn run_consumer(
                             }
                         }
 
-                        let pause_timed_out = !transport.pause_acknowledged.load(Ordering::Acquire);
+                        let pause_timed_out =
+                            !producer_gone && !transport.pause_acknowledged.load(Ordering::Acquire);
                         if pause_timed_out {
                             log::warn!("Timed out waiting for the microphone callback to pause");
                             // Preserve the existing recovery model: finish this

@@ -36,13 +36,13 @@
     "output": "Utmatning",
     "advanced": "Avancerat",
     "postProcessing": "Efterbearbetning",
-    "addonsGroup": "Tillägg",
     "enableInAdvancedHint": "Aktivera under Avancerat",
     "history": "Historik",
     "debug": "Felsökning",
     "about": "Om",
     "notifications": "Aviseringar",
-    "promptStudio": "Promptstudio"
+    "promptStudio": "Promptstudio",
+    "addonsGroup": "Tillägg"
   },
   "onboarding": {
     "subtitle": "För att komma igång, välj en transkriptionsmodell",
@@ -316,7 +316,6 @@
       "searchPlaceholder": "Sök kommandon",
       "resetAll": "Återställ alla kommandon",
       "resetRow": "Återställ",
-      "defaultPhrasesNote": "Standardfraserna är de engelska ord som igenkänningen lyssnar efter,plus inbyggda hindi- och kinesiska alias. Lägg till din egen fras på valfritspråk på valfri rad.",
       "addPhrase": "Lägg till",
       "removePhrase": "Ta bort {{phrase}}",
       "placeholder": "Lägg till en fras",
@@ -376,7 +375,8 @@
         "clearAll": "Raderar hela dikteringen",
         "undo": "Kör ångra i appen i fokus",
         "paste": "Klistrar in urklipp i appen i fokus"
-      }
+      },
+      "defaultPhrasesNote": "Standardfraserna är de engelska ord som igenkänningen lyssnar efter,plus inbyggda hindi- och kinesiska alias. Lägg till din egen fras på valfritspråk på valfri rad."
     },
     "search": {
       "placeholder": "Sök i inställningar",
@@ -405,7 +405,7 @@
       "addFromHf": {
         "title": "Lägg till modell från Hugging Face",
         "description": "Klistra in en publik repo-URL eller ägare/repo, till exempel https://huggingface.co/ägare/modell.",
-        "placeholder": "owner/repo",
+        "placeholder": "https://huggingface.co/ägare/modell eller ägare/modell",
         "add": "Lägg till",
         "cancel": "Avbryt",
         "pickFile": "Välj en fil från {{repo}}:",
@@ -654,7 +654,7 @@
       },
       "voiceDeletion": {
         "title": "Röstkommandon för borttagning",
-        "description": "\"scratch that\", \"delete that\" och \"remove that\" tar bort föregående ord, \"delete last three words\" tar bort flera, och \"delete everything\" eller \"start over\" rensar dikteringen. Stäng av för att behålla dem som vanliga ord."
+        "description": "\"scratch that\", \"delete that\" och \"remove that\" tar bort föregående ord, \"delete last three words\" tar bort flera, och \"delete everything\" eller \"scratch everything\" rensar dikteringen. Stäng av för att behålla dem som vanliga ord."
       },
       "previewBeforePaste": {
         "title": "Förhandsvisning före inklistring",
@@ -671,7 +671,7 @@
       },
       "numberFormat": {
         "title": "Dikterade tal",
-        "description": "Skriver uttalade talord som siffror, så att \"one eight zero one\" klistras in som 1801. \"Såsom transkriberat\" behåller tal såsom sagda; Smart konverterar även sammansatta ordningstal och enskilda tal från elva och uppåt.",
+        "description": "Skriver uttalade talord som siffror, så att \"one eight zero one\" klistras in som 1801. Konverteringen känner igen talade talord på engelska och hindi (inklusive hinglish); på andra språk behålls talen som sagda. \"Såsom transkriberat\" behåller tal såsom sagda; Smart konverterar även sammansatta ordningstal och enskilda tal från elva och uppåt.",
         "options": {
           "asTranscribed": "Som transkriberat",
           "digits": "Siffror",
@@ -690,7 +690,6 @@
         "noDevices": "Inga enheter anslutna än",
         "resetPairing": "Återställ parkoppling",
         "fingerprintLabel": "Certifikatfingeravtryck (SHA-256)",
-        "fingerprintCopied": "Kopierad",
         "firewallNote": "macOS kan vid första aktiveringen fråga om inkommande anslutningar ska tillåtas. Tillåt, annars når telefoner inte den här Macen.",
         "unavailable": "Kompanionenheter kräver macOS i den här cykeln.",
         "serverError": "Servern misslyckades: {{error}}",
@@ -720,7 +719,8 @@
         "restartButton": "Starta om servern",
         "restartPending": "Ändringarna tillämpas efter en omstart",
         "qrPreviewNote": "Förhandsvisning: Denna URL används nästa gång servern startar.",
-        "sharedNetworkNote": "Telefonen och denna Mac måste dela nätverk: samma Wi-Fi eller LAN, eller samma tailnet (till exempel båda på Tailscale)."
+        "sharedNetworkNote": "Telefonen och denna Mac måste dela nätverk: samma Wi-Fi eller LAN, eller samma tailnet (till exempel båda på Tailscale).",
+        "fingerprintCopied": "Kopierad"
       }
     },
     "postProcessing": {
@@ -763,13 +763,13 @@
           "notFetched": "Ingen modelllista ännu.",
           "emptyTitle": "Inga modeller i listan",
           "emptyHint": "Uppdatera för att läsa in de modeller den här nyckeln ser, eller skriv ett modell-id nedan.",
-          "emptyNoKey": "Ange din API-nyckel ovan och uppdatera sedan för att läsa in modellerna.",
           "customSet": "Ange",
           "customHint": "Alla modell-id från din leverantör fungerar, även om de inte listas.",
           "filterPlaceholder": "Filtrera modeller",
           "showAll_one": "Visa alla ({{count}})",
           "showAll_other": "Visa alla ({{count}})",
-          "showFewer": "Visa färre"
+          "showFewer": "Visa färre",
+          "emptyNoKey": "Ange din API-nyckel ovan och uppdatera sedan för att läsa in modellerna."
         },
         "timeout": {
           "title": "Tidsgräns för begäran",
@@ -805,7 +805,8 @@
         "providerLabel": "Lokalt (på enheten)",
         "keepWarm": {
           "title": "Håll den lokala modellen varm",
-          "description": "Hur länge den lokala efterbearbetningsmodellen finns kvar i minnet efter en putsning i stället för att stängas av direkt. En diktering tar alltid tillbaka minnet först."
+          "description": "Hur länge den lokala efterbearbetningsmodellen finns kvar i minnet efter en putsning i stället för att stängas av direkt. En diktering tar alltid tillbaka minnet först.",
+          "off": "Av"
         }
       },
       "models": {
@@ -936,14 +937,12 @@
       "title": "Historik",
       "openFolder": "Öppna mapp för inspelningar",
       "loading": "Laddar historik...",
-      "emptyTitle": "Inga transkriptioner än",
-      "emptyHint": "Tryck på din inspelningsgenväg för att fånga din första diktering.",
+      "empty": "Inga transkriptioner ännu. Börja spela in för att bygga upp din historik!",
       "copyToClipboard": "Kopiera transkription till urklipp",
       "copyError": "Det gick inte att kopiera transkriptionen till urklipp.",
       "save": "Spara transkription",
       "unsave": "Ta bort från sparade",
       "delete": "Ta bort post",
-      "deleteConfirm": "Radera den här posten? Inspelningen och dess transkription tas bort permanent.",
       "deleteError": "Misslyckades med att ta bort post. Försök igen.",
       "retranscribe": "Transkribera igen",
       "retranscribeError": "Misslyckades med att transkribera igen. Försök igen.",
@@ -960,8 +959,13 @@
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Visa ändringar",
       "hideChanges": "Dölj ändringar",
+      "emptyTitle": "Inga transkriptioner än",
+      "emptyHint": "Tryck på din inspelningsgenväg för att fånga din första diktering.",
+      "deleteConfirm": "Radera den här posten? Inspelningen och dess transkription tas bort permanent.",
       "today": "Idag",
-      "yesterday": "Igår"
+      "yesterday": "Igår",
+      "savedToggleError": "Kunde inte uppdatera sparadestatus.",
+      "dbRecoveredNotice": "Databasen för din transkriberingshistorik kunde inte läsas, så en ny har startats. Den tidigare databasen sparades som {{file}}."
     },
     "debug": {
       "title": "Felsökning",
@@ -981,9 +985,9 @@
         "pause": "Pausa",
         "resume": "Återuppta",
         "copied": "Kopierad",
-        "clearConfirm": "Rensa de fångade raderna från den här vyn? Loggfilen på disken behålls.",
         "lineCount": "{{count}} rader",
         "empty": "Väntar på loggar… Poster visas här när appen skickar dem.",
+        "clearConfirm": "Rensa de fångade raderna från den här vyn? Loggfilen på disken behålls.",
         "clearConfirmTitle": "Rensa insamlade rader?"
       },
       "updateChecks": {
@@ -1173,7 +1177,7 @@
       },
       "log": {
         "title": "Aviseringslogg",
-        "description": "De senaste 50 fel- och resultatmeddelandena.",
+        "description": "De senaste 50 fel- och resultatmeddelandena. Nya poster registreras bara medan systemaviseringar är på.",
         "empty": "Inga aviseringar än.",
         "clear": "Rensa alla"
       }
@@ -1203,7 +1207,6 @@
       "runHint_one": "1 prompt på 1 motor. Inget skrivs eller sparas.",
       "runHint_other": "{{count}} prompt-motor-par. Inget skrivs eller sparas.",
       "running": "Kör...",
-      "appliedLabel": "Lyckades",
       "rerun": "Kör igen",
       "latency": "{{ms}} ms",
       "rawKept": "Motorn misslyckades eller hoppades över, så råtranskriptionen skulle behållas.",
@@ -1216,16 +1219,20 @@
         "emptyBatch": "Välj minst en prompt och en motor."
       },
       "diff": {
+        "lines": "rader",
+        "charsChanged_one": "1 tecken ändrat",
+        "charsChanged_other": "{{count}} tecken ändrade",
         "identical": "Inga ändringar.",
         "added_one": "+{{count}} tillagd",
         "added_other": "+{{count}} tillagda",
         "removed_one": "{{count}} borttagen",
-        "removed_other": "{{count}} borttagna",
-        "charsChanged_one": "1 tecken ändrat",
-        "charsChanged_other": "{{count}} tecken ändrade"
+        "removed_other": "{{count}} borttagna"
       },
       "resultsEmptyTitle": "Resultaten visas här",
-      "resultsEmptyHint": "Välj källa, prompts och motorer ovan och kör. Varje kort visar den putsade texten, ändringarna och hastigheten."
+      "resultsEmptyHint": "Välj källa, prompts och motorer ovan och kör. Varje kort visar den putsade texten, ändringarna och hastigheten.",
+      "appliedLabel": "Lyckades",
+      "cancel": "Avbryt",
+      "cancelledCard": "Avbröts innan denna körning startade."
     }
   },
   "footer": {
@@ -1269,11 +1276,11 @@
     "loading": "Laddar...",
     "delete": "Ta bort",
     "close": "Stäng",
-    "cancel": "Avbryt",
     "open": "Öppna",
     "copy": "Kopiera",
     "clear": "Rensa",
-    "noOptionsFound": "Inga alternativ hittades"
+    "noOptionsFound": "Inga alternativ hittades",
+    "cancel": "Avbryt"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar behöver behörighet för hjälpmedel för att kunna skriva transkriberad text.",
@@ -1301,7 +1308,9 @@
     "transcriptionFailedTitle": "Transkriptionen misslyckades",
     "noModelSelectedTitle": "Ingen modell vald",
     "noModelSelected": "Välj en transkriberingsmodell i Inställningar innan du dikterar.",
-    "openDirectory": "Mappen kunde inte öppnas: {{error}}"
+    "openDirectory": "Mappen kunde inte öppnas: {{error}}",
+    "modelLoadFailedMemoryGate": "Inte tillräckligt med ledigt minne för att läsa in {{model}}: kräver cirka {{needed}}, cirka {{free}} ledigt.",
+    "modelLoadFailedDetail": "Modellen ändrades inte. Det tekniska skälet finns i loggfilen."
   },
   "appLanguage": {
     "title": "Applikationsspråk",
@@ -1445,6 +1454,15 @@
     "historyTitle": "Senaste",
     "historyEmpty": "Diktat från den här telefonen visas här.",
     "stateMicBlocked": "Mikrofon blockerad",
-    "micBlockedRetry": "Mikrofon blockerad. Tryck för att försöka igen."
+    "micBlockedRetry": "Mikrofon blockerad. Tryck för att försöka igen.",
+    "zeroAudioHold": "Ingen ljud nådde Mac:en. Håll knappen intryckt och tala.",
+    "zeroAudioHoldOrToggle": "Ingen ljud nådde Mac:en. Håll knappen intryckt eller tryck på den och tala.",
+    "zeroAudioTap": "Ingen ljud nådde Mac:en. Tryck på knappen och tala.",
+    "holdOrToggleToTalk": "Håll för att tala, tryck för att låsa"
+  },
+  "trayCopyOutcome": {
+    "copied": "Dikteringen har kopierats till urklippet.",
+    "empty": "Det finns inget att kopiera ännu.",
+    "failed": "Kunde inte kopiera dikteringen till urklippet."
   }
 }

@@ -36,13 +36,13 @@
     "output": "פלט",
     "advanced": "מתקדם",
     "postProcessing": "עיבוד משלים",
-    "addonsGroup": "תוספות",
     "enableInAdvancedHint": "הפעלה במסך מתקדם",
     "history": "היסטוריה",
     "debug": "ניפוי שגיאות",
     "about": "אודות",
     "notifications": "התראות",
-    "promptStudio": "סטודיו פרומפטים"
+    "promptStudio": "סטודיו פרומפטים",
+    "addonsGroup": "תוספות"
   },
   "onboarding": {
     "subtitle": "כדי להתחיל, בחר מודל תמלול",
@@ -316,7 +316,6 @@
       "searchPlaceholder": "חיפוש פקודות",
       "resetAll": "איפוס כל הפקודות",
       "resetRow": "איפוס לברירת מחדל",
-      "defaultPhrasesNote": "ברירת המחדל הן המילים באנגלית שהמזהה מקשיב להן, וכן כינויים מובנים בהינדית ובסינית. אפשר להוסיף ביטוי משלכם בכל שפה בכל שורה.",
       "addPhrase": "הוספה",
       "removePhrase": "הסרת {{phrase}}",
       "placeholder": "הוספת ביטוי",
@@ -376,7 +375,8 @@
         "clearAll": "מוחק את כל ההכתבה",
         "undo": "מבצע ביטול ביישום הפעיל",
         "paste": "מדביק את לוח העריכה ביישום הפעיל"
-      }
+      },
+      "defaultPhrasesNote": "ברירת המחדל הן המילים באנגלית שהמזהה מקשיב להן, וכן כינויים מובנים בהינדית ובסינית. אפשר להוסיף ביטוי משלכם בכל שפה בכל שורה."
     },
     "search": {
       "placeholder": "חיפוש בהגדרות",
@@ -405,7 +405,7 @@
       "addFromHf": {
         "title": "הוספת מודל מ-Hugging Face",
         "description": "הדביקו כתובת מאגר ציבורית או בעלים/מאגר, למשל https://huggingface.co/owner/model.",
-        "placeholder": "owner/repo",
+        "placeholder": "https://huggingface.co/owner/model או בעלים/מאגר",
         "add": "הוספה",
         "cancel": "ביטול",
         "pickFile": "בחרו קובץ מ-{{repo}}:",
@@ -654,7 +654,7 @@
       },
       "voiceDeletion": {
         "title": "פקודות מחיקה קוליות",
-        "description": "\"scratch that\", \"delete that\" ו\"remove that\" מוחקים את המילה הקודמת, \"delete last three words\" מוחק כמה מילים, ו\"delete everything\" או \"start over\" מנקה את ההקשה. כבו כדי להשאיר אותן כמילים רגילות."
+        "description": "\"scratch that\", \"delete that\" ו\"remove that\" מוחקים את המילה הקודמת, \"delete last three words\" מוחק כמה מילים, ו\"delete everything\" או \"scratch everything\" מנקה את ההקשה. כבו כדי להשאיר אותן כמילים רגילות."
       },
       "previewBeforePaste": {
         "title": "תצוגה מקדימה לפני ההדבקה",
@@ -671,7 +671,7 @@
       },
       "numberFormat": {
         "title": "מספרים מדוברים",
-        "description": "כותב מילות מספר מדוברות כספרות, כך ש-\"one eight zero one\" יודבק כ-1801. \"כפי שתועתק\" שומר מספרים כפי שנאמרו; Smart ממיר גם מספרים סודרים מורכבים ומספרים בודדים מאחת עשרה ומעלה.",
+        "description": "כותב מילות מספר מדוברות כספרות, כך ש-\"one eight zero one\" יודבק כ-1801. ההמרה מכירה מילות מספרים מדוברות באנגלית ובהינדי (כולל הינגליש); בשפות אחרות המספרים נשארים כפי שנאמרו. \"כפי שתועתק\" שומר מספרים כפי שנאמרו; Smart ממיר גם מספרים סודרים מורכבים ומספרים בודדים מאחת עשרה ומעלה.",
         "options": {
           "asTranscribed": "כפי שתומלל",
           "digits": "ספרות",
@@ -690,7 +690,6 @@
         "noDevices": "עדיין אין מכשירים מחוברים",
         "resetPairing": "איפוס הצירוף",
         "fingerprintLabel": "טביעת אצבע של התעודה (SHA-256)",
-        "fingerprintCopied": "הועתק",
         "firewallNote": "בהפעלה הראשונה macOS עשוי לבקש לאפשר חיבורים נכנסים. אפשרו זאת, אחרת טלפונים לא יגיעו ל־Mac הזה.",
         "unavailable": "מכשירים מלווים דורשים macOS במחזור הזה.",
         "serverError": "השרת נכשל: {{error}}",
@@ -720,7 +719,8 @@
         "restartButton": "הפעלת השרת מחדש",
         "restartPending": "השינויים ייכנסו לתוקף לאחר הפעלה מחדש",
         "qrPreviewNote": "תצוגה מקדימה: כתובת URL זו תפורסם בהפעלה הבאה של השרת.",
-        "sharedNetworkNote": "הטלפון וה-Mac הזה חייבים לחלוק רשת: אותו Wi-Fi או LAN, או אותו tailnet (למשל שניהם ב-Tailscale)."
+        "sharedNetworkNote": "הטלפון וה-Mac הזה חייבים לחלוק רשת: אותו Wi-Fi או LAN, או אותו tailnet (למשל שניהם ב-Tailscale).",
+        "fingerprintCopied": "הועתק"
       }
     },
     "postProcessing": {
@@ -764,14 +764,14 @@
           "notFetched": "עדיין אין רשימת מודלים.",
           "emptyTitle": "אין מודלים ברשימה",
           "emptyHint": "רענן כדי לטעון את המודלים שהמפתח רואה, או הקלד מזהה מודל למטה.",
-          "emptyNoKey": "הזן למעלה את מפתח ה-API שלך ולאחר מכן רענן כדי לטעון מודלים.",
           "customSet": "הגדר",
           "customHint": "כל מזהה מודל שהספק שלך מציע עובד, גם אם הוא לא ברשימה.",
           "filterPlaceholder": "סינון מודלים",
           "showAll_one": "הצג הכול ({{count}})",
           "showAll_two": "הצג הכול ({{count}})",
           "showAll_other": "הצג הכול ({{count}})",
-          "showFewer": "הצג פחות"
+          "showFewer": "הצג פחות",
+          "emptyNoKey": "הזן למעלה את מפתח ה-API שלך ולאחר מכן רענן כדי לטעון מודלים."
         },
         "timeout": {
           "title": "פסק זמן לבקשה",
@@ -807,7 +807,8 @@
         "providerLabel": "מקומי (במכשיר)",
         "keepWarm": {
           "title": "להחזיק את המודל המקומי בזיכרון",
-          "description": "כמה זמן נשאר מודל העיבוד המקומי בזיכרון אחרי ליטוש במקום להיפרק מיד. הכתבה תמיד לוקחת את הזיכרון בחזרה קודם."
+          "description": "כמה זמן נשאר מודל העיבוד המקומי בזיכרון אחרי ליטוש במקום להיפרק מיד. הכתבה תמיד לוקחת את הזיכרון בחזרה קודם.",
+          "off": "כבוי"
         }
       },
       "models": {
@@ -938,14 +939,12 @@
       "title": "היסטוריה",
       "openFolder": "פתח את תיקיית ההקלטות",
       "loading": "טוען היסטוריה...",
-      "emptyTitle": "אין עדיין תמלילים",
-      "emptyHint": "לחץ על קיצור המקלדת להקלטה כדי לתעד את ההקלדה הראשונה שלך.",
+      "empty": "עדיין אין תמלולים. התחל להקליט כדי לבנות את ההיסטוריה שלך!",
       "copyToClipboard": "העתק תמלול ללוח",
       "copyError": "לא ניתן להעתיק את התמלול ללוח.",
       "save": "שמור תמלול",
       "unsave": "הסר משמורים",
       "delete": "מחק רשומה",
-      "deleteConfirm": "למחוק רשומה זו? ההקלטה והתמליל שלה יוסרו לצמיתות.",
       "deleteError": "מחיקת הרשומה נכשלה. נסה שוב.",
       "retranscribe": "תמלל מחדש",
       "retranscribeError": "תמלול מחדש נכשל. נסה שוב.",
@@ -962,8 +961,13 @@
       "viaPostProcess": "דרך {{model}} · {{prompt}} · {{outcome}} · {{latency}} מ״ש",
       "viewChanges": "הצגת שינויים",
       "hideChanges": "הסתרת שינויים",
+      "emptyTitle": "אין עדיין תמלילים",
+      "emptyHint": "לחץ על קיצור המקלדת להקלטה כדי לתעד את ההקלדה הראשונה שלך.",
+      "deleteConfirm": "למחוק רשומה זו? ההקלטה והתמליל שלה יוסרו לצמיתות.",
       "today": "היום",
-      "yesterday": "אתמול"
+      "yesterday": "אתמול",
+      "savedToggleError": "עדכון מצב השמירה נכשל.",
+      "dbRecoveredNotice": "מסד הנתונים של היסטוריית התמלילים שלך לא ניתן לקריאה, לכן הוחל במסד חדש. מסד הנתונים הקודם נשמר בשם {{file}}."
     },
     "debug": {
       "title": "ניפוי שגיאות",
@@ -983,9 +987,9 @@
         "pause": "השהה",
         "resume": "המשך",
         "copied": "הועתק",
-        "clearConfirm": "לנקות את השורות שנלכדו בתצוגה זו? קובץ היומן בדיסק נשמר.",
         "lineCount": "{{count}} שורות",
         "empty": "ממתין ללוגים… רשומות יופיעו כאן כשהאפליקציה תפיק אותן.",
+        "clearConfirm": "לנקות את השורות שנלכדו בתצוגה זו? קובץ היומן בדיסק נשמר.",
         "clearConfirmTitle": "לנקות את השורות שנלכדו?"
       },
       "updateChecks": {
@@ -1175,7 +1179,7 @@
       },
       "log": {
         "title": "יומן התראות",
-        "description": "50 ההתראות האחרונות על שגיאות ותוצאות.",
+        "description": "50 ההתראות האחרונות על שגיאות ותוצאות. רשומות חדשות נשמרות רק כשהתראות מערכת פועלות.",
         "empty": "אין עדיין התראות.",
         "clear": "ניקוי הכול"
       }
@@ -1207,7 +1211,6 @@
       "runHint_two": "{{count}} זוגות פרומפט-מנוע. שום דבר לא מוקלד או נשמר.",
       "runHint_other": "{{count}} זוגות פרומפט-מנוע. שום דבר לא מוקלד או נשמר.",
       "running": "מריץ...",
-      "appliedLabel": "הצלחה",
       "rerun": "הרצה חוזרת",
       "latency": "{{ms}} מ״ש",
       "rawKept": "המנוע נכשל או דולג, ולכן התמליל הגולמי יישמר.",
@@ -1221,19 +1224,23 @@
         "emptyBatch": "בחרו לפחות פרומפט אחד ומנוע אחד."
       },
       "diff": {
+        "lines": "שורות",
+        "charsChanged_one": "תו אחד השתנה",
+        "charsChanged_two": "{{count}} תווים השתנו",
+        "charsChanged_other": "{{count}} תווים השתנו",
         "identical": "אין שינויים.",
         "added_one": "+{{count}} נוספה",
         "added_other": "+{{count}} נוספו",
         "added_two": "+{{count}} נוספו",
         "removed_one": "{{count}} הוסרה",
         "removed_other": "{{count}} הוסרו",
-        "removed_two": "{{count}} הוסרו",
-        "charsChanged_one": "תו אחד השתנה",
-        "charsChanged_two": "{{count}} תווים השתנו",
-        "charsChanged_other": "{{count}} תווים השתנו"
+        "removed_two": "{{count}} הוסרו"
       },
       "resultsEmptyTitle": "התוצאות יופיעו כאן",
-      "resultsEmptyHint": "בחר למעלה מקור, פרומפטים ומנועים והרץ. כל כרטיס מציג את הטקסט המלוטש, את השינויים ואת המהירות."
+      "resultsEmptyHint": "בחר למעלה מקור, פרומפטים ומנועים והרץ. כל כרטיס מציג את הטקסט המלוטש, את השינויים ואת המהירות.",
+      "appliedLabel": "הצלחה",
+      "cancel": "ביטול",
+      "cancelledCard": "בוטל לפני שריצה זו החלה."
     }
   },
   "footer": {
@@ -1277,11 +1284,11 @@
     "loading": "טוען...",
     "delete": "מחק",
     "close": "סגור",
-    "cancel": "ביטול",
     "open": "פתח",
     "copy": "העתק",
     "clear": "נקה",
-    "noOptionsFound": "לא נמצאו אפשרויות"
+    "noOptionsFound": "לא נמצאו אפשרויות",
+    "cancel": "ביטול"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar צריך הרשאות נגישות כדי להקליד את הטקסט המתומלל.",
@@ -1309,7 +1316,9 @@
     "transcriptionFailedTitle": "התמלול נכשל",
     "noModelSelectedTitle": "לא נבחר מודל",
     "noModelSelected": "בחרו מודל תמלול בהגדרות לפני הקלטה.",
-    "openDirectory": "לא ניתן היה לפתוח את התיקייה: {{error}}"
+    "openDirectory": "לא ניתן היה לפתוח את התיקייה: {{error}}",
+    "modelLoadFailedMemoryGate": "אין מספיק זיכרון פנוי לטעון את {{model}}: נדרשים בערך {{needed}}, ופנויים בערך {{free}}.",
+    "modelLoadFailedDetail": "המודל לא השתנה. הסיבה הטכנית נמצאת בקובץ היומן."
   },
   "appLanguage": {
     "title": "שפת האפליקציה",
@@ -1453,6 +1462,15 @@
     "historyTitle": "אחרונים",
     "historyEmpty": "הקלטות מהטלפון הזה יופיעו כאן.",
     "stateMicBlocked": "המיקרופון חסום",
-    "micBlockedRetry": "המיקרופון חסום. הקש כדי לנסות שוב."
+    "micBlockedRetry": "המיקרופון חסום. הקש כדי לנסות שוב.",
+    "zeroAudioHold": "אף צליל לא הגיע ל־Mac. החזיקו את הכפתור ודברו.",
+    "zeroAudioHoldOrToggle": "אף צליל לא הגיע ל־Mac. החזיקו או הקישו על הכפתור ודברו.",
+    "zeroAudioTap": "אף צליל לא הגיע ל־Mac. הקישו על הכפתור ודברו.",
+    "holdOrToggleToTalk": "החזיקו כדי לדבר, הקישו כדי לנעול"
+  },
+  "trayCopyOutcome": {
+    "copied": "התמליל הועתק ללוח.",
+    "empty": "אין עדיין מה להעתיק.",
+    "failed": "העתקת התמליל ללוח נכשלה."
   }
 }

@@ -102,10 +102,20 @@ export const NOTICE_ROUTE_POLICIES: Record<string, NoticeRoutePolicy> = {
   companion_session_capped: "session-cap",
   companion_zero_audio: "session-cap",
 
+  // Fleet pass 2: the KB-179 history-database recovery is a FRONTEND-only
+  // boot code (the backend quarantined history.db before any webview
+  // existed; it never rides the overlay-notice event). Unrouted keeps the
+  // event router inert for it - historyDbRecovery.ts drives its surfaces
+  // itself through the channel classification below, so the master toggle
+  // and the in-app log apply to it exactly like every persistent notice.
+  history_db_recovered: "unrouted",
+
   // Unrouted: every failure code with a dedicated legacy listener — those
   // keep their legacy toast plus the error sound, and routing them here too
   // would stack two toasts for one failure whenever the card was hidden.
-  // Retiring those legacy listeners is follow-up work.
+  // Retiring those legacy listeners is follow-up work. KB-015/KB-122: the
+  // memory-gate refusal rides the same model-state-changed listener as the
+  // generic load failure, so it is unrouted with it.
   no_model_selected: "unrouted",
   microphone_permission_denied: "unrouted",
   no_input_device: "unrouted",
@@ -113,6 +123,7 @@ export const NOTICE_ROUTE_POLICIES: Record<string, NoticeRoutePolicy> = {
   transcription_failed: "unrouted",
   paste_failed: "unrouted",
   model_load_failed: "unrouted",
+  model_load_failed_memory_gate: "unrouted",
   post_process_memory_gate: "unrouted",
   post_process_engine_failed: "unrouted",
   post_process_timeout: "unrouted",
@@ -216,6 +227,11 @@ export const NOTICE_CHANNEL_TABLE: Record<string, NoticeChannelEntry> = {
   transcription_failed: NOTIFICATION("error", "notifications"),
   paste_failed: NOTIFICATION("error", "notifications"),
   model_load_failed: NOTIFICATION("error", "notifications"),
+  // KB-015/KB-122: the memory-gate refusal is the same failure class as
+  // the generic load failure (the model did not load); its localized
+  // notification body strips the interpolated amounts via the
+  // detail-interpolating-code path.
+  model_load_failed_memory_gate: NOTIFICATION("error", "notifications"),
   // A persistent misconfiguration, not a per-dictation condition: the
   // enabled polish silently never runs. Same class as a dead server.
   post_process_download_missing: NOTIFICATION("error", "notifications"),
@@ -236,6 +252,14 @@ export const NOTICE_CHANNEL_TABLE: Record<string, NoticeChannelEntry> = {
   // (not history) precisely because NO history entry exists - the log row
   // is the only durable record of why the phone session vanished.
   companion_zero_audio: NOTIFICATION("error", "notifications"),
+  // Fleet pass 2 (frontend-only boot code, not a Rust NoticeCode): the
+  // KB-179 history-database recovery. Same persistent discipline as every
+  // notifying code - the master toggle gates it and the in-app log row
+  // rides with it - so a denied macOS notification permission (or the
+  // toggle off) can no longer make the recovery invisible on every
+  // surface. Error group (dictation history was lost and quarantined); a
+  // click lands on History, the freshly reset database the notice names.
+  history_db_recovered: NOTIFICATION("error", "history"),
 
   // Outcome group: final companion-session results. The finalized
   // transcript lives in history, so a click goes there.
@@ -374,4 +398,19 @@ export function noticeClickSection(
   click: NoticeNotificationClickLike,
 ): NoticeClickSection {
   return click.target === "history" ? "history" : "notifications";
+}
+
+// KB-087: the tray copy actions' outcome dispatch. The tray menu itself
+// gives no feedback (it closes and nothing further happens on any
+// surface), so the Rust side emits one tray-copy-outcome event per copy
+// attempt and App.tsx consults THIS decision before posting the OS
+// notification: only while the notifications master toggle is on, the same
+// gate the persistent surface honors. Delivery still funnels through
+// notifyDesktop, whose live window-visibility query keeps a frontmost
+// main window un-spammed (the tray click happens with the window hidden,
+// which is exactly when the banner earns its place).
+export function trayCopyOutcomeDispatch(prefs: OsNotificationPrefs): {
+  notify: boolean;
+} {
+  return { notify: prefs.enabled };
 }

@@ -36,13 +36,13 @@
     "output": "Sortida",
     "advanced": "Avançat",
     "postProcessing": "Postprocessament",
-    "addonsGroup": "Complements",
     "enableInAdvancedHint": "Activa-ho a Avançat",
     "history": "Historial",
     "debug": "Depuració",
     "about": "Quant a",
     "notifications": "Notificacions",
-    "promptStudio": "Estudi de prompts"
+    "promptStudio": "Estudi de prompts",
+    "addonsGroup": "Complements"
   },
   "onboarding": {
     "subtitle": "Per començar, trieu un model de transcripció",
@@ -316,7 +316,6 @@
       "searchPlaceholder": "Cerca ordres",
       "resetAll": "Restableix totes les ordres",
       "resetRow": "Restableix",
-      "defaultPhrasesNote": "Les frases per defecte són les paraules angleses que escolta elreconeixedor, a més dels àlies integrats en hindi i xinès. Afegeix la tevafrase en qualsevol idioma a qualsevol fila.",
       "addPhrase": "Afegeix",
       "removePhrase": "Elimina {{phrase}}",
       "placeholder": "Afegeix una frase",
@@ -376,7 +375,8 @@
         "clearAll": "Esborra tot el dictat",
         "undo": "Executa desfés a l'aplicació activa",
         "paste": "Enganxa el porta-retalls a l'aplicació activa"
-      }
+      },
+      "defaultPhrasesNote": "Les frases per defecte són les paraules angleses que escolta elreconeixedor, a més dels àlies integrats en hindi i xinès. Afegeix la tevafrase en qualsevol idioma a qualsevol fila."
     },
     "search": {
       "placeholder": "Cerca a la configuració",
@@ -405,7 +405,7 @@
       "addFromHf": {
         "title": "Afegeix un model de Hugging Face",
         "description": "Enganxa un URL de repositori públic o propietari/repositori, per exemple https://huggingface.co/propietari/model.",
-        "placeholder": "owner/repo",
+        "placeholder": "https://huggingface.co/propietari/model o propietari/repositori",
         "add": "Afegeix",
         "cancel": "Cancel·la",
         "pickFile": "Tria un fitxer de {{repo}}:",
@@ -654,7 +654,7 @@
       },
       "voiceDeletion": {
         "title": "Ordres de supressió per veu",
-        "description": "\"scratch that\", \"delete that\" i \"remove that\" suprimeixen la paraula anterior, \"delete last three words\" en suprimeix diverses, i \"delete everything\" o \"start over\" esborra el dictat. Desactiveu-ho per mantenir-les com a paraules normals."
+        "description": "\"scratch that\", \"delete that\" i \"remove that\" suprimeixen la paraula anterior, \"delete last three words\" en suprimeix diverses, i \"delete everything\" o \"scratch everything\" esborra el dictat. Desactiveu-ho per mantenir-les com a paraules normals."
       },
       "previewBeforePaste": {
         "title": "Previsualització abans d'enganxar",
@@ -671,7 +671,7 @@
       },
       "numberFormat": {
         "title": "Nombres parlats",
-        "description": "Escriu els nombres dits com a dígits, de manera que \"one eight zero one\" s'enganxi com a 1801. \"Tal com s'ha transcrit\" manté els nombres tal com s'han dit; Smart també converteix ordinals compostos i números solts a partir d'onze.",
+        "description": "Escriu els nombres dits com a dígits, de manera que \"one eight zero one\" s'enganxi com a 1801. La conversió coneix els nombres parlats en anglès i hindi (inclòs el hinglish); en altres idiomes els nombres es mantenen com es van dir. \"Tal com s'ha transcrit\" manté els nombres tal com s'han dit; Smart també converteix ordinals compostos i números solts a partir d'onze.",
         "options": {
           "asTranscribed": "Tal com s'ha transcrit",
           "digits": "Dígits",
@@ -690,7 +690,6 @@
         "noDevices": "Encara no hi ha dispositius connectats",
         "resetPairing": "Restableix la vinculació",
         "fingerprintLabel": "Empremta del certificat (SHA-256)",
-        "fingerprintCopied": "Copiat",
         "firewallNote": "macOS pot demanar permetre connexions entrants el primer cop que ho activis. Permet-ho, o els mòbils no arribaran a aquest Mac.",
         "unavailable": "Els dispositius acompanyants requereixen macOS en aquest cicle.",
         "serverError": "El servidor ha fallat: {{error}}",
@@ -720,7 +719,8 @@
         "restartButton": "Reinicia el servidor",
         "restartPending": "Els canvis s'apliquen després de reiniciar",
         "qrPreviewNote": "Previsualització: aquest URL s'anunciarà la propera vegada que arrenqui el servidor.",
-        "sharedNetworkNote": "El telèfon i aquest Mac han de compartir xarxa: el mateix Wi-Fi o LAN, o el mateix tailnet (per exemple, tots dos al Tailscale)."
+        "sharedNetworkNote": "El telèfon i aquest Mac han de compartir xarxa: el mateix Wi-Fi o LAN, o el mateix tailnet (per exemple, tots dos al Tailscale).",
+        "fingerprintCopied": "Copiat"
       }
     },
     "postProcessing": {
@@ -763,13 +763,13 @@
           "notFetched": "Encara no hi ha llista de models.",
           "emptyTitle": "Cap model a la llista",
           "emptyHint": "Actualitza per carregar els models que veu aquesta clau, o escriu un id de model a sota.",
-          "emptyNoKey": "Introduïu la vostra clau API a dalt i actualitzeu per carregar els models.",
           "customSet": "Estableix",
           "customHint": "Qualsevol id de model del teu proveïdor funciona, encara que no surti a la llista.",
           "filterPlaceholder": "Filtra models",
           "showAll_one": "Mostra'ls tots ({{count}})",
           "showAll_other": "Mostra'ls tots ({{count}})",
-          "showFewer": "Mostra'n menys"
+          "showFewer": "Mostra'n menys",
+          "emptyNoKey": "Introduïu la vostra clau API a dalt i actualitzeu per carregar els models."
         },
         "timeout": {
           "title": "Temps d'espera de la sol·licitud",
@@ -805,7 +805,8 @@
         "providerLabel": "Local (al dispositiu)",
         "keepWarm": {
           "title": "Mantén el model local en memòria",
-          "description": "Quant de temps roman a la memòria el model local de postprocés després d'un polit en lloc de descarregar-se de seguida. Un dictat sempre recupera la memòria primer."
+          "description": "Quant de temps roman a la memòria el model local de postprocés després d'un polit en lloc de descarregar-se de seguida. Un dictat sempre recupera la memòria primer.",
+          "off": "Desactivat"
         }
       },
       "models": {
@@ -936,14 +937,12 @@
       "title": "Historial",
       "openFolder": "Obriu la carpeta d'enregistraments",
       "loading": "S'està carregant l'historial...",
-      "emptyTitle": "Encara no hi ha transcripcions",
-      "emptyHint": "Premeu la drecera d'enregistrament per capturar el vostre primer dictat.",
+      "empty": "Encara no hi ha transcripcions. Comenceu a enregistrar per crear l'historial!",
       "copyToClipboard": "Copia la transcripció al porta-retalls",
       "copyError": "No s'ha pogut copiar la transcripció al porta-retalls.",
       "save": "Desa la transcripció",
       "unsave": "Treu de les desades",
       "delete": "Suprimeix l'entrada",
-      "deleteConfirm": "Vols suprimir aquesta entrada? L'enregistrament i la seva transcripció s'eliminaran permanentment.",
       "deleteError": "No s'ha pogut suprimir l'entrada. Torneu-ho a provar.",
       "retranscribe": "Torneu a transcriure",
       "retranscribeError": "No s'ha pogut tornar a transcriure. Torneu-ho a provar.",
@@ -960,8 +959,13 @@
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Veure els canvis",
       "hideChanges": "Amagar els canvis",
+      "emptyTitle": "Encara no hi ha transcripcions",
+      "emptyHint": "Premeu la drecera d'enregistrament per capturar el vostre primer dictat.",
+      "deleteConfirm": "Vols suprimir aquesta entrada? L'enregistrament i la seva transcripció s'eliminaran permanentment.",
       "today": "Avui",
-      "yesterday": "Ahir"
+      "yesterday": "Ahir",
+      "savedToggleError": "No s'ha pogut actualitzar l'estat de desat.",
+      "dbRecoveredNotice": "La base de dades de l'historial de transcripcions no es podia llegir, així que se n'ha iniciat una de nova. La base de dades anterior s'ha conservat com a {{file}}."
     },
     "debug": {
       "title": "Depuració",
@@ -981,9 +985,9 @@
         "pause": "Pauseu",
         "resume": "Repreneu",
         "copied": "Copiat",
-        "clearConfirm": "Vols esborrar les línies capturades d'aquesta vista? El fitxer de registre del disc es conserva.",
         "lineCount": "{{count}} línies",
         "empty": "S'estan esperant registres… Les entrades apareixeran aquí a mesura que l'aplicació les emeti.",
+        "clearConfirm": "Vols esborrar les línies capturades d'aquesta vista? El fitxer de registre del disc es conserva.",
         "clearConfirmTitle": "Voleu esborrar les línies capturades?"
       },
       "updateChecks": {
@@ -1173,7 +1177,7 @@
       },
       "log": {
         "title": "Registre de notificacions",
-        "description": "Els últims 50 avisos d'errors i resultats.",
+        "description": "Els últims 50 avisos d'errors i resultats. Només es registren entrades noves mentre les notificacions del sistema estiguin actives.",
         "empty": "Encara no hi ha notificacions.",
         "clear": "Esborra-ho tot"
       }
@@ -1203,7 +1207,6 @@
       "runHint_one": "1 prompt en 1 motor. No s'escriu ni es desa res.",
       "runHint_other": "{{count}} parells prompt-motor. No s'escriu ni es desa res.",
       "running": "S'està executant...",
-      "appliedLabel": "Èxit",
       "rerun": "Tornar a executar",
       "latency": "{{ms}} ms",
       "rawKept": "El motor ha fallat o s'ha omès, per tant es mantindria la transcripció en brut.",
@@ -1216,16 +1219,20 @@
         "emptyBatch": "Tria com a mínim un prompt i un motor."
       },
       "diff": {
+        "lines": "línies",
+        "charsChanged_one": "1 caràcter canviat",
+        "charsChanged_other": "{{count}} caràcters canviats",
         "identical": "Sense canvis.",
         "added_one": "+{{count}} afegida",
         "added_other": "+{{count}} afegides",
         "removed_one": "{{count}} eliminada",
-        "removed_other": "{{count}} eliminades",
-        "charsChanged_one": "1 caràcter canviat",
-        "charsChanged_other": "{{count}} caràcters canviats"
+        "removed_other": "{{count}} eliminades"
       },
       "resultsEmptyTitle": "Els resultats apareixeran aquí",
-      "resultsEmptyHint": "Tria a dalt una font, prompts i motors i executa. Cada targeta mostra el text polit, els canvis i la velocitat."
+      "resultsEmptyHint": "Tria a dalt una font, prompts i motors i executa. Cada targeta mostra el text polit, els canvis i la velocitat.",
+      "appliedLabel": "Èxit",
+      "cancel": "Cancel·la",
+      "cancelledCard": "S'ha cancel·lat abans que comencés aquesta execució."
     }
   },
   "footer": {
@@ -1273,11 +1280,11 @@
     "loading": "S'està carregant...",
     "delete": "Suprimeix",
     "close": "Tanca",
-    "cancel": "Cancel·la",
     "open": "Obre",
     "copy": "Copia",
     "clear": "Neteja",
-    "noOptionsFound": "No s'ha trobat cap opció"
+    "noOptionsFound": "No s'ha trobat cap opció",
+    "cancel": "Cancel·la"
   },
   "accessibility": {
     "permissionsDescription": "El VoxBar necessita permisos d'accessibilitat per escriure el text transcrit.",
@@ -1305,7 +1312,9 @@
     "transcriptionFailedTitle": "La transcripció ha fallat",
     "noModelSelectedTitle": "Cap model seleccionat",
     "noModelSelected": "Trieu un model de transcripció a Configuració abans de dictar.",
-    "openDirectory": "No s'ha pogut obrir la carpeta: {{error}}"
+    "openDirectory": "No s'ha pogut obrir la carpeta: {{error}}",
+    "modelLoadFailedMemoryGate": "No hi ha prou memòria lliure per carregar {{model}}: necessita uns {{needed}}, amb uns {{free}} lliures.",
+    "modelLoadFailedDetail": "El model no ha canviat. El motiu tècnic és al fitxer de registre."
   },
   "appLanguage": {
     "title": "Llengua de l'aplicació",
@@ -1445,6 +1454,15 @@
     "historyTitle": "Recents",
     "historyEmpty": "Els dictats d'aquest mòbil apareixen aquí.",
     "stateMicBlocked": "Micròfon bloquejat",
-    "micBlockedRetry": "Micròfon bloquejat. Toca per tornar-ho a provar."
+    "micBlockedRetry": "Micròfon bloquejat. Toca per tornar-ho a provar.",
+    "zeroAudioHold": "Cap àudio no ha arribat al Mac. Mantén premut el botó i parla.",
+    "zeroAudioHoldOrToggle": "Cap àudio no ha arribat al Mac. Mantén premut o toca el botó i parla.",
+    "zeroAudioTap": "Cap àudio no ha arribat al Mac. Toca el botó i parla.",
+    "holdOrToggleToTalk": "Mantén premut per parlar, toca per blocar"
+  },
+  "trayCopyOutcome": {
+    "copied": "S'ha copiat la transcripció al porta-retalls.",
+    "empty": "Encara no hi ha res per copiar.",
+    "failed": "No s'ha pogut copiar la transcripció al porta-retalls."
   }
 }

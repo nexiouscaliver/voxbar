@@ -41,6 +41,14 @@ export const SettingsSearch: React.FC<SettingsSearchProps> = ({ onSelect }) => {
   const sectionSearchable = (section: SidebarSection) =>
     section === "postprocessing" || SECTIONS_CONFIG[section].enabled(settings);
 
+  // KB-144: rows that only render inside Advanced's experimental group are
+  // dead results while the flag is off, exactly like disabled sections.
+  const experimentalEnabled = settings?.experimental_enabled ?? false;
+
+  // KB-144: rows that only render inside Advanced's experimental group are
+  // dead results while the flag is off, exactly like disabled sections.
+  const experimentalEnabled = settings?.experimental_enabled ?? false;
+
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return [];
@@ -53,12 +61,13 @@ export const SettingsSearch: React.FC<SettingsSearchProps> = ({ onSelect }) => {
       if (!sectionSearchable(entry.section)) return false;
       const label = t(entry.key);
       if (!label.toLowerCase().includes(needle)) return false;
+      if (entry.requiresExperimental && !experimentalEnabled) return false;
       const dedupeKey = `${label}\u0000${t(SECTIONS_CONFIG[entry.section].labelKey)}`;
       if (seen.has(dedupeKey)) return false;
       seen.add(dedupeKey);
       return true;
     }).slice(0, MAX_RESULTS);
-  }, [query, t, settings]);
+  }, [query, t, settings, experimentalEnabled]);
 
   // Fresh query, fresh highlight: always start on the first row.
   useEffect(() => {

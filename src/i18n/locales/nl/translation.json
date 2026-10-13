@@ -36,13 +36,13 @@
     "output": "Uitvoer",
     "advanced": "Geavanceerd",
     "postProcessing": "Naverwerking",
-    "addonsGroup": "Extensies",
     "enableInAdvancedHint": "Inschakelen bij Geavanceerd",
     "history": "Geschiedenis",
     "debug": "Probleemoplossing",
     "about": "Over VoxBar",
     "notifications": "Meldingen",
-    "promptStudio": "Promptstudio"
+    "promptStudio": "Promptstudio",
+    "addonsGroup": "Extensies"
   },
   "onboarding": {
     "subtitle": "Kies een transcriptiemodel om aan de slag te gaan",
@@ -316,7 +316,6 @@
       "searchPlaceholder": "Opdrachten zoeken",
       "resetAll": "Alle opdrachten terugzetten",
       "resetRow": "Terug naar standaard",
-      "defaultPhrasesNote": "Standaardzinnen zijn de Engelse woorden waar de herkenner naar luistert,plus ingebouwde Hindi- en Chinese aliassen. Voeg je eigen zin toe in eentaal naar keuze op elke rij.",
       "addPhrase": "Toevoegen",
       "removePhrase": "{{phrase}} verwijderen",
       "placeholder": "Zinsnede toevoegen",
@@ -376,7 +375,8 @@
         "clearAll": "Wist de hele dicteertekst",
         "undo": "Voert ongedaan maken uit in de app met focus",
         "paste": "Plakt het klembord in de app met focus"
-      }
+      },
+      "defaultPhrasesNote": "Standaardzinnen zijn de Engelse woorden waar de herkenner naar luistert,plus ingebouwde Hindi- en Chinese aliassen. Voeg je eigen zin toe in eentaal naar keuze op elke rij."
     },
     "search": {
       "placeholder": "Instellingen zoeken",
@@ -405,7 +405,7 @@
       "addFromHf": {
         "title": "Model van Hugging Face toevoegen",
         "description": "Plak een openbare repo-URL of eigenaar/repo, bijvoorbeeld https://huggingface.co/eigenaar/model.",
-        "placeholder": "owner/repo",
+        "placeholder": "https://huggingface.co/eigenaar/model of eigenaar/model",
         "add": "Toevoegen",
         "cancel": "Annuleren",
         "pickFile": "Kies een bestand uit {{repo}}:",
@@ -654,7 +654,7 @@
       },
       "voiceDeletion": {
         "title": "Spraakopdrachten voor verwijderen",
-        "description": "\"scratch that\", \"delete that\" en \"remove that\" verwijderen het vorige woord, \"delete last three words\" verwijdert er meerdere, en \"delete everything\" of \"start over\" wist de dictee. Zet uit om ze als gewone woorden te behouden."
+        "description": "\"scratch that\", \"delete that\" en \"remove that\" verwijderen het vorige woord, \"delete last three words\" verwijdert er meerdere, en \"delete everything\" of \"scratch everything\" wist de dictee. Zet uit om ze als gewone woorden te behouden."
       },
       "previewBeforePaste": {
         "title": "Voorvertoning vóór het plakken",
@@ -671,7 +671,7 @@
       },
       "numberFormat": {
         "title": "Gesproken getallen",
-        "description": "Schrijft gesproken getalwoorden als cijfers, zodat \"one eight zero one\" als 1801 wordt geplakt. \"Zo getranscribeerd\" laat getallen zoals gesproken; Smart zet ook samengestelde rangtelwoorden en losse getallen vanaf elf om.",
+        "description": "Schrijft gesproken getalwoorden als cijfers, zodat \"one eight zero one\" als 1801 wordt geplakt. De conversie kent Engelse en Hindi-getalwoorden (inclusief Hinglish); in andere talen blijven cijfers zoals gesproken. \"Zo getranscribeerd\" laat getallen zoals gesproken; Smart zet ook samengestelde rangtelwoorden en losse getallen vanaf elf om.",
         "options": {
           "asTranscribed": "Zoals getranscribeerd",
           "digits": "Cijfers",
@@ -690,7 +690,6 @@
         "noDevices": "Nog geen apparaten verbonden",
         "resetPairing": "Koppeling herstellen",
         "fingerprintLabel": "Certificaat-vingerafdruk (SHA-256)",
-        "fingerprintCopied": "Gekopieerd",
         "firewallNote": "macOS kan bij de eerste keer inschakelen vragen inkomende verbindingen toe te staan. Sta het toe, anders bereiken telefoons deze Mac niet.",
         "unavailable": "Companion-apparaten vereisen macOS in deze cyclus.",
         "serverError": "Server mislukt: {{error}}",
@@ -720,7 +719,8 @@
         "restartButton": "Server herstarten",
         "restartPending": "Wijzigingen worden toegepast na een herstart",
         "qrPreviewNote": "Voorbeeld: deze URL geldt zodra de server opnieuw start.",
-        "sharedNetworkNote": "De telefoon en deze Mac moeten een netwerk delen: hetzelfde Wi-Fi of LAN, of hetzelfde tailnet (bijvoorbeeld beide op Tailscale)."
+        "sharedNetworkNote": "De telefoon en deze Mac moeten een netwerk delen: hetzelfde Wi-Fi of LAN, of hetzelfde tailnet (bijvoorbeeld beide op Tailscale).",
+        "fingerprintCopied": "Gekopieerd"
       }
     },
     "postProcessing": {
@@ -763,13 +763,13 @@
           "notFetched": "Nog geen modellenlijst.",
           "emptyTitle": "Geen modellen in de lijst",
           "emptyHint": "Ververs om de modellen te laden die deze sleutel ziet, of typ hieronder een model-id.",
-          "emptyNoKey": "Voer hierboven je API-sleutel in en ververs vervolgens om modellen te laden.",
           "customSet": "Instellen",
           "customHint": "Elke model-id van je provider werkt, ook als die niet in de lijst staat.",
           "filterPlaceholder": "Modellen filteren",
           "showAll_one": "Alles tonen ({{count}})",
           "showAll_other": "Alles tonen ({{count}})",
-          "showFewer": "Minder tonen"
+          "showFewer": "Minder tonen",
+          "emptyNoKey": "Voer hierboven je API-sleutel in en ververs vervolgens om modellen te laden."
         },
         "timeout": {
           "title": "Time-out van verzoek",
@@ -805,7 +805,8 @@
         "providerLabel": "Lokaal (op het apparaat)",
         "keepWarm": {
           "title": "Lokaal model vasthouden",
-          "description": "Hoe lang het lokale postprocessmodel in het geheugen blijft na een opruiming in plaats van direct te worden ontladen. Een dictee haalt het geheugen altijd eerst terug."
+          "description": "Hoe lang het lokale postprocessmodel in het geheugen blijft na een opruiming in plaats van direct te worden ontladen. Een dictee haalt het geheugen altijd eerst terug.",
+          "off": "Uit"
         }
       },
       "models": {
@@ -936,14 +937,12 @@
       "title": "Geschiedenis",
       "openFolder": "Opnamemap openen",
       "loading": "Geschiedenis laden...",
-      "emptyTitle": "Nog geen transcripties",
-      "emptyHint": "Druk op je opname-sneltoets om je eerste dictaat vast te leggen.",
+      "empty": "Nog geen transcripties. Start met opnemen om je geschiedenis op te bouwen!",
       "copyToClipboard": "Transcriptie naar klembord kopiëren",
       "copyError": "Transcriptie naar het klembord kopiëren mislukt.",
       "save": "Transcriptie opslaan",
       "unsave": "Verwijderen uit opgeslagen",
       "delete": "Item verwijderen",
-      "deleteConfirm": "Dit item verwijderen? De opname en het transcript worden permanent verwijderd.",
       "deleteError": "Item verwijderen mislukt. Probeer het opnieuw.",
       "retranscribe": "Opnieuw transcriberen",
       "retranscribeError": "Opnieuw transcriberen mislukt. Probeer het opnieuw.",
@@ -960,8 +959,13 @@
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Wijzigingen bekijken",
       "hideChanges": "Wijzigingen verbergen",
+      "emptyTitle": "Nog geen transcripties",
+      "emptyHint": "Druk op je opname-sneltoets om je eerste dictaat vast te leggen.",
+      "deleteConfirm": "Dit item verwijderen? De opname en het transcript worden permanent verwijderd.",
       "today": "Vandaag",
-      "yesterday": "Gisteren"
+      "yesterday": "Gisteren",
+      "savedToggleError": "Kon de opgeslagen status niet bijwerken.",
+      "dbRecoveredNotice": "De database van uw transcriptiegeschiedenis was onleesbaar, dus er is een nieuwe gestart. De vorige database is bewaard als {{file}}."
     },
     "debug": {
       "title": "Probleemoplossing",
@@ -981,9 +985,9 @@
         "pause": "Pauzeren",
         "resume": "Hervatten",
         "copied": "Gekopieerd",
-        "clearConfirm": "De vastgelegde regels uit deze weergave wissen? Het logbestand op schijf blijft bewaard.",
         "lineCount": "{{count}} regels",
         "empty": "Wachten op logboeken... Meldingen verschijnen hier zodra de app ze genereert.",
+        "clearConfirm": "De vastgelegde regels uit deze weergave wissen? Het logbestand op schijf blijft bewaard.",
         "clearConfirmTitle": "Vastgelegde regels wissen?"
       },
       "updateChecks": {
@@ -1173,7 +1177,7 @@
       },
       "log": {
         "title": "Meldingenlog",
-        "description": "De laatste 50 fout- en resultaatmeldingen.",
+        "description": "De laatste 50 fout- en resultaatmeldingen. Nieuwe items worden alleen bijgehouden zolang systeemmeldingen aan staan.",
         "empty": "Nog geen meldingen.",
         "clear": "Alles wissen"
       }
@@ -1203,7 +1207,6 @@
       "runHint_one": "1 prompt op 1 engine. Er wordt niets getypt of opgeslagen.",
       "runHint_other": "{{count}} prompt-engineparen. Er wordt niets getypt of opgeslagen.",
       "running": "Bezig met uitvoeren...",
-      "appliedLabel": "Succes",
       "rerun": "Opnieuw uitvoeren",
       "latency": "{{ms}} ms",
       "rawKept": "De engine mislukte of werd overgeslagen, dus de ruwe transcriptie zou behouden blijven.",
@@ -1216,16 +1219,20 @@
         "emptyBatch": "Kies minstens één prompt en één engine."
       },
       "diff": {
+        "lines": "regels",
+        "charsChanged_one": "1 teken gewijzigd",
+        "charsChanged_other": "{{count}} tekens gewijzigd",
         "identical": "Geen wijzigingen.",
         "added_one": "+{{count}} toegevoegd",
         "added_other": "+{{count}} toegevoegd",
         "removed_one": "{{count}} verwijderd",
-        "removed_other": "{{count}} verwijderd",
-        "charsChanged_one": "1 teken gewijzigd",
-        "charsChanged_other": "{{count}} tekens gewijzigd"
+        "removed_other": "{{count}} verwijderd"
       },
       "resultsEmptyTitle": "Resultaten verschijnen hier",
-      "resultsEmptyHint": "Kies hierboven een bron, prompts en engines en voer ze uit. Elke kaart toont de gepolijste tekst, de wijzigingen en de snelheid."
+      "resultsEmptyHint": "Kies hierboven een bron, prompts en engines en voer ze uit. Elke kaart toont de gepolijste tekst, de wijzigingen en de snelheid.",
+      "appliedLabel": "Succes",
+      "cancel": "Annuleren",
+      "cancelledCard": "Geannuleerd voordat deze run begon."
     }
   },
   "footer": {
@@ -1273,11 +1280,11 @@
     "loading": "Laden...",
     "delete": "Verwijderen",
     "close": "Sluiten",
-    "cancel": "Annuleren",
     "open": "Openen",
     "copy": "Kopiëren",
     "clear": "Wissen",
-    "noOptionsFound": "Geen opties gevonden"
+    "noOptionsFound": "Geen opties gevonden",
+    "cancel": "Annuleren"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar heeft toegankelijkheidsmachtigingen nodig om getranscribeerde tekst te kunnen typen.",
@@ -1305,7 +1312,9 @@
     "transcriptionFailedTitle": "Transcriptie mislukt",
     "noModelSelectedTitle": "Geen model gekozen",
     "noModelSelected": "Kies voor het dicteren eerst een transcriptiemodel in Instellingen.",
-    "openDirectory": "Map kon niet worden geopend: {{error}}"
+    "openDirectory": "Map kon niet worden geopend: {{error}}",
+    "modelLoadFailedMemoryGate": "Niet genoeg vrij geheugen om {{model}} te laden: ongeveer {{needed}} nodig, circa {{free}} vrij.",
+    "modelLoadFailedDetail": "Het model is niet gewijzigd. De technische reden staat in het logbestand."
   },
   "appLanguage": {
     "title": "Interfacetaal",
@@ -1445,6 +1454,15 @@
     "historyTitle": "Recent",
     "historyEmpty": "Dicteeropnames van deze telefoon verschijnen hier.",
     "stateMicBlocked": "Microfoon geblokkeerd",
-    "micBlockedRetry": "Microfoon geblokkeerd. Tik om het opnieuw te proberen."
+    "micBlockedRetry": "Microfoon geblokkeerd. Tik om het opnieuw te proberen.",
+    "zeroAudioHold": "Geen audio bereikte de Mac. Houd de knop ingedrukt en spreek.",
+    "zeroAudioHoldOrToggle": "Geen audio bereikte de Mac. Houd de knop ingedrukt of tik op de knop en spreek.",
+    "zeroAudioTap": "Geen audio bereikte de Mac. Tik op de knop en spreek.",
+    "holdOrToggleToTalk": "Houd ingedrukt om te praten, tik om te vergrendelen"
+  },
+  "trayCopyOutcome": {
+    "copied": "De transcriptie is naar het klembord gekopieerd.",
+    "empty": "Er is nog niets om te kopiëren.",
+    "failed": "Kon de transcriptie niet naar het klembord kopiëren."
   }
 }

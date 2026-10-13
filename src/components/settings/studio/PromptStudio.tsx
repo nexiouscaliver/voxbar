@@ -1,13 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useTranslation } from "react-i18next";
-import { FlaskConical, Loader2, Play, RotateCcw } from "lucide-react";
-import {
-  commands,
-  type HistoryEntry,
-  type StudioRunRequest,
-  type StudioSource,
-  type TestPromptError,
-} from "@/bindings";
+import { FlaskConical, Play, RotateCcw, Square,
+  Loader2,
+} from "lucide-react";
+import { commands, type HistoryEntry, type StudioSource } from "@/bindings";
 import { useSettings } from "@/hooks/useSettings";
 import { formatDateTime } from "@/utils/dateFormat";
 import { Alert } from "../../ui/Alert";
@@ -17,15 +19,19 @@ import { Dropdown, SettingContainer } from "@/components/ui";
 import { DiffView } from "./DiffView";
 import {
   buildBatch,
-  initCards,
   isPartialFailure,
   keptRaw,
-  markRunning,
-  mergeResults,
   outcomeKind,
   type StudioCardState,
   type StudioPair,
 } from "./studioRunState";
+import {
+  cancelStudioBatch,
+  runStudioBatch,
+  studioBatchState,
+  subscribeStudioBatch,
+  type StudioBatchError,
+} from "./studioBatch";
 import { PRELOAD_PROMPT_STUDIO_EVENT } from "./studioEvents";
 
 const STUDIO_HISTORY_PAGE_SIZE = 50;
@@ -63,12 +69,7 @@ const CheckRow: React.FC<{
     <span className="min-w-0 flex-1">
       <span className="block text-sm font-medium truncate">{label}</span>
       {note ? (
-        /* The sublabel wraps instead of ellipsizing: it names where to go
-           ("No model set. Choose one in Post Process.") and a cut-off
-           destination is a dead end. */
-        <span className="block text-xs leading-snug text-secondary break-words">
-          {note}
-        </span>
+        <span className="block text-xs text-secondary truncate">{note}</span>
       ) : null}
     </span>
   </label>
@@ -105,9 +106,8 @@ const ResultCard: React.FC<{
             onRerun({ promptId: card.promptId, providerId: card.providerId })
           }
           disabled={rerunDisabled || card.status === "running"}
-          className="p-1.5 rounded-md flex items-center justify-center transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-logo-primary disabled:cursor-not-allowed disabled:text-text/20 text-text/50 hover:text-logo-primary shrink-0"
+          className="p-1.5 rounded-md flex items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed disabled:text-text/20 text-text/50 hover:text-logo-primary shrink-0"
           title={t("settings.studio.rerun")}
-          aria-label={t("settings.studio.rerun")}
         >
           <RotateCcw
             width={14}
@@ -128,6 +128,12 @@ const ResultCard: React.FC<{
            * exactly like. */}
           <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
           {t("settings.studio.running")}
+        </p>
+      ) : card.status === "cancelled" ? (
+        /* KB-257: the cancel landed before this pair's turn; it never
+           ran, so there is no outcome to badge or diff to show. */
+        <p className="text-xs text-secondary">
+          {t("settings.studio.cancelledCard")}
         </p>
       ) : card.result ? (
         <>
@@ -201,9 +207,15 @@ export const PromptStudio: React.FC = () => {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(true);
   const [appleUnavailable, setAppleUnavailable] = useState(false);
-  const [cards, setCards] = useState<StudioCardState[]>([]);
-  const [batchInFlight, setBatchInFlight] = useState(false);
-  const [runError, setRunError] = useState<string | null>(null);
+  // KB-257: the batch state (cards, in-flight flag, error) lives in the
+  // module-level controller, so navigating away and back reflects the
+  // still-running batch instead of discarding it - and a remount can no
+  // longer stack a second batch behind the orphaned first one.
+  const batchState = useSyncExternalStore(
+    subscribeStudioBatch,
+    studioBatchState,
+  );
+  const { cards, inFlight: batchInFlight, error: batchError } = batchState;
 
   // The source picker's entry list: the newest page is plenty (the dropdown
   // shows date + snippet; older entries stay reachable from History).
@@ -304,81 +316,50 @@ export const PromptStudio: React.FC = () => {
     () => buildBatch([...selectedPrompts], [...selectedEngines]),
     [selectedPrompts, selectedEngines],
   );
-  // "Last transcript" needs at least one history row to exist: with an
-  // empty history that source can only be refused by the backend, so Run
-  // stays disabled (the note under the picker says why) instead of letting
-  // the user trigger a guaranteed failure.
-  const sourceUsable =
-    sourceValue !== LAST_TRANSCRIPT_VALUE ||
-    entries.some((entry) => entry.transcription_text.trim().length > 0);
-  const canRun =
-    batch.length > 0 && !batchInFlight && !entriesLoading && sourceUsable;
+  const canRun = batch.length > 0 && !batchInFlight && !entriesLoading;
 
   const sourceForRun = (): StudioSource =>
     sourceValue === LAST_TRANSCRIPT_VALUE
       ? { kind: "last_transcript" }
       : { kind: "history_entry", id: Number(sourceValue) };
 
-  const errorText = (error: TestPromptError): string => {
-    switch (error.kind) {
+  const errorText = (error: StudioBatchError): string => {
+    if (error.kind === "raw") return error.message;
+    switch (error.error.kind) {
       case "no_history":
         return t("settings.postProcessing.prompts.testNoHistory");
       case "prompt_not_found":
         return t("settings.postProcessing.prompts.testPromptNotFound");
       case "engine_not_found":
-        return t("settings.studio.errors.engineNotFound", { id: error.id });
+        return t("settings.studio.errors.engineNotFound", {
+          id: error.error.id,
+        });
       case "entry_not_found":
         return t("settings.studio.errors.entryNotFound");
       case "empty_batch":
         return t("settings.studio.errors.emptyBatch");
       default:
         return t("settings.postProcessing.prompts.testFailed", {
-          detail: error.detail,
+          detail: error.error.detail,
         });
     }
   };
 
-  const runPairs = async (pairs: StudioPair[], fresh: boolean) => {
-    const runs: StudioRunRequest[] = pairs.map((pair) => ({
-      prompt_id: pair.promptId,
-      provider_id: pair.providerId,
-    }));
-    setBatchInFlight(true);
-    setRunError(null);
-    setCards((prev) => (fresh ? initCards(pairs) : markRunning(prev, pairs)));
-    try {
-      const result = await commands.testPostProcessPromptBatch(
-        sourceForRun(),
-        runs,
-      );
-      if (result.status === "ok") {
-        setCards((prev) => mergeResults(prev, result.data));
-      } else {
-        // A refused batch must not destroy finished results (a re-run keeps
-        // the grid untouched), but a REFUSED FRESH run settles every card:
-        // the grid clears to its idle state so the error banner is the one
-        // failure signal. Cards that keep status "running" here would sit
-        // stuck as "Running..." forever while the Run button re-enables -
-        // three contradictory states on one screen.
-        if (fresh) setCards([]);
-        setRunError(errorText(result.error));
-      }
-    } catch (error) {
-      console.error("Studio batch failed:", error);
-      if (fresh) setCards([]);
-      setRunError(String(error));
-    } finally {
-      setBatchInFlight(false);
-    }
+  const runPairs = (pairs: StudioPair[], fresh: boolean) => {
+    runStudioBatch(pairs, sourceForRun(), fresh);
   };
 
   const handleRun = () => {
     if (!canRun) return;
-    void runPairs(batch, true);
+    runPairs(batch, true);
   };
 
   const handleRerun = (pair: StudioPair) => {
-    void runPairs([pair], false);
+    runPairs([pair], false);
+  };
+
+  const handleCancel = () => {
+    cancelStudioBatch();
   };
 
   const sourceOptions = useMemo(() => {
@@ -405,15 +386,13 @@ export const PromptStudio: React.FC = () => {
 
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
-      {/* Page header: the large title-case convention the Models page set
-          (h1 text-xl font-medium + a one-line description). The old
-          all-caps letter-spaced eyebrow style is reserved for section
-          headers, like the RESULTS eyebrow below. */}
       <div>
         <h1 className="text-xl font-medium mb-2">
           {t("settings.studio.title")}
         </h1>
-        <p className="text-sm text-text/60">{t("settings.studio.intro")}</p>
+        <p className="mt-1 text-xs text-secondary">
+          {t("settings.studio.intro")}
+        </p>
       </div>
 
       <SettingContainer
@@ -509,22 +488,7 @@ export const PromptStudio: React.FC = () => {
         </div>
       </SettingContainer>
 
-      {/* The run controls pin to the bottom of the visible area while the
-          pickers above them are scrolled: at the minimum window size the
-          idle layout is taller than the pane, and a statically placed Run
-          button rendered as a clipped sliver above the footer on load. The
-          bar's top edge fades out instead of cutting opaque, and the padding
-          above the button stays slim: at rest the occluded second engine
-          row's top edge lands inside the gradient (a there-is-more hint)
-          instead of behind fully opaque background, and content scrolling
-          underneath dissolves instead of slicing mid-glyph. */}
-      <div
-        className="sticky bottom-0 z-10 -mx-2 flex flex-wrap items-center gap-3 px-2 pt-2 pb-2 rounded-b-lg"
-        style={{
-          background:
-            "linear-gradient(to bottom, transparent 0px, var(--color-background) 22px, var(--color-background) 100%)",
-        }}
-      >
+      <div className="flex flex-wrap items-center gap-3">
         <Button
           onClick={handleRun}
           variant="primary"
@@ -539,21 +503,35 @@ export const PromptStudio: React.FC = () => {
               : t("settings.studio.run", { count: batch.length })}
           </span>
         </Button>
+        {batchInFlight ? (
+          /* KB-257: the cancel affordance. A batch can grind for as long
+             as the provider timeout; before this, leaving the page was
+             the only way to (invisibly) abandon it. */
+          <Button
+            onClick={handleCancel}
+            variant="secondary"
+            size="md"
+            className="flex items-center gap-2"
+          >
+            <Square width={12} height={12} aria-hidden="true" />
+            <span>{t("settings.studio.cancel")}</span>
+          </Button>
+        ) : null}
         <span className="text-xs text-secondary">
           {t("settings.studio.runHint", { count: batch.length })}
         </span>
       </div>
 
-      {runError ? (
-        /* Rounded like every other container on the page: `contained`
-           strips the radius for banners nested INSIDE a card, but these
-           sit standalone on the pane, where square corners read as a
-           rendering defect against the ~10px card language. */
-        <Alert variant="error">{runError}</Alert>
+      {batchError ? (
+        <Alert variant="error" contained>
+          {errorText(batchError)}
+        </Alert>
       ) : null}
 
       {partialFailure ? (
-        <Alert variant="warning">{t("settings.studio.partialFailure")}</Alert>
+        <Alert variant="warning" contained>
+          {t("settings.studio.partialFailure")}
+        </Alert>
       ) : null}
 
       {cards.length > 0 ? (
@@ -579,7 +557,7 @@ export const PromptStudio: React.FC = () => {
            Run button, so a first-time user could not tell WHERE results
            would land or that the run is safe. This panel holds the space
            and answers both. */
-        !runError && (
+        !batchError && (
           <div className="rounded-lg border border-dashed border-mid-gray/40 px-4 py-8 flex flex-col items-center gap-2 text-center">
             <FlaskConical className="h-5 w-5 text-text/40" aria-hidden="true" />
             <p className="text-sm text-secondary">

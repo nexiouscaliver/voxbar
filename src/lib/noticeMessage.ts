@@ -35,6 +35,23 @@ function parseCycleDetail(detail: string): {
   return { name: detail };
 }
 
+// KB-015/KB-122: the memory-gate refusal's structured detail - model,
+// needed, free - unit-separator encoded by memory_gate_notice_detail
+// (transcription.rs), the same convention as the cycle detail, so the
+// localized line interpolates the three facts instead of pasting the raw
+// English refusal sentence into the model-name slot.
+function parseMemoryGateDetail(detail: string): {
+  model: string;
+  needed?: string;
+  free?: string;
+} {
+  const parts = detail.split(CYCLE_DETAIL_SEPARATOR);
+  if (parts.length === 3 && parts[1] !== "" && parts[2] !== "") {
+    return { model: parts[0], needed: parts[1], free: parts[2] };
+  }
+  return { model: detail };
+}
+
 // Localize one notice code. `detail` is the event's optional diagnostic
 // (error text, model names); the codes that interpolate it fall back to
 // empty strings, except model_load_failed whose fallback names the unknown
@@ -61,6 +78,20 @@ export function noticeMessage(
       return t("errors.modelLoadFailed", {
         model: detail ?? t("errors.modelLoadFailedUnknown"),
       });
+    // KB-015/KB-122: the memory-gate refusal gets its own line so the
+    // raw English refusal sentence never interpolates into the generic
+    // failure's model-name slot. The detail carries model, needed, and
+    // free (unit-separator encoded); a bare-model detail (a defensive
+    // shape) interpolates empty amounts rather than the literal
+    // "{{needed}}".
+    case "model_load_failed_memory_gate": {
+      const gate = parseMemoryGateDetail(detail ?? "");
+      return t("errors.modelLoadFailedMemoryGate", {
+        model: gate.model,
+        needed: gate.needed ?? "",
+        free: gate.free ?? "",
+      });
+    }
     case "model_fallback":
       return t("errors.modelFallback", { model: detail ?? "" });
     case "post_process_memory_gate":
@@ -158,6 +189,17 @@ export function noticeMessage(
     // strings ride along.
     case "command_mode_no_session":
       return t("app.commandNoSession");
+    // Fleet pass 2: the frontend-only boot code (KB-179). Not a Rust
+    // NoticeCode - the backend quarantined the database before any webview
+    // existed - but the arm keeps the routing tables' cross-pin whole and
+    // resolves the recovery's localized body through the same seam. The
+    // detail is the quarantined file's name (user-facing content, not a
+    // raw diagnostic: the OS body keeps the full line, like the session
+    // cap's device name).
+    case "history_db_recovered":
+      return t("settings.history.dbRecoveredNotice", {
+        file: detail ?? "",
+      });
     default:
       return null;
   }
@@ -165,11 +207,21 @@ export function noticeMessage(
 
 // The codes whose localized line ends in (or carries) a raw diagnostic
 // detail that must not leave the app's own surfaces — the same arms above
-// that pass `detail` into t()'s options, except companion_session_capped:
-// its {{device}} slot is user-facing content (which phone's session
-// capped), sits mid-sentence in most locales, and removing it would break
-// the localized grammar ("wurde auf erreicht."), so the cap's notification
-// body keeps the full line.
+// that pass `detail` into t()'s options, except:
+//
+// * companion_session_capped: its {{device}} slot is user-facing content
+//   (which phone's session capped), sits mid-sentence in most locales, and
+//   removing it would break the localized grammar ("wurde auf erreicht."),
+//   so the cap's notification body keeps the full line.
+// * model_load_failed_memory_gate (fleet pass 1): its detail is not a raw
+//   backend diagnostic but the app-manufactured structured triple (model,
+//   needed, free - memory_gate_notice_detail), and ALL THREE slots sit
+//   mid-sentence in every one of the 26 locale templates with text after
+//   each. Re-localizing with an empty detail - the stripping this set
+//   applies - left dangling colons, commas, and empty slots in every
+//   locale ("Not enough free memory to load : it needs about , with about
+//   free."), so the gate's notification body keeps the fully interpolated
+//   line, the same decision as the cap's.
 const DETAIL_INTERPOLATING_CODES = new Set([
   "recording_failed",
   "model_load_failed",

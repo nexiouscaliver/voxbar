@@ -36,13 +36,13 @@
     "output": "Đầu ra",
     "advanced": "Nâng cao",
     "postProcessing": "Xử lý sau",
-    "addonsGroup": "Tiện ích",
     "enableInAdvancedHint": "Bật trong Nâng cao",
     "history": "Lịch sử",
     "debug": "Gỡ lỗi",
     "about": "Giới thiệu",
     "notifications": "Thông báo",
-    "promptStudio": "Xưởng prompt"
+    "promptStudio": "Xưởng prompt",
+    "addonsGroup": "Tiện ích"
   },
   "onboarding": {
     "subtitle": "Để bắt đầu, hãy chọn một mô hình chuyển đổi giọng nói",
@@ -243,7 +243,7 @@
       "addFromHf": {
         "title": "Thêm mô hình từ Hugging Face",
         "description": "Dán URL kho công khai hoặc chủ/kho, ví dụ https://huggingface.co/chu/mo-hinh.",
-        "placeholder": "owner/repo",
+        "placeholder": "https://huggingface.co/chu/mo-hinh hoặc chu/kho",
         "add": "Thêm",
         "cancel": "Hủy",
         "pickFile": "Chọn một tệp từ {{repo}}:",
@@ -369,7 +369,6 @@
       "searchPlaceholder": "Tìm lệnh",
       "resetAll": "Đặt lại tất cả lệnh",
       "resetRow": "Đặt lại",
-      "defaultPhrasesNote": "Cụm từ mặc định là các từ tiếng Anh mà bộ nhận diện lắng nghe, cùngcác biệt danh Hindi và Trung tích hợp. Bạn có thể thêm cụm từ của riêngmình bằng bất kỳ ngôn ngữ nào ở bất kỳ hàng nào.",
       "addPhrase": "Thêm",
       "removePhrase": "Xóa {{phrase}}",
       "placeholder": "Thêm cụm từ",
@@ -429,7 +428,8 @@
         "clearAll": "Xóa toàn bộ nội dung đọc",
         "undo": "Thực hiện hoàn tác trong ứng dụng đang tập trung",
         "paste": "Dán bảng tạm vào ứng dụng đang tập trung"
-      }
+      },
+      "defaultPhrasesNote": "Cụm từ mặc định là các từ tiếng Anh mà bộ nhận diện lắng nghe, cùngcác biệt danh Hindi và Trung tích hợp. Bạn có thể thêm cụm từ của riêngmình bằng bất kỳ ngôn ngữ nào ở bất kỳ hàng nào."
     },
     "search": {
       "placeholder": "Tìm trong cài đặt",
@@ -654,7 +654,7 @@
       },
       "voiceDeletion": {
         "title": "Lệnh xóa bằng giọng nói",
-        "description": "\"scratch that\", \"delete that\" và \"remove that\" xóa từ liền trước, \"delete last three words\" xóa nhiều từ, còn \"delete everything\" hoặc \"start over\" xóa toàn bộ bản đọc. Tắt để giữ chúng là từ thường."
+        "description": "\"scratch that\", \"delete that\" và \"remove that\" xóa từ liền trước, \"delete last three words\" xóa nhiều từ, còn \"delete everything\" hoặc \"scratch everything\" xóa toàn bộ bản đọc. Tắt để giữ chúng là từ thường."
       },
       "previewBeforePaste": {
         "title": "Xem trước trước khi dán",
@@ -671,7 +671,7 @@
       },
       "numberFormat": {
         "title": "Số nói",
-        "description": "Viết các từ số thành chữ số, nên \"one eight zero one\" được dán thành 1801. \"Như đã chuyển ghi\" giữ số như đã nói; Smart còn chuyển đổi số thứ tự ghép và các số đơn lẻ từ mười một trở lên.",
+        "description": "Viết các từ số thành chữ số, nên \"one eight zero one\" được dán thành 1801. Phép chuyển đổi nhận biết số đọc bằng tiếng Anh và tiếng Hindi (bao gồm Hinglish); các ngôn ngữ khác giữ số như đã đọc. \"Như đã chuyển ghi\" giữ số như đã nói; Smart còn chuyển đổi số thứ tự ghép và các số đơn lẻ từ mười một trở lên.",
         "options": {
           "asTranscribed": "Giữ nguyên bản chép",
           "digits": "Chữ số",
@@ -690,7 +690,6 @@
         "noDevices": "Chưa có thiết bị nào kết nối",
         "resetPairing": "Đặt lại ghép nối",
         "fingerprintLabel": "Dấu vân tay chứng chỉ (SHA-256)",
-        "fingerprintCopied": "Đã sao chép",
         "firewallNote": "Lần bật đầu tiên, macOS có thể hỏi cho phép kết nối đến. Hãy cho phép, nếu không điện thoại sẽ không kết nối được với máy Mac này.",
         "unavailable": "Thiết bị đồng hành cần macOS trong chu kỳ này.",
         "serverError": "Máy chủ lỗi: {{error}}",
@@ -720,7 +719,8 @@
         "restartButton": "Khởi động lại máy chủ",
         "restartPending": "Thay đổi sẽ áp dụng sau khi khởi động lại",
         "qrPreviewNote": "Xem trước: URL này sẽ được quảng bá lần tới máy chủ khởi động.",
-        "sharedNetworkNote": "Điện thoại và Mac này phải dùng chung mạng: cùng Wi-Fi hoặc LAN, hoặc cùng tailnet (ví dụ cả hai đều trên Tailscale)."
+        "sharedNetworkNote": "Điện thoại và Mac này phải dùng chung mạng: cùng Wi-Fi hoặc LAN, hoặc cùng tailnet (ví dụ cả hai đều trên Tailscale).",
+        "fingerprintCopied": "Đã sao chép"
       }
     },
     "postProcessing": {
@@ -763,13 +763,13 @@
           "notFetched": "Chưa có danh sách mô hình.",
           "emptyTitle": "Không có mô hình nào trong danh sách",
           "emptyHint": "Làm mới để tải các mô hình mà khóa này nhìn thấy, hoặc gõ id mô hình bên dưới.",
-          "emptyNoKey": "Nhập khóa API của bạn vào ô trên, rồi làm mới để tải các mô hình.",
           "customSet": "Đặt",
           "customHint": "Bất kỳ id mô hình nào nhà cung cấp của bạn hỗ trợ đều dùng được, kể cả khi không có trong danh sách.",
           "filterPlaceholder": "Lọc mô hình",
           "showAll_one": "Hiện tất cả ({{count}})",
           "showAll_other": "Hiện tất cả ({{count}})",
-          "showFewer": "Thu gọn"
+          "showFewer": "Thu gọn",
+          "emptyNoKey": "Nhập khóa API của bạn vào ô trên, rồi làm mới để tải các mô hình."
         },
         "timeout": {
           "title": "Thời gian chờ yêu cầu",
@@ -805,7 +805,8 @@
         "providerLabel": "Cục bộ (trên thiết bị)",
         "keepWarm": {
           "title": "Giữ mô hình cục bộ trong bộ nhớ",
-          "description": "Mô hình hậu xử lý cục bộ ở lại trong bộ nhớ bao lâu sau một lần chau chuốt thay vì dỡ ngay. Lệnh đọc luôn lấy lại bộ nhớ trước."
+          "description": "Mô hình hậu xử lý cục bộ ở lại trong bộ nhớ bao lâu sau một lần chau chuốt thay vì dỡ ngay. Lệnh đọc luôn lấy lại bộ nhớ trước.",
+          "off": "Tắt"
         }
       },
       "models": {
@@ -936,14 +937,12 @@
       "title": "Lịch sử",
       "openFolder": "Mở thư mục ghi âm",
       "loading": "Đang tải lịch sử...",
-      "emptyTitle": "Chưa có bản chép lời nào",
-      "emptyHint": "Nhấn phím tắt ghi âm để thực hiện lần đọc đầu tiên của bạn.",
+      "empty": "Chưa có bản ghi nào. Bắt đầu ghi âm để xây dựng lịch sử của bạn!",
       "copyToClipboard": "Sao chép bản ghi vào clipboard",
       "copyError": "Không thể sao chép bản ghi vào bộ nhớ tạm.",
       "save": "Lưu bản ghi",
       "unsave": "Xóa khỏi đã lưu",
       "delete": "Xóa mục",
-      "deleteConfirm": "Xóa mục này? Bản ghi âm và bản chép lời của nó sẽ bị xóa vĩnh viễn.",
       "deleteError": "Không thể xóa mục. Vui lòng thử lại.",
       "retranscribe": "Phiên âm lại",
       "retranscribeError": "Không thể phiên âm lại. Vui lòng thử lại.",
@@ -960,8 +959,13 @@
       "viaPostProcess": "qua {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Xem thay đổi",
       "hideChanges": "Ẩn thay đổi",
+      "emptyTitle": "Chưa có bản chép lời nào",
+      "emptyHint": "Nhấn phím tắt ghi âm để thực hiện lần đọc đầu tiên của bạn.",
+      "deleteConfirm": "Xóa mục này? Bản ghi âm và bản chép lời của nó sẽ bị xóa vĩnh viễn.",
       "today": "Hôm nay",
-      "yesterday": "Hôm qua"
+      "yesterday": "Hôm qua",
+      "savedToggleError": "Không thể cập nhật trạng thái đã lưu.",
+      "dbRecoveredNotice": "Không thể đọc cơ sở dữ liệu lịch sử bản ghi của bạn, nên một cơ sở dữ liệu mới đã được bắt đầu. Cơ sở dữ liệu trước đó được giữ lại dưới dạng {{file}}."
     },
     "debug": {
       "title": "Gỡ lỗi",
@@ -981,9 +985,9 @@
         "pause": "Tạm dừng",
         "resume": "Tiếp tục",
         "copied": "Đã sao chép",
-        "clearConfirm": "Xóa các dòng đã ghi trong chế độ xem này? Tệp nhật ký trên đĩa vẫn được giữ.",
         "lineCount": "{{count}} dòng",
         "empty": "Đang chờ nhật ký… Các mục sẽ xuất hiện ở đây khi ứng dụng phát ra.",
+        "clearConfirm": "Xóa các dòng đã ghi trong chế độ xem này? Tệp nhật ký trên đĩa vẫn được giữ.",
         "clearConfirmTitle": "Xóa các dòng đã ghi nhận?"
       },
       "updateChecks": {
@@ -1173,7 +1177,7 @@
       },
       "log": {
         "title": "Nhật ký thông báo",
-        "description": "50 thông báo lỗi và kết quả gần nhất.",
+        "description": "50 thông báo lỗi và kết quả gần nhất. Chỉ ghi mục mới khi thông báo hệ thống đang bật.",
         "empty": "Chưa có thông báo nào.",
         "clear": "Xóa tất cả"
       }
@@ -1203,7 +1207,6 @@
       "runHint_one": "1 prompt trên 1 engine. Không gõ hay lưu gì.",
       "runHint_other": "{{count}} cặp prompt-engine. Không gõ hay lưu gì.",
       "running": "Đang chạy...",
-      "appliedLabel": "Thành công",
       "rerun": "Chạy lại",
       "latency": "{{ms}} ms",
       "rawKept": "Engine lỗi hoặc bị bỏ qua nên bản ghi thô sẽ được giữ nguyên.",
@@ -1216,16 +1219,20 @@
         "emptyBatch": "Chọn ít nhất một prompt và một engine."
       },
       "diff": {
+        "lines": "dòng",
+        "charsChanged_one": "1 ký tự thay đổi",
+        "charsChanged_other": "{{count}} ký tự thay đổi",
         "identical": "Không có thay đổi.",
         "added_one": "+{{count}} đã thêm",
         "added_other": "+{{count}} đã thêm",
         "removed_one": "{{count}} đã xóa",
-        "removed_other": "{{count}} đã xóa",
-        "charsChanged_one": "1 ký tự thay đổi",
-        "charsChanged_other": "{{count}} ký tự thay đổi"
+        "removed_other": "{{count}} đã xóa"
       },
       "resultsEmptyTitle": "Kết quả sẽ hiện ở đây",
-      "resultsEmptyHint": "Chọn nguồn, prompt và engine ở trên rồi chạy. Mỗi thẻ hiển thị văn bản đã chỉnh, các thay đổi và tốc độ."
+      "resultsEmptyHint": "Chọn nguồn, prompt và engine ở trên rồi chạy. Mỗi thẻ hiển thị văn bản đã chỉnh, các thay đổi và tốc độ.",
+      "appliedLabel": "Thành công",
+      "cancel": "Hủy",
+      "cancelledCard": "Đã hủy trước khi lần chạy này bắt đầu."
     }
   },
   "footer": {
@@ -1269,11 +1276,11 @@
     "loading": "Đang tải...",
     "delete": "Xóa",
     "close": "Đóng",
-    "cancel": "Hủy",
     "open": "Mở",
     "copy": "Sao chép",
     "clear": "Xóa",
-    "noOptionsFound": "Không tìm thấy tùy chọn"
+    "noOptionsFound": "Không tìm thấy tùy chọn",
+    "cancel": "Hủy"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar cần quyền truy cập để gõ văn bản đã chuyển đổi.",
@@ -1301,7 +1308,9 @@
     "transcriptionFailedTitle": "Phiên âm thất bại",
     "noModelSelectedTitle": "Chưa chọn mô hình",
     "noModelSelected": "Chọn mô hình chuyển ghi trong Cài đặt trước khi đọc chính tả.",
-    "openDirectory": "Không thể mở thư mục: {{error}}"
+    "openDirectory": "Không thể mở thư mục: {{error}}",
+    "modelLoadFailedMemoryGate": "Không đủ bộ nhớ trống để tải {{model}}: cần khoảng {{needed}}, chỉ còn khoảng {{free}}.",
+    "modelLoadFailedDetail": "Mô hình không thay đổi. Nguyên nhân kỹ thuật nằm trong tệp nhật ký."
   },
   "appLanguage": {
     "title": "Ngôn ngữ ứng dụng",
@@ -1445,6 +1454,15 @@
     "historyTitle": "Gần đây",
     "historyEmpty": "Những lần đọc từ điện thoại này sẽ hiện ở đây.",
     "stateMicBlocked": "Micrô bị chặn",
-    "micBlockedRetry": "Micrô bị chặn. Nhấn để thử lại."
+    "micBlockedRetry": "Micrô bị chặn. Nhấn để thử lại.",
+    "zeroAudioHold": "Không có âm thanh nào tới được Mac. Giữ nút rồi nói.",
+    "zeroAudioHoldOrToggle": "Không có âm thanh nào tới được Mac. Giữ hoặc nhấn nút rồi nói.",
+    "zeroAudioTap": "Không có âm thanh nào tới được Mac. Nhấn nút rồi nói.",
+    "holdOrToggleToTalk": "Giữ để nói, nhấn để khóa"
+  },
+  "trayCopyOutcome": {
+    "copied": "Đã sao chép bản đọc vào bộ nhớ tạm.",
+    "empty": "Chưa có gì để sao chép.",
+    "failed": "Không thể sao chép bản đọc vào bộ nhớ tạm."
   }
 }

@@ -36,13 +36,13 @@
     "output": "Saída",
     "advanced": "Avançado",
     "postProcessing": "Pós-Processamento",
-    "addonsGroup": "Extensões",
     "enableInAdvancedHint": "Ative em Avançado",
     "history": "Histórico",
     "debug": "Depuração",
     "about": "Sobre",
     "notifications": "Notificações",
-    "promptStudio": "Estúdio de prompts"
+    "promptStudio": "Estúdio de prompts",
+    "addonsGroup": "Extensões"
   },
   "onboarding": {
     "subtitle": "Para começar, escolha um modelo de transcrição",
@@ -316,7 +316,6 @@
       "searchPlaceholder": "Pesquisar comandos",
       "resetAll": "Redefinir todos os comandos",
       "resetRow": "Redefinir",
-      "defaultPhrasesNote": "As frases padrão são as palavras inglesas que o reconhecedor escuta,mais os apelidos integrados em híndi e chinês. Adicione a sua própria fraseem qualquer idioma em qualquer linha.",
       "addPhrase": "Adicionar",
       "removePhrase": "Remover {{phrase}}",
       "placeholder": "Adicionar uma frase",
@@ -376,7 +375,8 @@
         "clearAll": "Apaga todo o ditado",
         "undo": "Executa desfazer no app em foco",
         "paste": "Cola a área de transferência no app em foco"
-      }
+      },
+      "defaultPhrasesNote": "As frases padrão são as palavras inglesas que o reconhecedor escuta,mais os apelidos integrados em híndi e chinês. Adicione a sua própria fraseem qualquer idioma em qualquer linha."
     },
     "search": {
       "placeholder": "Pesquisar nas configurações",
@@ -405,7 +405,7 @@
       "addFromHf": {
         "title": "Adicionar modelo do Hugging Face",
         "description": "Cole uma URL de repositório público ou proprietário/repositório, por exemplo https://huggingface.co/proprietario/modelo.",
-        "placeholder": "owner/repo",
+        "placeholder": "https://huggingface.co/proprietario/modelo ou proprietario/modelo",
         "add": "Adicionar",
         "cancel": "Cancelar",
         "pickFile": "Escolha um arquivo de {{repo}}:",
@@ -654,7 +654,7 @@
       },
       "voiceDeletion": {
         "title": "Comandos de eliminação por voz",
-        "description": "\"scratch that\", \"delete that\" e \"remove that\" eliminam a palavra anterior, \"delete last three words\" elimina várias, e \"delete everything\" ou \"start over\" limpa o ditado. Desative para mantê-las como palavras comuns."
+        "description": "\"scratch that\", \"delete that\" e \"remove that\" eliminam a palavra anterior, \"delete last three words\" elimina várias, e \"delete everything\" ou \"scratch everything\" limpa o ditado. Desative para mantê-las como palavras comuns."
       },
       "previewBeforePaste": {
         "title": "Pré-visualização antes de colar",
@@ -671,7 +671,7 @@
       },
       "numberFormat": {
         "title": "Números falados",
-        "description": "Escreve números falados como dígitos, de modo que \"one eight zero one\" seja colado como 1801. \"Como transcrito\" mantém os números como falados; Smart também converte ordinais compostos e números isolados a partir de onze.",
+        "description": "Escreve números falados como dígitos, de modo que \"one eight zero one\" seja colado como 1801. A conversão reconhece os números falados em inglês e híndi (incluindo hinglish); em outros idiomas, os números ficam como foram falados. \"Como transcrito\" mantém os números como falados; Smart também converte ordinais compostos e números isolados a partir de onze.",
         "options": {
           "asTranscribed": "Como transcrito",
           "digits": "Dígitos",
@@ -690,7 +690,6 @@
         "noDevices": "Nenhum dispositivo conectado ainda",
         "resetPairing": "Redefinir pareamento",
         "fingerprintLabel": "Impressão digital do certificado (SHA-256)",
-        "fingerprintCopied": "Copiado",
         "firewallNote": "O macOS pode pedir para permitir conexões de entrada na primeira ativação. Permita, ou os telefones não alcançam este Mac.",
         "unavailable": "Dispositivos companheiro exigem macOS neste ciclo.",
         "serverError": "Falha no servidor: {{error}}",
@@ -720,7 +719,8 @@
         "restartButton": "Reiniciar o servidor",
         "restartPending": "As alterações aplicam-se depois de reiniciar",
         "qrPreviewNote": "Pré-visualização: este URL será divulgado na próxima vez que o servidor arrancar.",
-        "sharedNetworkNote": "O telefone e este Mac têm de partilhar uma rede: a mesma Wi-Fi ou LAN, ou o mesmo tailnet (por exemplo, ambos no Tailscale)."
+        "sharedNetworkNote": "O telefone e este Mac têm de partilhar uma rede: a mesma Wi-Fi ou LAN, ou o mesmo tailnet (por exemplo, ambos no Tailscale).",
+        "fingerprintCopied": "Copiado"
       }
     },
     "postProcessing": {
@@ -763,13 +763,13 @@
           "notFetched": "Ainda sem lista de modelos.",
           "emptyTitle": "Nenhum modelo listado",
           "emptyHint": "Atualize para carregar os modelos que esta chave vê, ou escreva um id de modelo abaixo.",
-          "emptyNoKey": "Insira sua chave de API acima e atualize para carregar os modelos.",
           "customSet": "Definir",
           "customHint": "Qualquer id de modelo do seu fornecedor funciona, mesmo que não esteja listado.",
           "filterPlaceholder": "Filtrar modelos",
           "showAll_one": "Mostrar todos ({{count}})",
           "showAll_other": "Mostrar todos ({{count}})",
-          "showFewer": "Mostrar menos"
+          "showFewer": "Mostrar menos",
+          "emptyNoKey": "Insira sua chave de API acima e atualize para carregar os modelos."
         },
         "timeout": {
           "title": "Tempo limite da solicitação",
@@ -805,7 +805,8 @@
         "providerLabel": "Local (no dispositivo)",
         "keepWarm": {
           "title": "Manter o modelo local em memória",
-          "description": "Quanto tempo o modelo local de pós-processo fica em memória após um polimento, em vez de descarregar de imediato. Um ditado recupera sempre a memória primeiro."
+          "description": "Quanto tempo o modelo local de pós-processo fica em memória após um polimento, em vez de descarregar de imediato. Um ditado recupera sempre a memória primeiro.",
+          "off": "Desligado"
         }
       },
       "models": {
@@ -936,14 +937,12 @@
       "title": "Histórico",
       "openFolder": "Abrir Pasta de Gravações",
       "loading": "Carregando histórico...",
-      "emptyTitle": "Ainda não há transcrições",
-      "emptyHint": "Pressione seu atalho de gravação para capturar seu primeiro ditado.",
+      "empty": "Nenhuma transcrição ainda. Comece a gravar para construir seu histórico!",
       "copyToClipboard": "Copiar transcrição para área de transferência",
       "copyError": "Não foi possível copiar a transcrição para a área de transferência.",
       "save": "Salvar transcrição",
       "unsave": "Remover dos salvos",
       "delete": "Excluir entrada",
-      "deleteConfirm": "Eliminar esta entrada? A gravação e a sua transcrição serão removidas permanentemente.",
       "deleteError": "Falha ao excluir entrada. Por favor, tente novamente.",
       "retranscribe": "Re-transcrever",
       "retranscribeError": "Falha ao re-transcrever. Por favor, tente novamente.",
@@ -960,8 +959,13 @@
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Ver alterações",
       "hideChanges": "Ocultar alterações",
+      "emptyTitle": "Ainda não há transcrições",
+      "emptyHint": "Pressione seu atalho de gravação para capturar seu primeiro ditado.",
+      "deleteConfirm": "Eliminar esta entrada? A gravação e a sua transcrição serão removidas permanentemente.",
       "today": "Hoje",
-      "yesterday": "Ontem"
+      "yesterday": "Ontem",
+      "savedToggleError": "Não foi possível atualizar o status de salvo.",
+      "dbRecoveredNotice": "O banco de dados do seu histórico de transcrições não pôde ser lido, então um novo foi iniciado. O banco de dados anterior foi mantido como {{file}}."
     },
     "debug": {
       "title": "Depuração",
@@ -981,9 +985,9 @@
         "pause": "Pausar",
         "resume": "Retomar",
         "copied": "Copiado",
-        "clearConfirm": "Limpar as linhas capturadas desta vista? O ficheiro de registro no disco é mantido.",
         "lineCount": "{{count}} linhas",
         "empty": "Aguardando logs… As entradas aparecem aqui à medida que o app as emite.",
+        "clearConfirm": "Limpar as linhas capturadas desta vista? O ficheiro de registro no disco é mantido.",
         "clearConfirmTitle": "Limpar as linhas capturadas?"
       },
       "updateChecks": {
@@ -1173,7 +1177,7 @@
       },
       "log": {
         "title": "Registo de notificações",
-        "description": "As últimas 50 notificações de erros e resultados.",
+        "description": "As últimas 50 notificações de erros e resultados. Novas entradas só são registadas enquanto as notificações do sistema estiverem ativadas.",
         "empty": "Ainda não há notificações.",
         "clear": "Limpar tudo"
       }
@@ -1203,7 +1207,6 @@
       "runHint_one": "{{count}} prompt em 1 motor. Nada é digitado ou guardado.",
       "runHint_other": "{{count}} pares prompt-motor. Nada é digitado ou guardado.",
       "running": "Executando...",
-      "appliedLabel": "Sucesso",
       "rerun": "Executar novamente",
       "latency": "{{ms}} ms",
       "rawKept": "O motor falhou ou foi ignorado, então a transcrição bruta seria mantida.",
@@ -1216,16 +1219,20 @@
         "emptyBatch": "Escolha pelo menos um prompt e um motor."
       },
       "diff": {
+        "lines": "linhas",
+        "charsChanged_one": "{{count}} caractere alterado",
+        "charsChanged_other": "{{count}} caracteres alterados",
         "identical": "Nenhuma alteração.",
         "added_one": "+{{count}} adicionada",
         "added_other": "+{{count}} adicionadas",
         "removed_one": "{{count}} removida",
-        "removed_other": "{{count}} removidas",
-        "charsChanged_one": "{{count}} caractere alterado",
-        "charsChanged_other": "{{count}} caracteres alterados"
+        "removed_other": "{{count}} removidas"
       },
       "resultsEmptyTitle": "Os resultados aparecerão aqui",
-      "resultsEmptyHint": "Escolha acima a origem, os prompts e os motores e execute. Cada cartão mostra o texto polido, as alterações e a velocidade."
+      "resultsEmptyHint": "Escolha acima a origem, os prompts e os motores e execute. Cada cartão mostra o texto polido, as alterações e a velocidade.",
+      "appliedLabel": "Sucesso",
+      "cancel": "Cancelar",
+      "cancelledCard": "Cancelado antes do início desta execução."
     }
   },
   "footer": {
@@ -1269,11 +1276,11 @@
     "loading": "Carregando...",
     "delete": "Excluir",
     "close": "Fechar",
-    "cancel": "Cancelar",
     "open": "Abrir",
     "copy": "Copiar",
     "clear": "Limpar",
-    "noOptionsFound": "Nenhuma opção encontrada"
+    "noOptionsFound": "Nenhuma opção encontrada",
+    "cancel": "Cancelar"
   },
   "accessibility": {
     "permissionsDescription": "O VoxBar precisa de permissões de acessibilidade para digitar o texto transcrito.",
@@ -1301,7 +1308,9 @@
     "transcriptionFailedTitle": "Falha na transcrição",
     "noModelSelectedTitle": "Nenhum modelo selecionado",
     "noModelSelected": "Escolha um modelo de transcrição em Configurações antes de ditar.",
-    "openDirectory": "Não foi possível abrir a pasta: {{error}}"
+    "openDirectory": "Não foi possível abrir a pasta: {{error}}",
+    "modelLoadFailedMemoryGate": "Não há memória livre suficiente para carregar {{model}}: precisa de cerca de {{needed}}, com cerca de {{free}} livres.",
+    "modelLoadFailedDetail": "O modelo não foi alterado. O motivo técnico está no arquivo de registro."
   },
   "appLanguage": {
     "title": "Idioma da Aplicação",
@@ -1445,6 +1454,15 @@
     "historyTitle": "Recentes",
     "historyEmpty": "Os ditados deste telefone aparecem aqui.",
     "stateMicBlocked": "Microfone bloqueado",
-    "micBlockedRetry": "Microfone bloqueado. Toque para tentar novamente."
+    "micBlockedRetry": "Microfone bloqueado. Toque para tentar novamente.",
+    "zeroAudioHold": "Nenhum áudio chegou ao Mac. Segure o botão e fale.",
+    "zeroAudioHoldOrToggle": "Nenhum áudio chegou ao Mac. Segure ou toque no botão e fale.",
+    "zeroAudioTap": "Nenhum áudio chegou ao Mac. Toque no botão e fale.",
+    "holdOrToggleToTalk": "Segure para falar, toque para travar"
+  },
+  "trayCopyOutcome": {
+    "copied": "O ditado foi copiado para a área de transferência.",
+    "empty": "Ainda não há nada para copiar.",
+    "failed": "Não foi possível copiar o ditado para a área de transferência."
   }
 }

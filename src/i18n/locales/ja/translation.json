@@ -36,13 +36,13 @@
     "output": "出力",
     "advanced": "詳細設定",
     "postProcessing": "後処理",
-    "addonsGroup": "アドオン",
     "enableInAdvancedHint": "詳細設定で有効にできます",
     "history": "履歴",
     "debug": "デバッグ",
     "about": "概要",
     "notifications": "通知",
-    "promptStudio": "プロンプトスタジオ"
+    "promptStudio": "プロンプトスタジオ",
+    "addonsGroup": "アドオン"
   },
   "onboarding": {
     "subtitle": "開始するには、文字起こしのモデルを選択してください",
@@ -243,7 +243,7 @@
       "addFromHf": {
         "title": "Hugging Face からモデルを追加",
         "description": "公開リポジトリの URL、または owner/repo を貼り付けてください。例: https://huggingface.co/owner/model.",
-        "placeholder": "owner/repo",
+        "placeholder": "https://huggingface.co/owner/model または owner/repo",
         "add": "追加",
         "cancel": "キャンセル",
         "pickFile": "{{repo}} からファイルを選択してください:",
@@ -369,7 +369,6 @@
       "searchPlaceholder": "コマンドを検索",
       "resetAll": "すべてのコマンドをリセット",
       "resetRow": "デフォルトに戻す",
-      "defaultPhrasesNote": "デフォルトのフレーズは、認識器が聴き取る英語の単語で、組み込みのヒンディー語・中国語のエイリアスを含みます。どの行にも任意の言語で自分のフレーズを追加できます。",
       "addPhrase": "追加",
       "removePhrase": "{{phrase}} を削除",
       "placeholder": "フレーズを追加",
@@ -429,7 +428,8 @@
         "clearAll": "ディクテーション全体を削除します",
         "undo": "フォーカス中のアプリで取り消します",
         "paste": "フォーカス中のアプリにクリップボードを貼り付けます"
-      }
+      },
+      "defaultPhrasesNote": "デフォルトのフレーズは、認識器が聴き取る英語の単語で、組み込みのヒンディー語・中国語のエイリアスを含みます。どの行にも任意の言語で自分のフレーズを追加できます。"
     },
     "search": {
       "placeholder": "設定を検索",
@@ -654,7 +654,7 @@
       },
       "voiceDeletion": {
         "title": "音声削除コマンド",
-        "description": "\"scratch that\"、\"delete that\"、\"remove that\" は直前の単語を削除し、\"delete last three words\" は複数の単語を削除し、\"delete everything\" または \"start over\" でディテーション全体を消去します。オフにすると通常の単語のまま残ります。"
+        "description": "\"scratch that\"、\"delete that\"、\"remove that\" は直前の単語を削除し、\"delete last three words\" は複数の単語を削除し、\"delete everything\" または \"scratch everything\" でディテーション全体を消去します。オフにすると通常の単語のまま残ります。"
       },
       "previewBeforePaste": {
         "title": "貼り付け前のプレビュー",
@@ -671,7 +671,7 @@
       },
       "numberFormat": {
         "title": "音声数値",
-        "description": "読み上げた数値語を数字で書き出し、\"one eight zero one\" は 1801 として貼り付けられます。「文字起こしのまま」は数値を話したとおりに残し、Smart は合成序数や11以上の単独の数も変換します。",
+        "description": "読み上げた数値語を数字で書き出し、\"one eight zero one\" は 1801 として貼り付けられます。この変換は英語とヒンディー語（ヒングリッシュを含む）の読み上げ数字に対応しています。他の言語では数字は発話どおりに保持されます。「文字起こしのまま」は数値を話したとおりに残し、Smart は合成序数や11以上の単独の数も変換します。",
         "options": {
           "asTranscribed": "文字起こしのまま",
           "digits": "数字",
@@ -690,7 +690,6 @@
         "noDevices": "まだデバイスは接続されていません",
         "resetPairing": "ペアリングをリセット",
         "fingerprintLabel": "証明書のフィンガープリント（SHA-256）",
-        "fingerprintCopied": "コピーしました",
         "firewallNote": "初回の有効化時にmacOSが受信接続の許可を求めることがあります。許可しないとスマホはこのMacに接続できません。",
         "unavailable": "コンパニオンデバイスはこのサイクルではmacOSが必要です。",
         "serverError": "サーバーが失敗しました: {{error}}",
@@ -720,7 +719,8 @@
         "restartButton": "サーバーを再起動",
         "restartPending": "変更は再起動後に適用されます",
         "qrPreviewNote": "プレビュー: サーバーが次に起動したとき、この URL が案内されます。",
-        "sharedNetworkNote": "スマホとこの Mac は同じネットワークにいる必要があります: 同じ Wi-Fi または LAN、または同じテールネット（例: 両方とも Tailscale）。"
+        "sharedNetworkNote": "スマホとこの Mac は同じネットワークにいる必要があります: 同じ Wi-Fi または LAN、または同じテールネット（例: 両方とも Tailscale）。",
+        "fingerprintCopied": "コピーしました"
       }
     },
     "postProcessing": {
@@ -763,13 +763,13 @@
           "notFetched": "モデル一覧はまだありません。",
           "emptyTitle": "モデルが一覧にありません",
           "emptyHint": "更新するとこのキーが参照できるモデルを読み込みます。または下にモデル ID を入力してください。",
-          "emptyNoKey": "上の欄にAPIキーを入力し、更新するとモデル一覧を読み込みます。",
           "customSet": "設定",
           "customHint": "一覧になくても、プロバイダーが提供するモデル ID なら使用できます。",
           "filterPlaceholder": "モデルを絞り込み",
           "showAll_one": "すべて表示（{{count}}）",
           "showAll_other": "すべて表示（{{count}}）",
-          "showFewer": "表示を減らす"
+          "showFewer": "表示を減らす",
+          "emptyNoKey": "上の欄にAPIキーを入力し、更新するとモデル一覧を読み込みます。"
         },
         "timeout": {
           "title": "リクエストのタイムアウト",
@@ -805,7 +805,8 @@
         "providerLabel": "ローカル（デバイス上）",
         "keepWarm": {
           "title": "ローカルモデルをメモリに保持",
-          "description": "ポリッシュの後、ローカル後処理モデルがすぐにアンロードされずメモリに残る時間。ディテーションは常に先にメモリを取り戻します。"
+          "description": "ポリッシュの後、ローカル後処理モデルがすぐにアンロードされずメモリに残る時間。ディテーションは常に先にメモリを取り戻します。",
+          "off": "オフ"
         }
       },
       "models": {
@@ -936,14 +937,12 @@
       "title": "履歴",
       "openFolder": "録音フォルダを開く",
       "loading": "履歴を読み込み中…",
-      "emptyTitle": "まだ文字起こしがありません",
-      "emptyHint": "録音ショートカットを押して、最初のディテーションを録音しましょう。",
+      "empty": "まだ文字起こしがありません。録音を開始して履歴を作成しましょう!",
       "copyToClipboard": "文字起こしをクリップボードにコピー",
       "copyError": "文字起こしをクリップボードにコピーできませんでした。",
       "save": "文字起こしを保存",
       "unsave": "保存から削除",
       "delete": "エントリーを削除",
-      "deleteConfirm": "このエントリを削除しますか？録音とその文字起こしは完全に削除されます。",
       "deleteError": "エントリーの削除に失敗しました。もう一度お試しください。",
       "retranscribe": "再文字起こし",
       "retranscribeError": "再文字起こしに失敗しました。もう一度お試しください。",
@@ -960,8 +959,13 @@
       "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms で処理",
       "viewChanges": "変更を表示",
       "hideChanges": "変更を閉じる",
+      "emptyTitle": "まだ文字起こしがありません",
+      "emptyHint": "録音ショートカットを押して、最初のディテーションを録音しましょう。",
+      "deleteConfirm": "このエントリを削除しますか？録音とその文字起こしは完全に削除されます。",
       "today": "今日",
-      "yesterday": "昨日"
+      "yesterday": "昨日",
+      "savedToggleError": "保存状態を更新できませんでした。",
+      "dbRecoveredNotice": "文字起こし履歴のデータベースを読み込めなかったため、新しいデータベースを開始しました。以前のデータベースは {{file}} として保存されています。"
     },
     "debug": {
       "title": "デバッグ",
@@ -981,9 +985,9 @@
         "pause": "一時停止",
         "resume": "再開",
         "copied": "コピーしました",
-        "clearConfirm": "このビューのキャプチャー行を消去しますか？ディスク上のログファイルは残ります。",
         "lineCount": "{{count}}行",
         "empty": "ログを待機中… アプリが出力すると、ここにエントリが表示されます。",
+        "clearConfirm": "このビューのキャプチャー行を消去しますか？ディスク上のログファイルは残ります。",
         "clearConfirmTitle": "キャプチャした行を消去しますか？"
       },
       "updateChecks": {
@@ -1173,7 +1177,7 @@
       },
       "log": {
         "title": "通知ログ",
-        "description": "直近50件のエラーと結果の通知。",
+        "description": "直近50件のエラーと結果の通知。新しい記録はシステム通知が有効な間だけ行われます。",
         "empty": "通知はまだありません。",
         "clear": "すべてクリア"
       }
@@ -1203,7 +1207,6 @@
       "runHint_one": "1 つのプロンプトを 1 つのエンジンで実行。入力も保存もされません。",
       "runHint_other": "プロンプトとエンジンの組み合わせ {{count}} 件。入力も保存もされません。",
       "running": "実行中...",
-      "appliedLabel": "成功",
       "rerun": "再実行",
       "latency": "{{ms}} ミリ秒",
       "rawKept": "エンジンが失敗またはスキップされたため、元の文字起こしが保持されます。",
@@ -1216,16 +1219,20 @@
         "emptyBatch": "プロンプトとエンジンをそれぞれ 1 つ以上選択してください。"
       },
       "diff": {
+        "lines": "行",
+        "charsChanged_one": "1 文字変更",
+        "charsChanged_other": "{{count}} 文字変更",
         "identical": "変更なし。",
         "added_one": "+{{count}} 行追加",
         "added_other": "+{{count}} 行追加",
         "removed_one": "{{count}} 行削除",
-        "removed_other": "{{count}} 行削除",
-        "charsChanged_one": "1 文字変更",
-        "charsChanged_other": "{{count}} 文字変更"
+        "removed_other": "{{count}} 行削除"
       },
       "resultsEmptyTitle": "結果はここに表示されます",
-      "resultsEmptyHint": "上でソース、プロンプト、エンジンを選んで実行してください。各カードに整形後のテキスト、変更点、所要時間が表示されます。"
+      "resultsEmptyHint": "上でソース、プロンプト、エンジンを選んで実行してください。各カードに整形後のテキスト、変更点、所要時間が表示されます。",
+      "appliedLabel": "成功",
+      "cancel": "キャンセル",
+      "cancelledCard": "この実行が始まる前にキャンセルされました。"
     }
   },
   "footer": {
@@ -1269,11 +1276,11 @@
     "loading": "読み込み中…",
     "delete": "削除",
     "close": "閉じる",
-    "cancel": "キャンセル",
     "open": "開く",
     "copy": "コピー",
     "clear": "クリア",
-    "noOptionsFound": "オプションが見つかりません"
+    "noOptionsFound": "オプションが見つかりません",
+    "cancel": "キャンセル"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar が文字起こしテキストを入力するには、アクセシビリティ権限が必要です。",
@@ -1301,7 +1308,9 @@
     "transcriptionFailedTitle": "文字起こしに失敗しました",
     "noModelSelectedTitle": "モデルが選択されていません",
     "noModelSelected": "ディテーションの前に、設定で文字起こしモデルを選んでください。",
-    "openDirectory": "フォルダを開けませんでした: {{error}}"
+    "openDirectory": "フォルダを開けませんでした: {{error}}",
+    "modelLoadFailedMemoryGate": "メモリ不足のため {{model}} を読み込めません：約 {{needed}} 必要ですが、空きは約 {{free}} です。",
+    "modelLoadFailedDetail": "モデルは変更されていません。技術的な原因はログファイルにあります。"
   },
   "appLanguage": {
     "title": "アプリの言語",
@@ -1445,6 +1454,15 @@
     "historyTitle": "最近",
     "historyEmpty": "このスマホでのディクテーションがここに表示されます。",
     "stateMicBlocked": "マイクがブロックされています",
-    "micBlockedRetry": "マイクがブロックされています。タップして再試行"
+    "micBlockedRetry": "マイクがブロックされています。タップして再試行",
+    "zeroAudioHold": "音声がMacに届きませんでした。ボタンを押したまま話してください。",
+    "zeroAudioHoldOrToggle": "音声がMacに届きませんでした。ボタンを押したまま、またはタップして話してください。",
+    "zeroAudioTap": "音声がMacに届きませんでした。ボタンをタップして話してください。",
+    "holdOrToggleToTalk": "押しながら話す、タップでロック"
+  },
+  "trayCopyOutcome": {
+    "copied": "文字起こしをクリップボードにコピーしました。",
+    "empty": "コピーするものがまだありません。",
+    "failed": "文字起こしをクリップボードにコピーできませんでした。"
   }
 }

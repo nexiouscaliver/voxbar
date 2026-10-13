@@ -4,6 +4,14 @@ import { ALL_COMMAND_IDS } from "./commands/commandGroups";
 export interface SearchEntry {
   section: SidebarSection;
   key: string;
+  /**
+   * KB-144: the row this key labels renders only inside Advanced's
+   * experimental group (AdvancedSettings gates that whole group on
+   * experimental_enabled). Search must hide these entries while the flag is
+   * off, exactly as section-level gating hides whole tabs: a hit that jumps
+   * to a row that does not render is a dead result.
+   */
+  requiresExperimental?: boolean;
 }
 
 /**
@@ -127,19 +135,53 @@ const STATIC_INDEX: readonly SearchEntry[] = [
     section: "advanced",
     key: "settings.debug.wordCorrectionThreshold.title",
   },
-  { section: "advanced", key: "settings.advanced.groups.experimental" },
-  { section: "advanced", key: "settings.debug.postProcessingToggle.label" },
+  // KB-144: every entry below this marker lives inside Advanced's
+  // experimental group (AdvancedSettings renders that whole SettingsGroup
+  // only while experimental_enabled is on), so each carries
+  // requiresExperimental and the search drops it while the flag is off.
+  // The experimental group's own title hides with its rows.
+  {
+    section: "advanced",
+    key: "settings.advanced.groups.experimental",
+    requiresExperimental: true,
+  },
+  {
+    section: "advanced",
+    key: "settings.debug.postProcessingToggle.label",
+  },
   {
     section: "advanced",
     key: "settings.debug.keyboardImplementation.title",
+    requiresExperimental: true,
   },
-  { section: "advanced", key: "settings.advanced.acceleration.ort.title" },
+  {
+    section: "advanced",
+    key: "settings.advanced.acceleration.ort.title",
+    requiresExperimental: true,
+  },
   {
     section: "advanced",
     key: "settings.advanced.acceleration.transcribe.title",
+    requiresExperimental: true,
   },
-  { section: "advanced", key: "settings.advanced.lazyStreamClose.label" },
-  { section: "advanced", key: "settings.advanced.vadBackend.title" },
+  {
+    section: "advanced",
+    key: "settings.advanced.lazyStreamClose.label",
+    requiresExperimental: true,
+  },
+  {
+    section: "advanced",
+    key: "settings.advanced.vadBackend.title",
+    requiresExperimental: true,
+  },
+  // Companion Devices (KB-144): the row renders inside the same experimental
+  // group (CompanionDevices.tsx's label key), so it joins the index gated
+  // the same way - searchable once the operator has the group visible.
+  {
+    section: "advanced",
+    key: "settings.advanced.companionDevices.label",
+    requiresExperimental: true,
+  },
 
   // Post Processing (gated on the post_process_enabled toggle)
   { section: "postprocessing", key: "sidebar.postProcessing" },

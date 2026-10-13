@@ -740,6 +740,15 @@ pub struct AppSettings {
     pub post_process_prompts: Vec<LLMPrompt>,
     #[serde(default)]
     pub post_process_selected_prompt_id: Option<String>,
+    /// KB-108: persisted tombstones for DELETED built-in prompt templates.
+    /// The seed loop pushes every missing built-in back into the library on
+    /// each settings read, so without this list a deleted builtin
+    /// resurrected at the catalog end on the next launch. An id in this
+    /// list means the operator explicitly deleted that builtin: the seed
+    /// loop skips it forever (until a future store edit clears the list).
+    /// User templates never appear here; their deletion is just removal.
+    #[serde(default)]
+    pub post_process_deleted_builtin_prompt_ids: Vec<String>,
     /// One-time marker for the local-default post-process migration (spec
     /// 5.2): absent on legacy stores (the migration fires once), true on
     /// every store the migration or a fresh install has written. The only
@@ -1687,6 +1696,24 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
     // the version AND changes the body, so both guards must agree before
     // anything is replaced. Everything else is never touched here.
     for spec in builtin_prompt_seed_specs() {
+        // KB-108: a tombstoned builtin was explicitly deleted by the
+        // operator; the seed loop must not resurrect it. Tombstoning a
+        // builtin whose id somehow still sits in the library is
+        // meaningless (deletion removes the row first), so a stale
+        // row-and-tombstone pair resolves in favor of the tombstone: skip
+        // the seed AND drop the zombie row.
+        if settings
+            .post_process_deleted_builtin_prompt_ids
+            .iter()
+            .any(|tombstoned| tombstoned == spec.id)
+        {
+            let before = settings.post_process_prompts.len();
+            settings.post_process_prompts.retain(|p| p.id != spec.id);
+            if settings.post_process_prompts.len() != before {
+                changed = true;
+            }
+            continue;
+        }
         let seed = LLMPrompt {
             id: spec.id.to_string(),
             name: spec.name.to_string(),
@@ -1716,19 +1743,41 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
                         existing.name = user_name;
                     }
                     changed = true;
-                } else if existing.is_builtin && existing.version < seed.version {
-                    // An untouched generation-1 builtin: take the new body.
-                    // Any edit (bumped version, changed body) falls through
-                    // untouched.
-                    if let Some(prior_body) = prior_generation_seed_body(&spec) {
-                        if existing.prompt.trim() == prior_body.trim() {
-                            debug!(
-                                "Reseeding untouched builtin prompt '{}' from generation {} to {}",
-                                spec.id, existing.version, seed.version
-                            );
-                            *existing = seed;
-                            changed = true;
-                        }
+                } else if existing.is_builtin {
+                    // KB-256 fleet pass: "untouched" means the body
+                    // byte-matches ANY seed generation this build knows -
+                    // never the version alone, and never only the
+                    // immediately-prior generation. A v1.6.x rename bumped
+                    // the row's version without touching its body (the old
+                    // bump-always behavior), stranding gen-1 bodies at
+                    // version == the current generation: the old
+                    // `existing.version < seed.version` gate was 2 < 2 and
+                    // could never heal them, and a body match against only
+                    // the prior generation's body misses again at
+                    // generation 3+. A seed-matched body proves the words
+                    // were never edited, so the reseed takes the new body
+                    // and generation while the operator's custom NAME
+                    // survives it exactly as the v0 branch preserves it (a
+                    // rename edits the name, not the words). A row whose
+                    // version is ABOVE this build's generation belongs to a
+                    // newer build and is left alone.
+                    let current_body = seed_prompt_body(&spec);
+                    let body_matches_a_seed = existing.prompt.trim() == current_body.trim()
+                        || prior_generation_seed_body(&spec)
+                            .is_some_and(|prior| existing.prompt.trim() == prior.trim());
+                    if existing.version <= seed.version
+                        && body_matches_a_seed
+                        && (existing.version < seed.version
+                            || existing.prompt.trim() != current_body.trim())
+                    {
+                        debug!(
+                            "Reseeding untouched builtin prompt '{}' from version {} (body matched a known seed generation) to {}",
+                            spec.id, existing.version, seed.version
+                        );
+                        let operator_name = existing.name.clone();
+                        *existing = seed;
+                        existing.name = operator_name;
+                        changed = true;
                     }
                 }
             }
@@ -1740,6 +1789,49 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
     }
 
     changed
+}
+
+/// KB-108: record the deletion of a built-in prompt template so the seed
+/// loop never resurrects it (the tombstone list
+/// `post_process_deleted_builtin_prompt_ids`). Only a BUILTIN row
+/// tombstones: user templates have no seed to come back, so their
+/// deletion is just removal. Returns true when the tombstone was newly
+/// recorded. Pure so the delete command's wiring is unit-testable.
+pub fn record_deleted_builtin_prompt(settings: &mut AppSettings, deleted_id: &str) -> bool {
+    let is_builtin = settings
+        .post_process_prompts
+        .iter()
+        .any(|p| p.id == deleted_id && p.is_builtin);
+    if !is_builtin {
+        return false;
+    }
+    if settings
+        .post_process_deleted_builtin_prompt_ids
+        .iter()
+        .any(|tombstoned| tombstoned == deleted_id)
+    {
+        return false;
+    }
+    settings
+        .post_process_deleted_builtin_prompt_ids
+        .push(deleted_id.to_string());
+    true
+}
+
+/// KB-256: the version a template edit should land on. The version exists
+/// to separate a user-edited template from its seeded original (run
+/// records stamp it; the seed migration refuses to touch a versioned
+/// prompt), so ONLY a body change bumps it: a name-only edit keeps the
+/// version, which is what lets a v1.5.x RENAME of an untouched gen-1
+/// builtin still take the generation-2 reseed (body byte-matches the
+/// prior generation) instead of being stranded as a fake "user edit".
+/// Trimmed comparison, matching the seed loop's body guards.
+pub fn next_prompt_version(current_version: u32, old_body: &str, new_body: &str) -> u32 {
+    if old_body.trim() == new_body.trim() {
+        current_version
+    } else {
+        current_version.saturating_add(1)
+    }
 }
 
 pub const SETTINGS_STORE_PATH: &str = "settings_store.json";
@@ -1904,6 +1996,7 @@ pub fn get_default_settings() -> AppSettings {
         post_process_model_lists: HashMap::new(),
         post_process_prompts: default_post_process_prompts(),
         post_process_selected_prompt_id: None,
+        post_process_deleted_builtin_prompt_ids: Vec::new(),
         mute_while_recording: false,
         append_trailing_space: false,
         app_language: default_app_language(),
@@ -4113,6 +4206,275 @@ mod tests {
         assert_eq!(
             legacy.post_process_timeout_secs_for("groq"),
             FAST_PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS
+        );
+    }
+
+    /// KB-108: deleting a built-in prompt records a persisted tombstone,
+    /// and the seed loop honors it - the built-in does NOT resurrect at
+    /// the catalog end on the next read. User templates record no
+    /// tombstone (they have no seed to come back).
+    #[test]
+    fn deleted_builtin_prompt_tombstones_and_never_resurrects() {
+        // Delete side: a builtin row records the tombstone; a user row
+        // does not.
+        let mut settings = get_default_settings();
+        assert!(
+            record_deleted_builtin_prompt(&mut settings, "english_casual"),
+            "deleting a builtin records the tombstone"
+        );
+        assert!(
+            !record_deleted_builtin_prompt(&mut settings, "english_casual"),
+            "recording the same tombstone twice is a no-op"
+        );
+        settings
+            .post_process_prompts
+            .retain(|p| p.id != "english_casual");
+
+        let user_prompt = LLMPrompt {
+            id: "my_own_template".to_string(),
+            name: "My Own".to_string(),
+            prompt: "Rewrite in my voice.".to_string(),
+            language: "en".to_string(),
+            register: PromptRegister::General,
+            description: String::new(),
+            is_builtin: false,
+            version: 0,
+        };
+        settings.post_process_prompts.push(user_prompt);
+        assert!(
+            !record_deleted_builtin_prompt(&mut settings, "my_own_template"),
+            "deleting a user template records no tombstone"
+        );
+        settings
+            .post_process_prompts
+            .retain(|p| p.id != "my_own_template");
+
+        // Read side (the no-resurrect pin): the seed loop skips the
+        // tombstoned builtin and does not push it back. (The pass may or
+        // may not report a change: a store already at the current
+        // generation changes nothing but the tombstone's own skip.)
+        let _ = ensure_post_process_defaults(&mut settings);
+        assert!(
+            !settings
+                .post_process_prompts
+                .iter()
+                .any(|p| p.id == "english_casual"),
+            "a tombstoned builtin never resurrects on the next read"
+        );
+        // Everything else still seeds normally: the library count is the
+        // 14 builtins minus the tombstone (the deleted user template is
+        // not a seed and stays gone).
+        assert_eq!(settings.post_process_prompts.len(), 13);
+        assert!(settings
+            .post_process_deleted_builtin_prompt_ids
+            .contains(&"english_casual".to_string()));
+    }
+
+    /// KB-108: a tombstone that outlives a manually restored row (a
+    /// hand-edited store putting the builtin back while the tombstone
+    /// stays) resolves in favor of the tombstone: the zombie row is
+    /// dropped on the next read.
+    #[test]
+    fn tombstone_with_a_restored_row_drops_the_zombie() {
+        let mut settings = get_default_settings();
+        assert!(
+            record_deleted_builtin_prompt(&mut settings, "english_technical"),
+            "the technical template is a builtin and tombstones"
+        );
+        // The delete command removes the row; simulate a store that kept
+        // it anyway (restore from backup over an old store file).
+        assert!(settings
+            .post_process_prompts
+            .iter()
+            .any(|p| p.id == "english_technical"));
+        assert!(ensure_post_process_defaults(&mut settings));
+        assert!(
+            !settings
+                .post_process_prompts
+                .iter()
+                .any(|p| p.id == "english_technical"),
+            "the tombstone wins over a restored row"
+        );
+    }
+
+    /// KB-108 persistence: the tombstone list round-trips through the
+    /// store JSON, so the deletion survives restarts (the field is a
+    /// plain serde-default Vec: absent on legacy stores, which behave
+    /// exactly as before).
+    #[test]
+    fn tombstone_list_round_trips_through_the_store() {
+        let mut settings = get_default_settings();
+        assert!(
+            !record_deleted_builtin_prompt(&mut settings, "no_such_prompt"),
+            "an unknown id tombstones nothing"
+        );
+        record_deleted_builtin_prompt(&mut settings, "english_casual");
+        let json = serde_json::to_value(&settings).unwrap();
+        assert_eq!(
+            json["post_process_deleted_builtin_prompt_ids"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        let reloaded: AppSettings = serde_json::from_value(json).unwrap();
+        assert_eq!(
+            reloaded.post_process_deleted_builtin_prompt_ids,
+            vec!["english_casual".to_string()]
+        );
+        // A legacy store without the key loads with an empty list.
+        let mut legacy_json = serde_json::to_value(&settings).unwrap();
+        legacy_json
+            .as_object_mut()
+            .unwrap()
+            .remove("post_process_deleted_builtin_prompt_ids");
+        let legacy: AppSettings = serde_json::from_value(legacy_json).unwrap();
+        assert!(legacy.post_process_deleted_builtin_prompt_ids.is_empty());
+    }
+
+    /// KB-256: the version bump exists to separate a user-edited template
+    /// from its seeded original, so only a BODY change bumps it. A
+    /// name-only edit keeps the version (which is what lets a v1.5.x
+    /// rename of an untouched gen-1 builtin still take the generation
+    /// reseed instead of being stranded as a fake user edit).
+    #[test]
+    fn prompt_version_bumps_only_on_a_body_change() {
+        assert_eq!(
+            next_prompt_version(1, "Keep my words exactly.", "Keep my words exactly."),
+            1,
+            "a rename with the body untouched keeps the version"
+        );
+        assert_eq!(
+            next_prompt_version(1, "Keep my words exactly.", "  Keep my words exactly.  "),
+            1,
+            "body changes that are only surrounding whitespace are not edits"
+        );
+        assert_eq!(
+            next_prompt_version(1, "Keep my words exactly.", "Keep my words, exactly."),
+            2,
+            "a real body edit bumps the version"
+        );
+        assert_eq!(
+            next_prompt_version(u32::MAX, "same", "different"),
+            u32::MAX,
+            "the bump saturates instead of overflowing"
+        );
+    }
+
+    /// KB-256 end to end against the seed loop: a gen-1 builtin that was
+    /// only RENAMED (body byte-identical to the prior generation's seed)
+    /// still takes the generation-2 reseed once the rename no longer
+    /// strands it behind a version bump.
+    #[test]
+    fn renamed_untouched_gen1_builtin_still_takes_the_reseed() {
+        // The gen-1 body the seed loop compares against.
+        let gen1_body = {
+            let spec = builtin_prompt_seed_specs()
+                .into_iter()
+                .find(|spec| spec.id == "english_casual")
+                .expect("english_casual is a seed");
+            prior_generation_seed_body(&spec).expect("casual carries a gen-1 body")
+        };
+
+        // The v1.5.x store shape: version 1, the UNTOUCHED gen-1 body,
+        // and an operator rename applied through the command's seam (a
+        // name-only edit, which before KB-256 bumped the version to 2 and
+        // stranded the row off the reseed path).
+        let mut v15_store = get_default_settings();
+        {
+            let prompt = v15_store
+                .post_process_prompts
+                .iter_mut()
+                .find(|p| p.id == "english_casual")
+                .unwrap();
+            prompt.version = 1;
+            prompt.prompt = gen1_body.clone();
+            prompt.version = next_prompt_version(prompt.version, &gen1_body, &gen1_body);
+            prompt.name = "My Casual Name".to_string();
+            assert_eq!(
+                prompt.version, 1,
+                "the rename kept the version at the stored generation"
+            );
+        }
+
+        assert!(ensure_post_process_defaults(&mut v15_store));
+        let reseeded = v15_store
+            .post_process_prompts
+            .iter_mut()
+            .find(|p| p.id == "english_casual")
+            .unwrap();
+        assert_eq!(
+            reseeded.version, BUILTIN_PROMPT_GENERATION,
+            "the untouched-body gen-1 builtin took the reseed despite the rename"
+        );
+        assert_eq!(
+            reseeded.name, "My Casual Name",
+            "the reseed takes the new body, never the operator's custom name"
+        );
+
+        // KB-256 fleet pass, the stranded store the fix actually exists
+        // for: the v1.6.0/1.6.1 rename path bumped the version WITHOUT
+        // changing the body, leaving gen-1 bodies at version ==
+        // BUILTIN_PROMPT_GENERATION. The old gate was 2 < 2 (never true),
+        // so those rows could never reseed - and every future generation
+        // compared only against the immediately-prior body, so they could
+        // never match again either. The seed-matched body must heal them.
+        let mut stranded = get_default_settings();
+        {
+            let prompt = stranded
+                .post_process_prompts
+                .iter_mut()
+                .find(|p| p.id == "english_casual")
+                .unwrap();
+            prompt.version = BUILTIN_PROMPT_GENERATION;
+            prompt.prompt = gen1_body.clone();
+            prompt.name = "Stranded Rename".to_string();
+        }
+        assert!(
+            ensure_post_process_defaults(&mut stranded),
+            "the stranded gen-1-body-at-gen-2 row must be healed by a reseed pass"
+        );
+        let healed = stranded
+            .post_process_prompts
+            .iter()
+            .find(|p| p.id == "english_casual")
+            .unwrap();
+        let spec = builtin_prompt_seed_specs()
+            .into_iter()
+            .find(|spec| spec.id == "english_casual")
+            .unwrap();
+        assert_eq!(
+            healed.prompt,
+            seed_prompt_body(&spec),
+            "the stranded row's body is the current generation's seed"
+        );
+        assert_eq!(
+            healed.name, "Stranded Rename",
+            "the heal keeps the operator's custom name"
+        );
+
+        // A row from a NEWER build (version above this generation) is
+        // never touched, even with a recognizable body.
+        let mut future = get_default_settings();
+        {
+            let prompt = future
+                .post_process_prompts
+                .iter_mut()
+                .find(|p| p.id == "english_casual")
+                .unwrap();
+            prompt.version = BUILTIN_PROMPT_GENERATION + 1;
+            prompt.prompt = gen1_body.clone();
+        }
+        assert!(!ensure_post_process_defaults(&mut future));
+        let kept = future
+            .post_process_prompts
+            .iter()
+            .find(|p| p.id == "english_casual")
+            .unwrap();
+        assert_eq!(
+            kept.version,
+            BUILTIN_PROMPT_GENERATION + 1,
+            "a newer build's row is left for that build"
         );
     }
 }

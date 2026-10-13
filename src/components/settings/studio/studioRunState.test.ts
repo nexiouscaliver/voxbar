@@ -8,6 +8,7 @@ import {
   outcomeKind,
   pairKey,
   keptRaw,
+  settleUnfinished,
   type StudioCardState,
   type StudioRunOutcome,
 } from "./studioRunState";
@@ -235,5 +236,33 @@ assert.ok(keptRaw("failed:timeout"));
 assert.ok(keptRaw("skipped:memory_gate"));
 assert.ok(!keptRaw("applied"));
 assert.ok(!keptRaw("unchanged"));
+
+// 8. KB-257: settling a cancelled batch. Cards still running when the
+// batch resolved never got a result - the cancel landed before their
+// turn - so they read as cancelled; done cards keep their results, and
+// without a cancel on record nothing is rewritten.
+const runningCard: StudioCardState = {
+  key: "a::x",
+  promptId: "a",
+  providerId: "x",
+  status: "running",
+  result: null,
+};
+const doneCard: StudioCardState = {
+  key: "b::x",
+  promptId: "b",
+  providerId: "x",
+  status: "done",
+  result: outcome({ outcome: "applied" }),
+};
+assert.deepEqual(settleUnfinished([runningCard, doneCard], true), [
+  { ...runningCard, status: "cancelled" },
+  doneCard,
+]);
+assert.deepEqual(settleUnfinished([runningCard], false), [runningCard]);
+// Cancelled cards do not count toward partial failure either.
+assert.ok(
+  !isPartialFailure([{ ...runningCard, status: "cancelled" }, doneCard]),
+);
 
 console.log("studioRunState.test.ts: all assertions passed");

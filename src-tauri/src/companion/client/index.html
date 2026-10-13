@@ -518,6 +518,14 @@
         color: var(--text);
         min-width: 32px;
       }
+      /* Captured but NOT transmitted: the bar reads empty and dim, never
+         a lively meter over audio nobody receives (v1.6.3 meter honesty). */
+      #micbar .lvl.dim {
+        opacity: 0.35;
+      }
+      #micbar.show {
+        display: block;
+      }
       .cert {
         margin-top: 14px;
         color: var(--muted);
@@ -813,6 +821,19 @@
         notice.classList.add("show");
         window.setTimeout(() => notice.classList.remove("show"), 6000);
       }
+      // KB-262 (v1.6.3): the zero-audio recovery advice must match the
+      // activation the Mac actually applies. "Hold the button" is wrong
+      // advice in tap-to-lock modes, where the button taps to start and
+      // taps again to stop; the client has known `activation` from the
+      // welcome frame since v1.6.2, so compose the notice from it. The
+      // activation-neutral `zeroAudio` key stays as the fallback.
+      function zeroAudioHint() {
+        if (activation === "toggle")
+          return t("zeroAudioTap", t("zeroAudio", ""));
+        if (activation === "hold_or_toggle")
+          return t("zeroAudioHoldOrToggle", t("zeroAudio", ""));
+        return t("zeroAudioHold", t("zeroAudio", ""));
+      }
       function vibrate(ms) {
         try {
           if (navigator.vibrate) navigator.vibrate(ms);
@@ -835,9 +856,12 @@
             ? t("tapToStop", "Tap to stop")
             : t("tapToTalk", "Tap to talk");
         } else if (activation === "hold_or_toggle") {
+          // v1.6.2 W1-L0: the idle button must name BOTH modes. A bare
+          // "hold to talk" hides the tap-to-lock behavior the operator
+          // actually uses, so quick taps read as a broken hold button.
           ptt.textContent = recording
             ? t("tapToStop", "Tap to stop")
-            : t("holdToTalk", "Hold to talk");
+            : t("holdOrToggleToTalk", "Hold to talk, tap to lock");
         } else {
           ptt.textContent = recording
             ? t("release", "Release to finish")
@@ -855,6 +879,34 @@
       const PP_KEY = "voxbarCompanion.postProcess";
       let outputTarget = "pc"; // "pc" | "phone"
       let postProcess = false;
+
+      // ---- device identity (v1.6.2) ----
+      // The hello's human name is derived from the user agent and is a
+      // PLATFORM token every same-platform phone shares (two iPhones both
+      // say "iPhone", every Chrome-Android phone says "Linux"), so it
+      // cannot tell this phone from its twin. A random id, persisted like
+      // the prefs, can: the Mac pairs it with the name to key this phone's
+      // data (the Recent list), so same-platform phones never share one
+      // identity.
+      const DEVICE_ID_KEY = "voxbarCompanion.deviceId";
+      function deviceIdentity() {
+        try {
+          let id = localStorage.getItem(DEVICE_ID_KEY);
+          if (!id) {
+            id =
+              window.crypto && crypto.randomUUID
+                ? crypto.randomUUID()
+                : Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+            localStorage.setItem(DEVICE_ID_KEY, id);
+          }
+          return id;
+        } catch (e) {
+          // Storage unavailable (private mode): a per-load random id still
+          // separates this phone from its same-platform twin for the
+          // session.
+          return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+        }
+      }
 
       function loadPrefs() {
         try {
@@ -1043,6 +1095,7 @@
                   .split(";")[0]
                   .trim()
                   .slice(0, 48) || "Phone",
+              deviceId: deviceIdentity(),
               lang: LANG,
             }),
           );
@@ -1064,10 +1117,11 @@
               setControlsEnabled(true);
               setState("ready", t("stateReady", "Ready"));
               // The caption stays empty in the default mode: the button
-              // right above already says "Hold to talk"/"Tap to talk", and
-              // repeating it within ~40px was noise. The caption is
-              // reserved for state-conditional guidance (mic errors,
-              // pairing failures, disconnect reasons).
+              // right above already names its activation modes (W1-L0's
+              // activation-aware label), and repeating it within ~40px was
+              // noise. The caption is reserved for state-conditional
+              // guidance (mic errors, pairing failures, disconnect
+              // reasons).
               setHint("");
               refreshButton();
               // Warm the microphone (permission prompt, stream) but NEVER
@@ -1105,7 +1159,7 @@
               else if (msg.code === "companion_session_capped")
                 showNotice(t("capped", ""));
               else if (msg.code === "companion_zero_audio")
-                showNotice(t("zeroAudio", ""));
+                showNotice(zeroAudioHint());
               break;
             case "transcript":
               // Phone-target delivery: the Mac skipped its paste and sent
@@ -1318,22 +1372,39 @@
             [
               `
       class R extends AudioWorkletProcessor {
-        constructor() { super(); this.buf = []; this.pos = 0; }
+        constructor() { super(); this.buf = []; this.pos = 0; this.tail = 0; }
         process(inputs) {
           const input = inputs[0] && inputs[0][0];
           if (input) {
             const ratio = sampleRate / ${TARGET_RATE};
-            while (this.pos < input.length - 1) {
-              const i0 = Math.floor(this.pos), frac = this.pos - i0;
-              const a = input[i0], b = input[i0 + 1];
-              this.buf.push(a + (b - a) * frac);
-              this.pos += ratio;
+            let pos = this.pos, tail = this.tail;
+            const emit = (v) => {
+              this.buf.push(v);
               if (this.buf.length >= ${CHUNK}) {
                 this.port.postMessage(this.buf.slice(0, ${CHUNK}));
                 this.buf = this.buf.slice(${CHUNK});
               }
+            };
+            // RESAMPLER-CORE-WORKLET-START (v1.6.3: pinned by
+            // src/lib/companionResampler.test.ts - edit both cores together)
+            while (pos < input.length - 1) {
+              const i0 = Math.floor(pos), frac = pos - i0;
+              // i0 is -1 exactly once per block boundary: the residual
+              // folded the previous block's FINAL sample forward (the
+              // v1.6.2 core read input[-1] there and emitted a NaN every
+              // 128 samples, which silenced the whole stream server-side).
+              const a = i0 >= 0 ? input[i0] : tail,
+                b = input[Math.min(i0 + 1, input.length - 1)];
+              let v = a + (b - a) * frac;
+              if (!Number.isFinite(v)) v = 0;
+              emit(v);
+              pos += ratio;
             }
-            this.pos -= input.length;
+            pos -= input.length;
+            tail = input[input.length - 1];
+            // RESAMPLER-CORE-WORKLET-END
+            this.pos = pos;
+            this.tail = tail;
           }
           return true;
         }
@@ -1371,6 +1442,7 @@
       function scriptProcessorFallback(source, sink) {
         const buf = [];
         let pos = 0;
+        let tail = 0;
         const ratioHolder = {
           ratio:
             (audioCtx && audioCtx.sampleRate
@@ -1381,18 +1453,31 @@
         audioNode.onaudioprocess = (ev) => {
           const input = ev.inputBuffer.getChannelData(0);
           const ratio = ratioHolder.ratio;
-          while (pos < input.length - 1) {
-            const i0 = Math.floor(pos),
-              frac = pos - i0;
-            const a = input[i0],
-              b = input[i0 + 1];
-            buf.push(a + (b - a) * frac);
-            pos += ratio;
+          const emit = (v) => {
+            buf.push(v);
             if (buf.length >= CHUNK) {
               sendChunk(buf.splice(0, CHUNK));
             }
+          };
+          // RESAMPLER-CORE-FALLBACK-START (v1.6.3: pinned by
+          // src/lib/companionResampler.test.ts - edit both cores together)
+          while (pos < input.length - 1) {
+            const i0 = Math.floor(pos),
+              frac = pos - i0;
+            // i0 is -1 exactly once per block boundary: the residual
+            // folded the previous block's FINAL sample forward (the
+            // v1.6.2 core read input[-1] there and emitted a NaN every
+            // 128 samples, which silenced the whole stream server-side).
+            const a = i0 >= 0 ? input[i0] : tail,
+              b = input[Math.min(i0 + 1, input.length - 1)];
+            let v = a + (b - a) * frac;
+            if (!Number.isFinite(v)) v = 0;
+            emit(v);
+            pos += ratio;
           }
           pos -= input.length;
+          tail = input[input.length - 1];
+          // RESAMPLER-CORE-FALLBACK-END
         };
         source.connect(audioNode);
         audioNode.connect(sink);
@@ -1400,16 +1485,30 @@
 
       function sendChunk(samples) {
         if (!samples || !samples.length) return;
-        // A cheap level meter so the phone shows life while recording.
+        // The meter must reflect SENT audio, never captured audio: a
+        // closed gate (socket down, Mac not reporting a live session)
+        // decays the bar to empty and dims it, so the phone can never
+        // again show a lively meter over a stream nobody receives.
+        const live = !!(ws && ws.readyState === WebSocket.OPEN && recording);
         const now = performance.now();
         if (now - lastLevelAt > 90) {
           lastLevelAt = now;
-          let peak = 0;
-          for (let i = 0; i < samples.length; i += 8)
-            peak = Math.max(peak, Math.abs(samples[i]));
-          miclvl.style.width = Math.min(100, Math.round(peak * 220)) + "%";
+          if (live) {
+            // Peak over EVERY sample: the old stride-8 sampling was
+            // structurally blind to the per-128 NaNs this cycle fixed.
+            let peak = 0;
+            for (let i = 0; i < samples.length; i++) {
+              const v = Math.abs(samples[i]);
+              if (Number.isFinite(v) && v > peak) peak = v;
+            }
+            miclvl.classList.remove("dim");
+            miclvl.style.width = Math.min(100, Math.round(peak * 220)) + "%";
+          } else {
+            miclvl.classList.add("dim");
+            miclvl.style.width = "0%";
+          }
         }
-        if (ws && ws.readyState === WebSocket.OPEN && recording) {
+        if (live) {
           const view = new Float32Array(samples);
           ws.send(view.buffer);
         }
