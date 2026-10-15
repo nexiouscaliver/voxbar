@@ -482,7 +482,8 @@
         "model": "Model i memòria",
         "transcription": "Transcripció",
         "experimental": "Experimental",
-        "postProcessing": "Postprocessament"
+        "postProcessing": "Postprocessament",
+        "stability": "Estabilitat"
       },
       "experimentalToggle": {
         "label": "Funcions experimentals",
@@ -728,6 +729,10 @@
         "qrPreviewNote": "Previsualització: aquest URL s'anunciarà la propera vegada que arrenqui el servidor.",
         "sharedNetworkNote": "El telèfon i aquest Mac han de compartir xarxa: el mateix Wi-Fi o LAN, o el mateix tailnet (per exemple, tots dos al Tailscale).",
         "fingerprintCopied": "Copiat"
+      },
+      "stallWatchdog": {
+        "label": "Vigilant de bloquejos",
+        "description": "Si alguna cosa dins de VoxBar deixa de respondre, es mostra una notificació i es reinicia en lloc de quedarse penjat. El dictat continua funcionant."
       }
     },
     "postProcessing": {

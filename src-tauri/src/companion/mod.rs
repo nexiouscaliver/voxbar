@@ -108,6 +108,11 @@ struct CompanionInner {
 /// by (lane, generation) pair, so a stale socket's late death can never
 /// erase a fresh same-name registration (KB-255 - the old name-keyed
 /// forget_device zeroed the tray's paired count exactly this way).
+/// KB-301: an opaque hold over the registry for watchdog tests.
+pub struct RegistryHold<'a> {
+    _guard: std::sync::MutexGuard<'a, Vec<ConnectionEntry>>,
+}
+
 struct ConnectionEntry {
     lane: u64,
     generation: u64,
@@ -462,14 +467,21 @@ impl CompanionManager {
     /// registration order (the settings panel's device list).
     pub fn devices(&self) -> Vec<String> {
         let mut names: Vec<String> = Vec::new();
-        for entry in self
+        // KB-300: the snapshot is bound to a local BEFORE the loop. A
+        // `for ... in <lock chain>` header keeps the guard alive through
+        // every iteration (for-scrutinee temporary lifetime), so anything
+        // the body does that re-enters the registry would self-deadlock
+        // this thread and strand every other registry reader.
+        let entries: Vec<String> = self
             .connections
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .iter()
-        {
-            if !names.iter().any(|n| n == &entry.device) {
-                names.push(entry.device.clone());
+            .map(|entry| entry.device.clone())
+            .collect();
+        for device in &entries {
+            if !names.iter().any(|n| n == device) {
+                names.push(device.clone());
             }
         }
         names
@@ -484,6 +496,29 @@ impl CompanionManager {
             .iter()
             .find(|entry| entry.lane == lane)
             .map(|entry| entry.device.clone())
+    }
+
+    /// KB-301: the stall watchdog's registry probe. try_lock with an
+    /// instant retry: a healthy registry is only ever held for memory-time
+    /// critical sections, so two refused acquisitions back to back mean a
+    /// guard is stranded (the v1.6.8 freeze shape). Never blocks, never
+    /// panics.
+    pub fn registry_probe_timed_out(&self) -> bool {
+        self.connections.try_lock().is_err() && self.connections.try_lock().is_err()
+    }
+
+    /// KB-301: same probe for the lane session map.
+    pub fn lane_sessions_probe_timed_out(&self) -> bool {
+        self.lane_sessions.try_lock().is_err() && self.lane_sessions.try_lock().is_err()
+    }
+
+    /// KB-301 test seam: hold the registry the way a stranded guard
+    /// would. The returned handle keeps the guard alive until dropped;
+    /// the entry type stays private to this module.
+    pub fn registry_hold_for_test(&self) -> RegistryHold<'_> {
+        RegistryHold {
+            _guard: self.connections.lock().unwrap_or_else(|e| e.into_inner()),
+        }
     }
 
     /// KB-261 (v1.6.4, fleet pass 1): register one authenticated
@@ -1512,15 +1547,28 @@ pub fn broadcast_recent_history<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     let Some(manager) = manager(app) else {
         return;
     };
-    for (lane, device) in manager
+    // KB-300 (v1.6.9): the lane snapshot binds to a local BEFORE the loop.
+    // A `for ... in <lock chain>` header holds the registry guard through
+    // every iteration (for-scrutinee temporary lifetime: the header's
+    // temporaries drop only at the end of the whole loop), and the body's
+    // send_recent_history_to_lane -> send_frame_to_lane re-enters the very
+    // same mutex on this same thread: a deterministic self-deadlock that
+    // strands every later registry reader (the quit teardown on main, the
+    // next connection's register, every tray resync) behind it. This exact
+    // shape froze the whole app after any phone dictation whose phone was
+    // still connected when its history write completed: the broadcast ran
+    // as an off-pipeline blocking task, seized the registry forever, and
+    // the freeze surfaced only when the next registry user arrived - up to
+    // 46 hours later in one measured instance.
+    let lanes: Vec<(u64, String)> = manager
         .connections
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .iter()
         .map(|entry| (entry.lane, entry.device.clone()))
-        .collect::<Vec<_>>()
-    {
-        send_recent_history_to_lane(app, lane, &device);
+        .collect();
+    for (lane, device) in &lanes {
+        send_recent_history_to_lane(app, *lane, device);
     }
 }
 
@@ -3397,6 +3445,70 @@ mod tests {
         assert!(
             lock_scope.contains(".map(|entry| entry.tx.clone())"),
             "the lookup clones the sender so the send needs no registry access"
+        );
+    }
+
+    #[test]
+    fn kb300_the_recents_broadcast_never_holds_the_registry_across_its_sends() {
+        let source = include_str!("mod.rs");
+        let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
+
+        let at = production
+            .find("pub fn broadcast_recent_history")
+            .expect("broadcast_recent_history");
+        let end = at + production[at..].find("\n}\n").expect("fn end");
+        let body = &production[at..end];
+
+        // The snapshot binds to a local before the loop: a `for ... in
+        // <lock chain>` header keeps the guard alive through every
+        // iteration, and the body's send re-enters the same mutex on the
+        // same thread (the v1.6.8 whole-app freeze).
+        assert!(
+            body.contains("let lanes: Vec<(u64, String)> = manager"),
+            "the lane snapshot must be a bound local, not a for-header temporary"
+        );
+        assert!(
+            body.contains("for (lane, device) in &lanes {"),
+            "the loop must iterate the bound snapshot by reference"
+        );
+
+        // Class pin: NO for-header in this file may hold a lock chain at
+        // all - any future `for x in m.lock()...` reintroduces the
+        // guard-through-the-loop shape even if today's body is innocent.
+        let mut scan = production;
+        let mut offenders = Vec::new();
+        while let Some(pos) = scan.find("\n    for ") {
+            let after = &scan[pos..];
+            let header_end = after.find('{').expect("a for header terminator");
+            let header = &after[..header_end];
+            if header.contains(".lock()") {
+                offenders.push(header.trim().to_string());
+            }
+            scan = &scan[pos + header_end..];
+        }
+        // devices() was the other instance of the shape; both must be gone.
+        assert!(
+            offenders.is_empty(),
+            "for-headers must not hold a lock chain (guard lives through the loop body): {offenders:?}"
+        );
+    }
+
+    #[test]
+    fn kb300_devices_snapshots_before_deduplicating() {
+        let source = include_str!("mod.rs");
+        let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
+        let at = production
+            .find("pub fn devices(&self) -> Vec<String>")
+            .expect("devices");
+        let end = at + production[at..].find("\n    }\n").expect("fn end");
+        let body = &production[at..end];
+        assert!(
+            body.contains("let entries: Vec<String> = self"),
+            "devices() must snapshot under the lock into a bound local before its loop"
+        );
+        assert!(
+            body.contains("for device in &entries {"),
+            "the dedup loop must iterate the snapshot, not a live lock chain"
         );
     }
 

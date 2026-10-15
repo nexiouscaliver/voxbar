@@ -424,7 +424,8 @@
         "model": "النموذج والذاكرة",
         "transcription": "التفريغ الصوتي",
         "experimental": "تجريبي",
-        "postProcessing": "المعالجة اللاحقة"
+        "postProcessing": "المعالجة اللاحقة",
+        "stability": "الاستقرار"
       },
       "experimentalToggle": {
         "label": "الميزات التجريبية",
@@ -670,6 +671,10 @@
         "qrPreviewNote": "معاينة: سيتم الإعلان عن هذا الرابط عند تشغيل الخادم في المرة القادمة.",
         "sharedNetworkNote": "يجب أن يتشارك الهاتف وهذا الـ Mac الشبكة نفسها: نفس شبكة Wi-Fi أو الشبكة المحلية، أو نفس شبكة tailnet (مثل انضمامهما إلى Tailscale).",
         "fingerprintCopied": "تم النسخ"
+      },
+      "stallWatchdog": {
+        "label": "مراقب التعليق",
+        "description": "إذا توقف شيء داخل VoxBar عن الاستجابة، تظهر رسالة وتُعاد التشغيل بدلاً من التجميد. يظل الإملاء يعمل."
       }
     },
     "postProcessing": {

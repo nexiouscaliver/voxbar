@@ -482,7 +482,8 @@
         "model": "Model ve bellek",
         "transcription": "Transkripsiyon",
         "experimental": "Deneysel",
-        "postProcessing": "Son İşlem"
+        "postProcessing": "Son İşlem",
+        "stability": "Kararlılık"
       },
       "experimentalToggle": {
         "label": "Deneysel Özellikler",
@@ -728,6 +729,10 @@
         "qrPreviewNote": "Önizleme: Bu URL, sunucu bir dahaki sefere başladığında duyurulacak.",
         "sharedNetworkNote": "Telefon ve bu Mac aynı ağı paylaşmalıdır: aynı Wi-Fi veya LAN ya da aynı tailnet (örneğin ikisi de Tailscale'de).",
         "fingerprintCopied": "Kopyalandı"
+      },
+      "stallWatchdog": {
+        "label": "Takılma Gözcüsü",
+        "description": "VoxBar içindeki bir şey yanıt vermeyi bırakırsa bildirim gösterilir ve uygulama takılmak yerine yeniden başlar. Dikte çalışmaya devam eder."
       }
     },
     "postProcessing": {

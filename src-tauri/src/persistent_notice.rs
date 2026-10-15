@@ -119,7 +119,7 @@ pub fn post_persistent_notice(
 /// impersonate). Mirrors the plugin's desktop.rs choice exactly, so
 /// whichever leg sends first latches the SAME identity (pure, unit-tested).
 #[cfg(target_os = "macos")]
-fn sender_identity(is_dev: bool, configured_identifier: &str) -> String {
+pub(crate) fn sender_identity(is_dev: bool, configured_identifier: &str) -> String {
     if is_dev {
         "com.apple.Terminal".to_string()
     } else {

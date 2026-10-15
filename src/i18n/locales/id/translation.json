@@ -482,7 +482,8 @@
         "model": "Model dan memori",
         "transcription": "Transkripsi",
         "experimental": "Eksperimental",
-        "postProcessing": "Pascaproses"
+        "postProcessing": "Pascaproses",
+        "stability": "Stabilitas"
       },
       "experimentalToggle": {
         "label": "Fitur Eksperimental",
@@ -728,6 +729,10 @@
         "qrPreviewNote": "Pratinjau: URL ini akan diiklankan saat server berikutnya menyala.",
         "sharedNetworkNote": "Ponsel dan Mac ini harus berada di jaringan yang sama: Wi-Fi atau LAN yang sama, atau tailnet yang sama (misalnya keduanya di Tailscale).",
         "fingerprintCopied": "Disalin"
+      },
+      "stallWatchdog": {
+        "label": "Pengawas Macet",
+        "description": "Jika sesuatu di dalam VoxBar berhenti merespons, notifikasi muncul dan aplikasi memulai ulang alih-alih menggantung. Diktasi tetap berfungsi."
       }
     },
     "postProcessing": {

@@ -482,7 +482,8 @@
         "model": "Model en geheugen",
         "transcription": "Transcriptie",
         "experimental": "Experimenteel",
-        "postProcessing": "Naverwerking"
+        "postProcessing": "Naverwerking",
+        "stability": "Stabiliteit"
       },
       "experimentalToggle": {
         "label": "Experimentele functies",
@@ -728,6 +729,10 @@
         "qrPreviewNote": "Voorbeeld: deze URL geldt zodra de server opnieuw start.",
         "sharedNetworkNote": "De telefoon en deze Mac moeten een netwerk delen: hetzelfde Wi-Fi of LAN, of hetzelfde tailnet (bijvoorbeeld beide op Tailscale).",
         "fingerprintCopied": "Gekopieerd"
+      },
+      "stallWatchdog": {
+        "label": "Vastlopers-bewaking",
+        "description": "Als iets in VoxBar niet meer reageert, verschijnt een melding en start de app zichzelf opnieuw in plaats van vast te lopen. Dicteren blijft werken."
       }
     },
     "postProcessing": {

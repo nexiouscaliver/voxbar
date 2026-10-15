@@ -482,7 +482,8 @@
         "model": "モデルとメモリ",
         "transcription": "文字起こし",
         "experimental": "実験的",
-        "postProcessing": "後処理"
+        "postProcessing": "後処理",
+        "stability": "安定性"
       },
       "experimentalToggle": {
         "label": "実験的な機能",
@@ -728,6 +729,10 @@
         "qrPreviewNote": "プレビュー: サーバーが次に起動したとき、この URL が案内されます。",
         "sharedNetworkNote": "スマホとこの Mac は同じネットワークにいる必要があります: 同じ Wi-Fi または LAN、または同じテールネット（例: 両方とも Tailscale）。",
         "fingerprintCopied": "コピーしました"
+      },
+      "stallWatchdog": {
+        "label": "スタール・ウォッチドッグ",
+        "description": "VoxBar の内部が応答しなくなった場合、フリーズせずに通知を表示して再起動します。ディテーションは引き続き利用できます。"
       }
     },
     "postProcessing": {

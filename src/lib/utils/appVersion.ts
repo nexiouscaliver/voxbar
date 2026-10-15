@@ -20,7 +20,7 @@ declare const __APP_VERSION__: string | undefined;
 export const FALLBACK_APP_VERSION =
   typeof __APP_VERSION__ === "string" && __APP_VERSION__.length > 0
     ? __APP_VERSION__
-    : "1.6.8";
+    : "1.6.9";
 
 export const fetchAppVersion = async (): Promise<string> => {
   try {

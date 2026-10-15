@@ -896,6 +896,12 @@ pub struct AppSettings {
     /// Port for the companion TLS/WebSocket server on the LAN interface.
     #[serde(default = "default_companion_port")]
     pub companion_port: u16,
+    /// KB-301 (v1.6.9): the stall watchdog. When core internal state
+    /// becomes unacquirable for ~15 seconds the app logs the stall, shows
+    /// a notification, and restarts itself instead of hanging until a
+    /// force quit. Default ON (a visible recovery beats a freeze).
+    #[serde(default = "default_stall_watchdog_enabled")]
+    pub stall_watchdog_enabled: bool,
     /// 128-bit hex pairing token, generated on enable/reset and bound to
     /// the advertised interface's /24 subnet. A peer from a different
     /// subnet is refused with a re-pair notice.
@@ -942,6 +948,10 @@ fn default_settings_schema_version() -> u32 {
 /// well-known ranges, so nothing on a stock Mac or router claims it.
 fn default_companion_port() -> u16 {
     4177
+}
+
+fn default_stall_watchdog_enabled() -> bool {
+    true
 }
 
 fn default_hold_threshold_ms() -> u64 {
@@ -2035,6 +2045,7 @@ pub fn get_default_settings() -> AppSettings {
         overlay_style: default_overlay_style(),
         companion_devices_enabled: false,
         companion_port: default_companion_port(),
+        stall_watchdog_enabled: default_stall_watchdog_enabled(),
         companion_pairing_token: None,
         companion_pairing_subnet: None,
         companion_last_device: None,

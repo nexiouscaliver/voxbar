@@ -482,7 +482,8 @@
         "model": "Mô hình và bộ nhớ",
         "transcription": "Chuyển đổi",
         "experimental": "Thử nghiệm",
-        "postProcessing": "Xử lý sau"
+        "postProcessing": "Xử lý sau",
+        "stability": "Ổn định"
       },
       "experimentalToggle": {
         "label": "Tính năng thử nghiệm",
@@ -728,6 +729,10 @@
         "qrPreviewNote": "Xem trước: URL này sẽ được quảng bá lần tới máy chủ khởi động.",
         "sharedNetworkNote": "Điện thoại và Mac này phải dùng chung mạng: cùng Wi-Fi hoặc LAN, hoặc cùng tailnet (ví dụ cả hai đều trên Tailscale).",
         "fingerprintCopied": "Đã sao chép"
+      },
+      "stallWatchdog": {
+        "label": "Trình giám sát treo",
+        "description": "Nếu một thứ gì đó bên trong VoxBar ngừng phản hồi, hiển thị thông báo và tự khởi động lại thay vì treo. Nhập bằng giọng nói vẫn hoạt động."
       }
     },
     "postProcessing": {

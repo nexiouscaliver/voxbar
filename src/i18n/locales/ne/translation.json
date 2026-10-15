@@ -482,7 +482,8 @@
         "model": "मोडेल र मेमोरी",
         "transcription": "ट्रान्सक्रिप्सन",
         "experimental": "प्रयोगात्मक",
-        "postProcessing": "पोस्ट प्रोसेसिङ"
+        "postProcessing": "पोस्ट प्रोसेसिङ",
+        "stability": "स्थिरता"
       },
       "experimentalToggle": {
         "label": "प्रयोगात्मक सुविधाहरू",
@@ -728,6 +729,10 @@
         "qrPreviewNote": "पूर्वावलोकन: सर्भर अर्को पटक सुरु हुँदा यो URL घोषणा गरिनेछ।",
         "sharedNetworkNote": "फोन र यो Mac ले एउटै सञ्जाल साझा गर्नुपर्छ: उही Wi-Fi वा LAN, वा उही tailnet (जस्तै दुवै Tailscale मा)।",
         "fingerprintCopied": "कपी गरियो"
+      },
+      "stallWatchdog": {
+        "label": "स्टल वाचडग",
+        "description": "यदि VoxBar भित्र केहीले जवाफ दिन छोड्यो भने, सूचना देखाई नचाँडिकन पुन: सुरु हुन्छ। डिक्टेसन भने जारी रहन्छ।"
       }
     },
     "postProcessing": {

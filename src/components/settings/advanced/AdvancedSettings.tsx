@@ -2,6 +2,7 @@ import React, { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ModelUnloadTimeoutSetting } from "../ModelUnloadTimeout";
 import { MemoryPressureGuard } from "../MemoryPressureGuard";
+import { StallWatchdog } from "../StallWatchdog";
 import { MemoryHeadroom } from "../MemoryHeadroom";
 import { AutoFallback } from "../AutoFallback";
 import { MenuBarModelTitle } from "../MenuBarModelTitle";
@@ -71,6 +72,10 @@ export const AdvancedSettings: React.FC = () => {
           grouped={true}
           onChange={handleExperimentalChange}
         />
+      </SettingsGroup>
+
+      <SettingsGroup title={t("settings.advanced.groups.stability")}>
+        <StallWatchdog descriptionMode="tooltip" grouped={true} />
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.advanced.groups.transcription")}>
