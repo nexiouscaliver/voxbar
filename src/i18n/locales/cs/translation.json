@@ -482,7 +482,8 @@
         "model": "Model a paměť",
         "transcription": "Přepis",
         "experimental": "Experimentální",
-        "postProcessing": "Následné zpracování"
+        "postProcessing": "Následné zpracování",
+        "stability": "Stabilita"
       },
       "experimentalToggle": {
         "label": "Experimentální funkce",
@@ -728,6 +729,10 @@
         "qrPreviewNote": "Náhled: tato adresa URL se zveřejní při příštím spuštění serveru.",
         "sharedNetworkNote": "Telefon a tento Mac musí sdílet síť: stejnou Wi-Fi nebo LAN, nebo stejný tailnet (například oba v Tailscale).",
         "fingerprintCopied": "Zkopírováno"
+      },
+      "stallWatchdog": {
+        "label": "Hlídač zaseknutí",
+        "description": "Pokud něco uvnitř VoxBaru přestane odpovídat, zobrazí se oznámení a aplikace se místo zaseknutí restartuje. Diktování funguje dál."
       }
     },
     "postProcessing": {

@@ -482,7 +482,8 @@
         "model": "Model & Memory",
         "transcription": "Transcription",
         "experimental": "Experimental",
-        "postProcessing": "Post Processing"
+        "postProcessing": "Post Processing",
+        "stability": "Stability"
       },
       "experimentalToggle": {
         "label": "Experimental Features",
@@ -728,6 +729,10 @@
         "qrPreviewNote": "Preview: this URL is advertised when the server next starts.",
         "sharedNetworkNote": "The phone and this Mac must share a network: the same Wi-Fi or LAN, or the same tailnet (for example both on Tailscale).",
         "fingerprintCopied": "Copied"
+      },
+      "stallWatchdog": {
+        "label": "Stall Watchdog",
+        "description": "If something inside VoxBar stops responding, show a notification and restart instead of hanging. Dictation keeps working."
       }
     },
     "postProcessing": {

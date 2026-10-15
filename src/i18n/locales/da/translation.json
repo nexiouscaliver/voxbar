@@ -482,7 +482,8 @@
         "model": "Model og hukommelse",
         "transcription": "Transskription",
         "experimental": "Eksperimentel",
-        "postProcessing": "Efterbehandling"
+        "postProcessing": "Efterbehandling",
+        "stability": "Stabilitet"
       },
       "experimentalToggle": {
         "label": "Eksperimentelle funktioner",
@@ -728,6 +729,10 @@
         "qrPreviewNote": "Forhåndsvisning: Denne URL anvendes, næste gang serveren starter.",
         "sharedNetworkNote": "Telefonen og denne Mac skal dele et netværk: det samme Wi-Fi eller LAN, eller det samme tailnet (f.eks. begge på Tailscale).",
         "fingerprintCopied": "Kopieret"
+      },
+      "stallWatchdog": {
+        "label": "Baglås-overvågning",
+        "description": "Hvis noget inde i VoxBar holder op med at svare, vises en besked, og appen genstarter i stedet for at fryse. Diktering fortsætter."
       }
     },
     "postProcessing": {

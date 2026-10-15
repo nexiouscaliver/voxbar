@@ -482,7 +482,8 @@
         "model": "Modello e memoria",
         "transcription": "Trascrizione",
         "experimental": "Sperimentale",
-        "postProcessing": "Post-Elaborazione"
+        "postProcessing": "Post-Elaborazione",
+        "stability": "Stabilità"
       },
       "experimentalToggle": {
         "label": "Funzionalità Sperimentali",
@@ -728,6 +729,10 @@
         "qrPreviewNote": "Anteprima: questo URL verrà annunciato al prossimo avvio del server.",
         "sharedNetworkNote": "Il telefono e questo Mac devono condividere una rete: la stessa Wi-Fi o LAN, o lo stesso tailnet (ad esempio entrambi su Tailscale).",
         "fingerprintCopied": "Copiato"
+      },
+      "stallWatchdog": {
+        "label": "Guardiano dei blocchi",
+        "description": "Se qualcosa dentro VoxBar smette di rispondere, viene mostrata una notifica e l'app si riavvia invece di bloccarsi. La dettatura continua a funzionare."
       }
     },
     "postProcessing": {

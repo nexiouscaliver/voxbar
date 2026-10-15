@@ -1155,6 +1155,18 @@ pub fn change_memory_pressure_guard_setting(app: AppHandle, enabled: bool) -> Re
     Ok(())
 }
 
+/// KB-301: the stall watchdog toggle. Flipping it off silences the probes
+/// immediately (the supervisor re-reads the flag on every tick); flipping
+/// it on arms recovery from the next probe cycle onward.
+#[tauri::command]
+#[specta::specta]
+pub fn change_stall_watchdog_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.stall_watchdog_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
 /// Persist the memory-gate safety margin (Advanced settings). Mirrors the
 /// store-side load guard: margins of 1-4 MB are invalid (neither off nor a
 /// usable margin) and normalize to 0, so a value written here can never be

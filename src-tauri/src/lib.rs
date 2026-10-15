@@ -30,6 +30,7 @@ mod secure_input;
 mod settings;
 mod shortcut;
 mod signal_handle;
+mod stall_watchdog;
 mod transcription_coordinator;
 mod tray;
 mod tray_i18n;
@@ -252,6 +253,12 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     // Companion devices (phones as remote mics). Honors the OFF-by-default
     // setting: an inert manager with no listener/threads until enabled.
     companion::init(app_handle);
+
+    // KB-301: the stall watchdog (toggleable, default on). Probes the core
+    // companion locks every few seconds ON THROWAWAY THREADS; a strand
+    // becomes a logged error, a notification, and a self-restart instead
+    // of a force-quit freeze for the user.
+    stall_watchdog::start(app_handle.clone());
 
     // KB-010: watch the lid (clamshell) state so a warm always-on stream
     // re-resolves the desired microphone the moment the lid flips, instead
@@ -1276,6 +1283,10 @@ pub fn run(cli_args: CliArgs) {
         // async runtime would otherwise keep it (and its footprint probes)
         // alive past the UI it exists to update.
         tauri::RunEvent::Exit => {
+            // KB-301: the quit fuse. Everything below is best effort and
+            // historically strandable (the v1.6.8 quit freeze); the fuse
+            // guarantees the process always completes its exit.
+            stall_watchdog::arm_exit_fuse();
             // KB-151: quitting during an active mute_while_recording session
             // must not strand the macOS system output muted - restore the
             // snapshotted prior state (no-op when we did not mute). Best
@@ -1316,6 +1327,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             shortcut::change_hold_threshold_ms_setting,
             shortcut::change_audio_feedback_setting,
             shortcut::change_memory_pressure_guard_setting,
+            shortcut::change_stall_watchdog_setting,
             shortcut::change_memory_gate_headroom_setting,
             shortcut::change_companion_devices_setting,
             shortcut::reset_companion_pairing,

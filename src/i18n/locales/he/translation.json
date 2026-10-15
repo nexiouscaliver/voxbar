@@ -482,7 +482,8 @@
         "model": "מודל וזיכרון",
         "transcription": "תמלול",
         "experimental": "ניסיוני",
-        "postProcessing": "עיבוד משלים"
+        "postProcessing": "עיבוד משלים",
+        "stability": "יציבות"
       },
       "experimentalToggle": {
         "label": "תכונות ניסיוניות",
@@ -728,6 +729,10 @@
         "qrPreviewNote": "תצוגה מקדימה: כתובת URL זו תפורסם בהפעלה הבאה של השרת.",
         "sharedNetworkNote": "הטלפון וה-Mac הזה חייבים לחלוק רשת: אותו Wi-Fi או LAN, או אותו tailnet (למשל שניהם ב-Tailscale).",
         "fingerprintCopied": "הועתק"
+      },
+      "stallWatchdog": {
+        "label": "משגיח קיפאון",
+        "description": "אם משהו בתוך VoxBar מפסיק להגיב, מוצגת התראה והאפליקציה מופעלת מחדש במקום להיתקע. ההכתבה ממשיכה לעבוד."
       }
     },
     "postProcessing": {

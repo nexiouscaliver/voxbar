@@ -482,7 +482,8 @@
         "model": "मॉडल और मेमोरी",
         "transcription": "ट्रांसक्रिप्शन",
         "experimental": "प्रायोगिक",
-        "postProcessing": "पोस्ट प्रोसेसिंग"
+        "postProcessing": "पोस्ट प्रोसेसिंग",
+        "stability": "स्थिरता"
       },
       "experimentalToggle": {
         "label": "प्रायोगिक सुविधाएं",
@@ -728,6 +729,10 @@
         "qrPreviewNote": "पूर्वावलोकन: सर्वर के अगले शुरू होने पर यह URL घोषित किया जाएगा।",
         "sharedNetworkNote": "फ़ोन और यह Mac एक ही नेटवर्क पर होने चाहिए: एक ही Wi-Fi या LAN, या एक ही tailnet (जैसे दोनों Tailscale पर)।",
         "fingerprintCopied": "कॉपी हो गया"
+      },
+      "stallWatchdog": {
+        "label": "स्टाल वॉचडॉग",
+        "description": "अगर VoxBar के अंदर कुछ जवाब देना बंद कर दे, तो एक सूचना दिखती है और ऐप अटकने के बजाय खुद को फिर से चालू करता है। डिक्टेशन चलता रहता है।"
       }
     },
     "postProcessing": {

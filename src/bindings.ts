@@ -54,6 +54,19 @@ async changeMemoryPressureGuardSetting(enabled: boolean) : Promise<Result<null, 
 }
 },
 /**
+ * KB-301: the stall watchdog toggle. Flipping it off silences the probes
+ * immediately (the supervisor re-reads the flag on every tick); flipping
+ * it on arms recovery from the next probe cycle onward.
+ */
+async changeStallWatchdogSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_stall_watchdog_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Persist the memory-gate safety margin (Advanced settings). Mirrors the
  * store-side load guard: margins of 1-4 MB are invalid (neither off nor a
  * usable margin) and normalize to 0, so a value written here can never be
@@ -1946,6 +1959,13 @@ companion_devices_enabled?: boolean;
  * Port for the companion TLS/WebSocket server on the LAN interface.
  */
 companion_port?: number; 
+/**
+ * KB-301 (v1.6.9): the stall watchdog. When core internal state
+ * becomes unacquirable for ~15 seconds the app logs the stall, shows
+ * a notification, and restarts itself instead of hanging until a
+ * force quit. Default ON (a visible recovery beats a freeze).
+ */
+stall_watchdog_enabled?: boolean; 
 /**
  * 128-bit hex pairing token, generated on enable/reset and bound to
  * the advertised interface's /24 subnet. A peer from a different

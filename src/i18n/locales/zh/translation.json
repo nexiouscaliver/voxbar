@@ -482,7 +482,8 @@
         "model": "模型与内存",
         "transcription": "转录",
         "experimental": "实验性",
-        "postProcessing": "后处理"
+        "postProcessing": "后处理",
+        "stability": "稳定性"
       },
       "experimentalToggle": {
         "label": "实验性功能",
@@ -728,6 +729,10 @@
         "qrPreviewNote": "预览：服务器下次启动后将公布此 URL。",
         "sharedNetworkNote": "手机和这台 Mac 必须处于同一网络：同一 Wi-Fi 或局域网，或同一 tailnet（例如都加入 Tailscale）。",
         "fingerprintCopied": "已复制"
+      },
+      "stallWatchdog": {
+        "label": "卡死看门狗",
+        "description": "如果 VoxBar 内部某个组件停止响应，会显示通知并自动重启，而不是卡死。听写功能继续可用。"
       }
     },
     "postProcessing": {

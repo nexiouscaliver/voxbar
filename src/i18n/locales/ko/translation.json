@@ -482,7 +482,8 @@
         "model": "모델 및 메모리",
         "transcription": "전사",
         "experimental": "실험적",
-        "postProcessing": "후처리"
+        "postProcessing": "후처리",
+        "stability": "안정성"
       },
       "experimentalToggle": {
         "label": "실험적 기능",
@@ -728,6 +729,10 @@
         "qrPreviewNote": "미리보기: 서버가 다음에 시작되면 이 URL이 알려집니다.",
         "sharedNetworkNote": "휴대폰과 이 Mac은 같은 네트워크에 있어야 합니다: 같은 Wi-Fi 또는 LAN, 혹은 같은 tailnet(예: 둘 다 Tailscale).",
         "fingerprintCopied": "복사됨"
+      },
+      "stallWatchdog": {
+        "label": "정지 감시자",
+        "description": "VoxBar 내부의 무언가 응답을 멈추면 알림을 표시하고 멈추는 대신 다시 시작합니다. 받아쓰기는 계속 작동합니다."
       }
     },
     "postProcessing": {
